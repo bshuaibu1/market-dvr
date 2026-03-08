@@ -201,7 +201,7 @@ export default function Index() {
       </section>
 
       {/* Features */}
-      <section className="max-w-5xl mx-auto px-4 md:px-6 py-24">
+      <section className="max-w-5xl mx-auto px-4 md:px-6 pt-12 pb-24">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {features.map((f, i) => (
             <motion.div

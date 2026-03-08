@@ -48,11 +48,23 @@ export const baseAssets: AssetWithClass[] = [
   { symbol: 'USD/CAD', name: 'Canadian Dollar', price: 1.3580, change: -0.06, spread: 0.00016, confidence: 0.96, volatile: false, sparkline: [], assetClass: 'forex' },
 ];
 
-function generateSparkline(base: number, volatility: number): number[] {
+function generateSparkline(base: number, volatility: number, assetClass?: string): number[] {
   const points: number[] = [];
   let current = base;
   for (let i = 0; i < 60; i++) {
-    current += (Math.random() - 0.5) * volatility * base;
+    if (assetClass === 'crypto') {
+      // Sharp spikes and recoveries
+      const spike = Math.random() < 0.08 ? (Math.random() - 0.5) * 0.025 * base : 0;
+      current += (Math.random() - 0.5) * volatility * base * 3 + spike;
+    } else if (assetClass === 'commodities') {
+      // Smoother, moderate swings
+      current += (Math.random() - 0.5) * volatility * base * 2.5;
+    } else if (assetClass === 'forex') {
+      // Very slow drift, tiny movements
+      current += (Math.random() - 0.5) * volatility * base * 2;
+    } else {
+      current += (Math.random() - 0.5) * volatility * base;
+    }
     points.push(current);
   }
   return points;
@@ -61,7 +73,7 @@ function generateSparkline(base: number, volatility: number): number[] {
 export function getInitialAssets(): AssetWithClass[] {
   return baseAssets.map(a => ({
     ...a,
-    sparkline: generateSparkline(a.price, a.assetClass === 'forex' ? 0.0001 : a.assetClass === 'commodities' ? 0.0005 : 0.001),
+    sparkline: generateSparkline(a.price, a.assetClass === 'forex' ? 0.0002 : a.assetClass === 'commodities' ? 0.001 : 0.003, a.assetClass),
   }));
 }
 
@@ -69,11 +81,11 @@ export function tickAsset(asset: AssetWithClass): AssetWithClass {
   const assetClass = 'assetClass' in asset ? asset.assetClass : 'crypto';
   let volatility: number;
   if (assetClass === 'forex') {
-    volatility = asset.volatile ? 0.00008 : 0.00003;
+    volatility = asset.volatile ? 0.00015 : 0.00006;
   } else if (assetClass === 'commodities') {
-    volatility = asset.volatile ? 0.0004 : 0.00015;
-  } else {
     volatility = asset.volatile ? 0.0008 : 0.0003;
+  } else {
+    volatility = asset.volatile ? 0.0018 : 0.0007;
   }
   const delta = (Math.random() - 0.5) * volatility * asset.price;
   const newPrice = asset.price + delta;
