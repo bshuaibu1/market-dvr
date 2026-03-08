@@ -145,14 +145,12 @@ export default function ReplayPage() {
   const spreadLine = data.map((d, i) => `${toX(i)},${60 - (d.spread / maxSpread) * 55}`).join(' ');
   const spreadFillPoly = `0,60 ${spreadLine} ${chartWidth},60`;
 
-  // Event markers: blue = standard events, orange = max spread, purple = max confidence expansion, white = peak volatility
   const eventPositions = [140, 165, 300, 350];
 
-  // AI marker positions (mock)
+  // AI marker positions
   const maxSpreadIdx = spreads.indexOf(Math.max(...spreads));
   const confidences = data.map(d => d.confidence);
   const minConfIdx = confidences.indexOf(Math.min(...confidences));
-  // Peak volatility: biggest price delta
   let peakVolIdx = 0;
   let peakVolDelta = 0;
   for (let i = 1; i < data.length; i++) {
@@ -162,6 +160,16 @@ export default function ReplayPage() {
 
   const pct1 = ((current.price - startPrice1) / startPrice1 * 100).toFixed(2);
   const pct2 = compareCurrent ? ((compareCurrent.price - startPrice2) / startPrice2 * 100).toFixed(2) : '0';
+
+  // Metric row hover style
+  const metricRowStyle = {
+    borderRadius: 8,
+    padding: '6px 8px',
+    margin: '-6px -8px',
+    transition: 'all 0.15s ease',
+    cursor: 'default',
+    willChange: 'transform, box-shadow' as const,
+  };
 
   return (
     <div className="min-h-screen bg-background pt-14">
@@ -286,8 +294,15 @@ export default function ReplayPage() {
             )}
           </div>
 
-          {/* Chart */}
-          <div className="flex-1 min-h-0 relative">
+          {/* Chart with inner glow */}
+          <div
+            className="flex-1 min-h-0 relative rounded-xl"
+            style={{
+              boxShadow: isLight
+                ? 'inset 0 1px 0 rgba(230,0,122,0.12)'
+                : 'inset 0 1px 0 rgba(230,0,122,0.2)',
+            }}
+          >
             <div className="absolute top-3 left-4 z-10">
               <span className="text-2xl tabular-nums text-foreground font-medium">${formatPrice(current.price)}</span>
             </div>
@@ -332,18 +347,14 @@ export default function ReplayPage() {
           {/* Shock Propagation */}
           <ShockPropagation />
 
-          {/* Playback controls */}
+          {/* Playback controls — glassmorphism */}
           <div className="mt-6 flex flex-col items-center gap-3">
             <div className="w-full relative h-6 flex items-center">
-              {/* Standard event markers (pink) */}
               {eventPositions.map((pos, i) => (
                 <div key={i} className="absolute -top-1 w-2 h-2 rotate-45" style={{ left: `${(pos / data.length) * 100}%`, background: '#e6007a', outline: isLight ? '1.5px solid #1d1d1f' : 'none' }} />
               ))}
-              {/* AI markers: orange = max spread */}
               <div className="absolute -top-1 w-2 h-2 rotate-45" style={{ left: `${(maxSpreadIdx / data.length) * 100}%`, background: '#f97316', outline: isLight ? '1.5px solid #1d1d1f' : '1px solid rgba(249,115,22,0.5)' }} title="Max Spread" />
-              {/* AI markers: purple = max confidence expansion */}
               <div className="absolute -top-1 w-2 h-2 rotate-45" style={{ left: `${(minConfIdx / data.length) * 100}%`, background: '#9333ea', outline: isLight ? '1.5px solid #1d1d1f' : '1px solid rgba(147,51,234,0.5)' }} title="Max Confidence Expansion" />
-              {/* AI markers: white = peak volatility */}
               <div className="absolute -top-1 w-2 h-2 rotate-45" style={{ left: `${(peakVolIdx / data.length) * 100}%`, background: isLight ? '#1d1d1f' : '#f5f5f7', outline: isLight ? '1.5px solid #1d1d1f' : '1px solid rgba(255,255,255,0.5)' }} title="Peak Volatility" />
               {useCompare && [120, 280, 380].map((pos, i) => (
                 <div key={`c${i}`} className="absolute -top-1 w-2 h-2 rotate-45" style={{ left: `${(pos / data.length) * 100}%`, background: isLight ? '#e6007a' : '#0a84ff', outline: isLight ? '1.5px solid #1d1d1f' : 'none' }} />
@@ -361,7 +372,16 @@ export default function ReplayPage() {
               />
             </div>
 
-            <div className="frosted-glass rounded-full px-4 py-2 flex items-center gap-4">
+            <div
+              className="rounded-full px-4 py-2 flex items-center gap-4"
+              style={{
+                background: isLight ? 'rgba(255,255,255,0.7)' : 'rgba(255,255,255,0.06)',
+                backdropFilter: 'blur(16px)',
+                WebkitBackdropFilter: 'blur(16px)',
+                border: `1px solid ${isLight ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.08)'}`,
+                boxShadow: isLight ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+              }}
+            >
               <button onClick={() => setFrame(Math.max(0, frame - 10))} className="text-muted-foreground hover:text-foreground apple-transition">
                 <SkipBack size={16} />
               </button>
@@ -393,13 +413,22 @@ export default function ReplayPage() {
           </div>
         </div>
 
-        {/* Right Panel with tabs */}
+        {/* Right Panel — Frosted glass floating inspector */}
         <motion.div
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.4 }}
-          className="w-full lg:w-80 frosted-glass border-l border-border p-6 overflow-y-auto"
-          style={{ borderLeft: '2px solid #e6007a' }}
+          className="w-full lg:w-80 p-6 overflow-y-auto"
+          style={{
+            background: isLight ? 'rgba(255,255,255,0.7)' : 'rgba(255,255,255,0.04)',
+            backdropFilter: 'blur(20px)',
+            WebkitBackdropFilter: 'blur(20px)',
+            border: `1px solid ${isLight ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.08)'}`,
+            borderLeft: '2px solid #e6007a',
+            boxShadow: isLight
+              ? '-4px 0 24px rgba(0,0,0,0.06)'
+              : '-4px 0 24px rgba(0,0,0,0.3)',
+          }}
         >
           {/* Tab selector */}
           <div className="flex items-center gap-1 p-1 rounded-full surface-1 mb-6">
@@ -454,7 +483,7 @@ export default function ReplayPage() {
                   </div>
                 </div>
               ) : (
-                <div className="space-y-4">
+                <div className="space-y-1">
                   {[
                     { label: 'PRICE', value: `$${formatPrice(current.price)}`, change: priceChange },
                     { label: 'BID', value: `$${formatPrice(current.bid)}` },
@@ -464,7 +493,25 @@ export default function ReplayPage() {
                     { label: 'FRAME', value: `${frame} / ${data.length}` },
                     { label: 'RESOLUTION', value: timeframe },
                   ].map(row => (
-                    <div key={row.label}>
+                    <div
+                      key={row.label}
+                      className="rounded-lg px-2 py-2 -mx-2"
+                      style={{ transition: 'all 0.15s ease', willChange: 'transform, box-shadow' }}
+                      onMouseEnter={e => {
+                        e.currentTarget.style.transform = 'translateY(-1px)';
+                        e.currentTarget.style.boxShadow = isLight
+                          ? '0 4px 12px rgba(0,0,0,0.1)'
+                          : '0 4px 12px rgba(0,0,0,0.3)';
+                        e.currentTarget.style.background = isLight
+                          ? 'rgba(0,0,0,0.02)'
+                          : 'rgba(255,255,255,0.04)';
+                      }}
+                      onMouseLeave={e => {
+                        e.currentTarget.style.transform = 'translateY(0)';
+                        e.currentTarget.style.boxShadow = 'none';
+                        e.currentTarget.style.background = 'transparent';
+                      }}
+                    >
                       <div className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground mb-0.5">{row.label}</div>
                       <div className="flex items-center gap-2">
                         <span className="text-[15px] tabular-nums text-foreground font-medium">{row.value}</span>

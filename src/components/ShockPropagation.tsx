@@ -68,11 +68,11 @@ export default function ShockPropagation() {
                         background: 'rgba(230, 0, 122, 0.15)',
                         border: '2px solid #e6007a',
                         color: '#e6007a',
+                        boxShadow: '0 2px 8px rgba(230,0,122,0.3)',
                       }}
                     >
                       {mockShockData.primary}
                     </div>
-                    {/* Pulse animation */}
                     <motion.div
                       className="absolute inset-0 rounded-full"
                       style={{ border: '2px solid #e6007a' }}
@@ -83,7 +83,7 @@ export default function ShockPropagation() {
                   <span className="text-[10px] font-medium text-foreground">Source</span>
                 </motion.div>
 
-                {/* Reacting assets */}
+                {/* Reacting assets — 3D pill nodes */}
                 {mockShockData.reactingAssets.map((asset, i) => (
                   <motion.div
                     key={asset.symbol}
@@ -112,8 +112,28 @@ export default function ShockPropagation() {
                           background: asset.reacted
                             ? (isLight ? 'rgba(0,0,0,0.04)' : 'rgba(255,255,255,0.06)')
                             : (isLight ? 'rgba(0,0,0,0.02)' : 'rgba(255,255,255,0.03)'),
-                          border: `1px solid ${asset.reacted ? (isLight ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.1)') : (isLight ? 'rgba(0,0,0,0.04)' : 'rgba(255,255,255,0.04)')}`,
+                          border: `1px solid ${asset.reacted ? (isLight ? 'rgba(0,0,0,0.12)' : 'rgba(255,255,255,0.12)') : (isLight ? 'rgba(0,0,0,0.04)' : 'rgba(255,255,255,0.04)')}`,
                           color: asset.reacted ? (isLight ? '#1d1d1f' : '#f5f5f7') : (isLight ? '#999' : '#555'),
+                          boxShadow: asset.reacted
+                            ? (isLight ? '0 2px 8px rgba(0,0,0,0.1)' : '0 2px 8px rgba(0,0,0,0.4)')
+                            : 'none',
+                          transition: 'all 0.15s ease',
+                          willChange: 'transform, box-shadow',
+                          cursor: asset.reacted ? 'pointer' : 'default',
+                        }}
+                        onMouseEnter={e => {
+                          if (!asset.reacted) return;
+                          e.currentTarget.style.transform = 'translateY(-2px)';
+                          e.currentTarget.style.boxShadow = isLight
+                            ? '0 4px 16px rgba(0,0,0,0.15)'
+                            : '0 6px 20px rgba(0,0,0,0.6)';
+                        }}
+                        onMouseLeave={e => {
+                          if (!asset.reacted) return;
+                          e.currentTarget.style.transform = 'translateY(0)';
+                          e.currentTarget.style.boxShadow = isLight
+                            ? '0 2px 8px rgba(0,0,0,0.1)'
+                            : '0 2px 8px rgba(0,0,0,0.4)';
                         }}
                       >
                         {asset.symbol}

@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import DVRDevice from '@/components/DVRDevice';
@@ -37,19 +38,89 @@ const fadeUp = {
   }),
 };
 
+// Generate particle positions once
+const particles = Array.from({ length: 40 }, () => ({
+  x: Math.random() * 100,
+  y: Math.random() * 100,
+  delay: Math.random() * 8,
+  duration: 6 + Math.random() * 6,
+  size: 1.5 + Math.random() * 1,
+}));
+
 export default function Index() {
+  const heroRef = useRef<HTMLElement>(null);
+  const [tilt, setTilt] = useState({ x: 0, y: 0 });
+
+  const handleMouseMove = useCallback((e: React.MouseEvent) => {
+    if (!heroRef.current) return;
+    const rect = heroRef.current.getBoundingClientRect();
+    const cx = rect.left + rect.width / 2;
+    const cy = rect.top + rect.height / 2;
+    const px = (e.clientX - cx) / (rect.width / 2); // -1 to 1
+    const py = (e.clientY - cy) / (rect.height / 2);
+    setTilt({ x: py * -6, y: px * 6 }); // ±6deg
+  }, []);
+
+  const handleMouseLeave = useCallback(() => {
+    setTilt({ x: 0, y: 0 });
+  }, []);
+
   return (
     <div className="min-h-screen bg-background overflow-hidden">
       {/* Hero */}
-      <section className="relative flex flex-col items-center justify-center px-6 pt-32 pb-16">
+      <section
+        ref={heroRef}
+        onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
+        className="relative flex flex-col items-center justify-center px-6 pt-32 pb-16"
+      >
         {/* Background orb */}
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/3 w-[600px] h-[600px] gradient-orb opacity-40 blur-3xl pointer-events-none" />
+
+        {/* Large radial glow behind DVR */}
+        <div
+          className="absolute top-[28%] left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none"
+          style={{
+            width: 600,
+            height: 600,
+            background: 'radial-gradient(circle, rgba(230,0,122,0.15) 0%, rgba(230,0,122,0.05) 40%, transparent 70%)',
+            filter: 'blur(80px)',
+          }}
+        />
+
+        {/* Particle field */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          {particles.map((p, i) => (
+            <motion.div
+              key={i}
+              className="absolute rounded-full"
+              style={{
+                width: p.size,
+                height: p.size,
+                left: `${p.x}%`,
+                top: `${p.y}%`,
+                background: 'rgba(255,255,255,0.15)',
+                willChange: 'transform, opacity',
+              }}
+              animate={{
+                y: [0, -120, -180],
+                opacity: [0, 0.15, 0],
+              }}
+              transition={{
+                duration: p.duration,
+                delay: p.delay,
+                repeat: Infinity,
+                ease: 'linear',
+              }}
+            />
+          ))}
+        </div>
 
         <motion.span
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.8 }}
-          className="label-caps mb-2"
+          className="label-caps mb-2 relative z-10"
         >
           Introducing
         </motion.span>
@@ -58,16 +129,28 @@ export default function Index() {
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.1, ease: [0.25, 0.46, 0.45, 0.94] }}
-          className="mb-6"
+          className="mb-6 relative z-10"
+          style={{
+            perspective: 1200,
+            willChange: 'transform',
+          }}
         >
-          <DVRDevice />
+          <div
+            style={{
+              transform: `perspective(1200px) rotateX(${8 + tilt.x}deg) rotateY(${-4 + tilt.y}deg)`,
+              transition: 'transform 0.1s ease-out',
+              willChange: 'transform',
+            }}
+          >
+            <DVRDevice />
+          </div>
         </motion.div>
 
         <motion.h1
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.3 }}
-          className="heading-thin text-center mb-4"
+          className="heading-thin text-center mb-4 relative z-10"
           style={{ fontSize: 'clamp(48px, 6vw, 80px)', fontWeight: 200 }}
         >
           The DVR for Financial Markets
@@ -77,18 +160,22 @@ export default function Index() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.45 }}
-          className="text-muted-foreground text-lg md:text-xl text-center max-w-[520px] mb-8 leading-relaxed"
+          className="text-muted-foreground text-lg md:text-xl text-center max-w-[520px] mb-8 leading-relaxed relative z-10"
         >
           Record every market crash, pump, and liquidation cascade.
           Replay it frame by frame at 50ms resolution. Share the moment.
         </motion.p>
 
-        {/* Featured Replay Preview */}
+        {/* Featured Replay Preview with subtle 3D lean */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.55 }}
-          className="mb-8"
+          className="mb-8 relative z-10"
+          style={{
+            transform: 'perspective(800px) rotateX(2deg)',
+            willChange: 'transform',
+          }}
         >
           <HeroReplayCard />
         </motion.div>
@@ -97,7 +184,7 @@ export default function Index() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.7 }}
-          className="flex items-center gap-3"
+          className="flex items-center gap-3 relative z-10"
         >
           <Link
             to="/live"
