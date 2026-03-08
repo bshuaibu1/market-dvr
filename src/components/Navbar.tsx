@@ -69,34 +69,6 @@ export default function Navbar() {
         })}
       </div>
 
-      {/* Mobile scrollable tabs */}
-      <div className="flex md:hidden flex-1 mx-3 overflow-x-auto scrollbar-hide">
-        <div className="flex items-center gap-1 rounded-full surface-1 p-1 whitespace-nowrap">
-          {tabs.map(tab => {
-            const active = location.pathname === tab.path;
-            return (
-              <Link
-                key={tab.path}
-                to={tab.path}
-                className="relative px-3 py-1.5 text-xs font-medium rounded-full apple-transition flex-shrink-0"
-              >
-                {active && (
-                  <motion.div
-                    layoutId="tab-indicator-mobile"
-                    className="absolute inset-0 rounded-full"
-                    style={{ background: isLight ? '#1d1d1f' : '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.3)' }}
-                    transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-                  />
-                )}
-                <span className={`relative z-10 ${active ? (isLight ? 'text-white' : 'text-black') : 'text-muted-foreground'}`}>
-                  {tab.label}
-                </span>
-              </Link>
-            );
-          })}
-        </div>
-      </div>
-
       {/* Desktop right icons */}
       <div className="hidden md:flex ml-auto items-center gap-2">
         <button
