@@ -1,10 +1,9 @@
 import { Link, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Sun, Moon, MoreHorizontal } from 'lucide-react';
+import { Sun, Moon } from 'lucide-react';
 import { AlertBell } from '@/components/AlertSystem';
 import { useTheme } from '@/components/ThemeProvider';
 import LogoMark from '@/components/LogoMark';
-import { useState, useRef, useEffect } from 'react';
 
 const tabs = [
   { label: 'Live', path: '/live' },
