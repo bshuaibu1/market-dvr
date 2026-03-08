@@ -283,7 +283,7 @@ export default function ReplayPage() {
             </div>
             {/* Use TimeframeChart for non-compare, non-default timeframes */}
             {!useCompare && timeframe !== '1s' ? (
-              <TimeframeChart rawData={data} timeframe={timeframe} frame={frame} chartWidth={chartWidth} chartHeight={chartHeight} />
+              <TimeframeChart rawData={data} timeframe={timeframe} frame={frame} chartWidth={chartWidth} chartHeight={chartHeight} isLight={isLight} />
             ) : (
               <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} className="w-full h-full" preserveAspectRatio="none">
                 {[0,1,2,3,4].map(i => (
