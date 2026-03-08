@@ -420,6 +420,7 @@ export default function ReplayPage() {
                 { label: 'SPREAD', value: `$${current.spread.toFixed(2)}` },
                 { label: 'CONFIDENCE', value: `${(current.confidence * 100).toFixed(1)}%` },
                 { label: 'FRAME', value: `${frame} / ${data.length}` },
+                { label: 'RESOLUTION', value: timeframe },
               ].map(row => (
                 <div key={row.label}>
                   <div className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground mb-0.5">{row.label}</div>
