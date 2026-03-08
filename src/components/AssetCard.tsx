@@ -10,7 +10,7 @@ export default function AssetCard({ asset }: Props) {
   const positive = asset.change >= 0;
 
   return (
-    <div className="surface-1 rounded-2xl p-6 card-hover cursor-pointer flex flex-col gap-3">
+    <div className="surface-1 rounded-2xl p-8 card-hover cursor-pointer flex flex-col gap-3">
       <div className="flex items-center justify-between">
         <span className="label-caps">{asset.symbol}</span>
         <div className={`w-2 h-2 rounded-full ${asset.volatile ? 'bg-negative' : 'bg-positive'}`} />
@@ -36,12 +36,12 @@ export default function AssetCard({ asset }: Props) {
       <div className="w-full h-1 rounded-full" style={{ background: 'rgba(255,255,255,0.06)' }}>
         <div
           className="h-full rounded-full apple-transition"
-          style={{ width: `${asset.confidence * 100}%`, background: '#e6007a' }}
+          style={{ width: `${asset.confidence * 100}%`, background: 'hsl(var(--primary))' }}
         />
       </div>
 
       <div className="mt-auto pt-2">
-        <SparklineChart data={asset.sparkline} positive={positive} width={200} height={56} />
+        <SparklineChart data={asset.sparkline} positive={positive} width={200} height={64} />
       </div>
     </div>
   );

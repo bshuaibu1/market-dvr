@@ -12,17 +12,68 @@ const filters = [
   { label: 'Confidence Drop ⚪', type: 'confidence' },
 ];
 
-const typeIcons: Record<string, { bg: string; color: string }> = {
-  crash: { bg: 'rgba(255,69,58,0.15)', color: '#ff453a' },
-  pump: { bg: 'rgba(50,215,75,0.15)', color: '#32d74b' },
-  spread: { bg: 'rgba(255,214,10,0.15)', color: '#ffd60a' },
-  confidence: { bg: 'rgba(134,134,139,0.15)', color: '#86868b' },
+const typeIcons: Record<string, { bg: string; color: string; glow: string }> = {
+  crash: { bg: 'rgba(255,69,58,0.15)', color: '#ff453a', glow: '0 0 20px rgba(255,69,58,0.3)' },
+  pump: { bg: 'rgba(50,215,75,0.15)', color: '#32d74b', glow: '0 0 20px rgba(50,215,75,0.3)' },
+  spread: { bg: 'rgba(255,214,10,0.15)', color: '#ffd60a', glow: '0 0 20px rgba(255,214,10,0.3)' },
+  confidence: { bg: 'rgba(134,134,139,0.15)', color: '#86868b', glow: '0 0 20px rgba(134,134,139,0.3)' },
 };
+
+function generateEventSparkline(type: string): number[] {
+  const points: number[] = [];
+  let val = 100;
+  for (let i = 0; i < 30; i++) {
+    const t = i / 29;
+    if (type === 'crash') {
+      if (t > 0.3 && t < 0.5) val -= 2 + Math.random() * 1.5;
+      else if (t > 0.5) val += 0.3 + Math.random() * 0.5;
+      else val += (Math.random() - 0.5) * 0.3;
+    } else if (type === 'pump') {
+      if (t > 0.3 && t < 0.6) val += 1.5 + Math.random() * 1;
+      else val += (Math.random() - 0.5) * 0.3;
+    } else if (type === 'spread') {
+      val += (Math.random() - 0.5) * (t > 0.3 && t < 0.6 ? 3 : 0.5);
+    } else {
+      val += (Math.random() - 0.5) * 0.8;
+    }
+    points.push(val);
+  }
+  return points;
+}
+
+function MiniSparkline({ data, color, width = 80, height = 32 }: { data: number[]; color: string; width?: number; height?: number }) {
+  if (data.length < 2) return null;
+  const min = Math.min(...data);
+  const max = Math.max(...data);
+  const range = max - min || 1;
+  const points = data.map((v, i) => {
+    const x = (i / (data.length - 1)) * width;
+    const y = height - ((v - min) / range) * height * 0.8 - height * 0.1;
+    return `${x},${y}`;
+  }).join(' ');
+
+  return (
+    <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} className="overflow-visible">
+      <polyline points={points} fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.8" />
+    </svg>
+  );
+}
+
+const featuredEvent = mockEvents[0]; // BTC flash crash
+const featuredSparkline = generateEventSparkline(featuredEvent.type);
+
+const stats = [
+  { label: 'Total Events Recorded', value: '847' },
+  { label: 'Crashes Detected', value: '12' },
+  { label: 'Avg Event Duration', value: '4.2s' },
+  { label: 'Most Active Asset', value: 'BTC/USD' },
+];
 
 export default function EventsPage() {
   const [activeFilter, setActiveFilter] = useState<string | null>(null);
-
   const filtered = activeFilter ? mockEvents.filter(e => e.type === activeFilter) : mockEvents;
+
+  const featIcon = typeIcons[featuredEvent.type];
 
   return (
     <div className="min-h-screen bg-background pt-14">
@@ -31,8 +82,40 @@ export default function EventsPage() {
       <div className="max-w-4xl mx-auto px-6 py-8">
         <h1 className="heading-thin text-3xl mb-8">Events</h1>
 
+        {/* Featured Event */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3 }}
+          className="surface-1 rounded-2xl p-6 mb-8 relative overflow-hidden"
+          style={{ border: '1px solid rgba(255,255,255,0.08)' }}
+        >
+          <div className="text-[11px] uppercase tracking-[0.08em] font-medium mb-3" style={{ color: '#e6007a' }}>
+            Most Dramatic Event
+          </div>
+          <div className="flex items-start justify-between gap-6">
+            <div className="flex-1">
+              <div className="text-lg font-medium text-foreground mb-1">{featuredEvent.asset}</div>
+              <div className="text-sm text-muted-foreground leading-relaxed mb-2">{featuredEvent.description}</div>
+              <div className="text-xs text-muted-foreground mb-4">{featuredEvent.timestamp}</div>
+              <Link
+                to="/replay"
+                className="inline-flex items-center px-5 py-2.5 rounded-xl text-sm font-medium text-primary-foreground apple-transition"
+                style={{ background: '#e6007a' }}
+                onMouseEnter={e => (e.currentTarget.style.opacity = '0.85')}
+                onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
+              >
+                Replay this moment →
+              </Link>
+            </div>
+            <div className="flex-shrink-0">
+              <MiniSparkline data={featuredSparkline} color={featIcon.color} width={180} height={64} />
+            </div>
+          </div>
+        </motion.div>
+
         {/* Filter bar */}
-        <div className="flex items-center gap-2 mb-8 flex-wrap">
+        <div className="flex items-center gap-2 mb-6 flex-wrap">
           {filters.map(f => (
             <button
               key={f.label}
@@ -41,6 +124,16 @@ export default function EventsPage() {
             >
               {f.label}
             </button>
+          ))}
+        </div>
+
+        {/* Stats bar */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
+          {stats.map(stat => (
+            <div key={stat.label} className="surface-1 rounded-2xl p-4" style={{ border: '1px solid rgba(255,255,255,0.08)' }}>
+              <div className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground mb-2">{stat.label}</div>
+              <div className="text-xl font-medium text-foreground tabular-nums">{stat.value}</div>
+            </div>
           ))}
         </div>
 
@@ -57,6 +150,7 @@ export default function EventsPage() {
 
 function EventCard({ event, index }: { event: MarketEvent; index: number }) {
   const icon = typeIcons[event.type];
+  const sparkline = generateEventSparkline(event.type);
 
   return (
     <motion.div
@@ -65,8 +159,11 @@ function EventCard({ event, index }: { event: MarketEvent; index: number }) {
       transition={{ delay: index * 0.05, duration: 0.3 }}
       className="surface-1 rounded-2xl p-5 card-hover flex items-center gap-4"
     >
-      <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: icon.bg }}>
-        <div className="w-3 h-3 rounded-full" style={{ background: icon.color }} />
+      <div
+        className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0"
+        style={{ background: icon.bg, boxShadow: icon.glow }}
+      >
+        <div className="w-3.5 h-3.5 rounded-full" style={{ background: icon.color }} />
       </div>
 
       <div className="flex-1 min-w-0">
@@ -75,10 +172,16 @@ function EventCard({ event, index }: { event: MarketEvent; index: number }) {
         <div className="text-xs text-muted-foreground mt-1">{event.timestamp}</div>
       </div>
 
+      <div className="flex-shrink-0 hidden sm:block">
+        <MiniSparkline data={sparkline} color={icon.color} width={80} height={32} />
+      </div>
+
       <Link
         to="/replay"
-        className="px-4 py-2 rounded-xl text-xs font-medium text-muted-foreground apple-transition hover:text-foreground"
+        className="px-4 py-2 rounded-xl text-xs font-medium text-muted-foreground apple-transition hover:text-primary-foreground"
         style={{ border: '1px solid rgba(255,255,255,0.08)' }}
+        onMouseEnter={e => { e.currentTarget.style.background = '#e6007a'; e.currentTarget.style.borderColor = '#e6007a'; }}
+        onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'; }}
       >
         Replay →
       </Link>
