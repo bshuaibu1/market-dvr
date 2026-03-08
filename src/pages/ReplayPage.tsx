@@ -8,6 +8,8 @@ import ShortcutsModal from '@/components/ShortcutsModal';
 import ShareModal from '@/components/ShareModal';
 import TimeframeChart, { isRawTimeframe, isVolumeTimeframe, getTicksPerCandle, getCandleCount } from '@/components/TimeframeChart';
 import { useTheme } from '@/components/ThemeProvider';
+import MarketAutopsy from '@/components/MarketAutopsy';
+import ShockPropagation from '@/components/ShockPropagation';
 
 const timeframes = ['50ms', '200ms', '1s', '5s', '30s', '1m', '5m', '15m', '1h'];
 const timeframeLabels: Record<string, string> = {
@@ -25,6 +27,7 @@ export default function ReplayPage() {
   const [selectedAsset, setSelectedAsset] = useState('BTC/USD');
   const [compareMode, setCompareMode] = useState(false);
   const [compareAsset, setCompareAsset] = useState('ETH/USD');
+  const [inspectorTab, setInspectorTab] = useState<'inspector' | 'autopsy'>('inspector');
 
   const assetInfo = allAssetsList.find(a => a.symbol === selectedAsset);
   const compareInfo = allAssetsList.find(a => a.symbol === compareAsset);
@@ -61,7 +64,6 @@ export default function ReplayPage() {
     return () => clearInterval(playRef.current);
   }, [playing, speed, data.length]);
 
-  // Keyboard shortcuts
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     if (e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement) return;
     switch (e.code) {
@@ -90,15 +92,12 @@ export default function ReplayPage() {
   const prev = data[Math.max(0, frame - 1)];
   const priceChange = current.price - prev.price;
 
-  // Compare mode: normalize to % change
   const useCompare = compareMode && compareData.length > 0;
   const compareCurrent = useCompare ? compareData[frame] : null;
 
-  // Chart rendering
   const chartWidth = 800;
   const chartHeight = 300;
 
-  // For compare mode we normalize both to % change
   const startPrice1 = data[0].price;
   const startPrice2 = useCompare ? compareData[0].price : 0;
 
@@ -141,13 +140,25 @@ export default function ReplayPage() {
       + ' ' + [...data].reverse().map((d, i) => `${toX(data.length - 1 - i)},${toY(d.price - (1 - d.confidence) * 100)}`).join(' ');
   }
 
-  // Spread chart (only in single mode)
   const spreads = data.map(d => d.spread);
   const maxSpread = Math.max(...spreads);
   const spreadLine = data.map((d, i) => `${toX(i)},${60 - (d.spread / maxSpread) * 55}`).join(' ');
   const spreadFillPoly = `0,60 ${spreadLine} ${chartWidth},60`;
 
+  // Event markers: blue = standard events, orange = max spread, purple = max confidence expansion, white = peak volatility
   const eventPositions = [140, 165, 300, 350];
+
+  // AI marker positions (mock)
+  const maxSpreadIdx = spreads.indexOf(Math.max(...spreads));
+  const confidences = data.map(d => d.confidence);
+  const minConfIdx = confidences.indexOf(Math.min(...confidences));
+  // Peak volatility: biggest price delta
+  let peakVolIdx = 0;
+  let peakVolDelta = 0;
+  for (let i = 1; i < data.length; i++) {
+    const d = Math.abs(data[i].price - data[i - 1].price);
+    if (d > peakVolDelta) { peakVolDelta = d; peakVolIdx = i; }
+  }
 
   const pct1 = ((current.price - startPrice1) / startPrice1 * 100).toFixed(2);
   const pct2 = compareCurrent ? ((compareCurrent.price - startPrice2) / startPrice2 * 100).toFixed(2) : '0';
@@ -166,7 +177,7 @@ export default function ReplayPage() {
                 value={selectedAsset}
                 onChange={e => { setSelectedAsset(e.target.value); setFrame(250); setPlaying(false); }}
                 className="h-9 rounded-xl bg-background text-foreground text-sm px-3 font-medium focus:outline-none"
-                style={{ border: '1px solid rgba(255,255,255,0.08)' }}
+                style={{ border: `1px solid ${isLight ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.08)'}` }}
               >
                 {allAssetsList.map(a => (
                   <option key={a.symbol} value={a.symbol}>{a.symbol}</option>
@@ -174,13 +185,12 @@ export default function ReplayPage() {
               </select>
               <span className="label-caps">Replay</span>
 
-              {/* Compare toggle */}
               <button
                 onClick={() => setCompareMode(!compareMode)}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium apple-transition ${compareMode ? 'text-foreground' : 'text-muted-foreground'}`}
                 style={{
-                  background: compareMode ? 'rgba(10,132,255,0.15)' : 'rgba(255,255,255,0.04)',
-                  border: compareMode ? '1px solid #0a84ff' : '1px solid rgba(255,255,255,0.08)',
+                  background: compareMode ? 'rgba(10,132,255,0.15)' : (isLight ? 'rgba(0,0,0,0.03)' : 'rgba(255,255,255,0.04)'),
+                  border: compareMode ? '1px solid #0a84ff' : `1px solid ${isLight ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.08)'}`,
                 }}
               >
                 <GitCompareArrows size={14} /> Compare
@@ -193,7 +203,7 @@ export default function ReplayPage() {
                     value={compareAsset}
                     onChange={e => setCompareAsset(e.target.value)}
                     className="h-9 rounded-xl bg-background text-foreground text-sm px-3 focus:outline-none"
-                    style={{ border: '1px solid rgba(255,255,255,0.08)' }}
+                    style={{ border: `1px solid ${isLight ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.08)'}` }}
                   >
                     {allAssetsList.filter(a => a.symbol !== selectedAsset).map(a => (
                       <option key={a.symbol} value={a.symbol}>{a.symbol}</option>
@@ -222,15 +232,15 @@ export default function ReplayPage() {
           {useCompare ? (
             <div className="flex items-center gap-4 mb-4">
               <div className="flex items-center gap-2">
-                <div className="w-3 h-0.5 rounded" style={{ background: '#f5f5f7' }} />
+                <div className="w-3 h-0.5 rounded" style={{ background: isLight ? '#0055d4' : '#f5f5f7' }} />
                 <span className="text-xs text-foreground font-medium">{selectedAsset}</span>
                 <span className={`text-xs tabular-nums ${parseFloat(pct1) >= 0 ? 'text-positive' : 'text-negative'}`}>
                   {parseFloat(pct1) >= 0 ? '+' : ''}{pct1}%
                 </span>
               </div>
               <div className="flex items-center gap-2">
-                <div className="w-3 h-0.5 rounded" style={{ background: '#0a84ff' }} />
-                <span className="text-xs font-medium" style={{ color: '#0a84ff' }}>{compareAsset}</span>
+                <div className="w-3 h-0.5 rounded" style={{ background: isLight ? '#e6007a' : '#0a84ff' }} />
+                <span className="text-xs font-medium" style={{ color: isLight ? '#e6007a' : '#0a84ff' }}>{compareAsset}</span>
                 <span className={`text-xs tabular-nums ${parseFloat(pct2) >= 0 ? 'text-positive' : 'text-negative'}`}>
                   {parseFloat(pct2) >= 0 ? '+' : ''}{pct2}%
                 </span>
@@ -248,7 +258,7 @@ export default function ReplayPage() {
                   onClick={t.toggle}
                   className={`px-3 py-1 rounded-full text-xs font-medium apple-transition ${t.active ? 'surface-2 inner-glow text-foreground' : 'text-muted-foreground'}`}
                 >
-                  <span className="inline-block w-1.5 h-1.5 rounded-full mr-1.5" style={{ background: t.active ? t.color : 'rgba(255,255,255,0.2)' }} />
+                  <span className="inline-block w-1.5 h-1.5 rounded-full mr-1.5" style={{ background: t.active ? t.color : (isLight ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.2)') }} />
                   {t.label}
                 </button>
               ))}
@@ -281,7 +291,6 @@ export default function ReplayPage() {
             <div className="absolute top-3 left-4 z-10">
               <span className="text-2xl tabular-nums text-foreground font-medium">${formatPrice(current.price)}</span>
             </div>
-            {/* Use TimeframeChart for non-compare, non-default timeframes */}
             {!useCompare && timeframe !== '1s' ? (
               <TimeframeChart rawData={data} timeframe={timeframe} frame={frame} chartWidth={chartWidth} chartHeight={chartHeight} isLight={isLight} />
             ) : (
@@ -290,9 +299,7 @@ export default function ReplayPage() {
                   <line key={i} x1="0" y1={i * chartHeight / 4} x2={chartWidth} y2={i * chartHeight / 4} stroke={isLight ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.03)'} />
                 ))}
                 {!useCompare && showConfidence && confFill && (
-                  <>
-                    <polygon points={confFill} fill={isLight ? 'rgba(230,0,122,0.12)' : 'rgba(230,0,122,0.06)'} stroke={isLight ? '#e6007a' : 'none'} strokeWidth={isLight ? '1.5' : '0'} />
-                  </>
+                  <polygon points={confFill} fill={isLight ? 'rgba(230,0,122,0.12)' : 'rgba(230,0,122,0.06)'} stroke={isLight ? '#e6007a' : 'none'} strokeWidth={isLight ? '1.5' : '0'} />
                 )}
                 {!useCompare && showBid && bidLine && <polyline points={bidLine} fill="none" stroke={isLight ? '#0055d4' : '#0a84ff'} strokeWidth={isLight ? '2.5' : '1'} opacity={isLight ? '1' : '0.6'} />}
                 {!useCompare && showAsk && askLine && <polyline points={askLine} fill="none" stroke={isLight ? '#cc0000' : '#ff453a'} strokeWidth={isLight ? '2.5' : '1'} opacity={isLight ? '1' : '0.6'} />}
@@ -322,12 +329,22 @@ export default function ReplayPage() {
             </div>
           )}
 
+          {/* Shock Propagation */}
+          <ShockPropagation />
+
           {/* Playback controls */}
           <div className="mt-6 flex flex-col items-center gap-3">
             <div className="w-full relative h-6 flex items-center">
+              {/* Standard event markers (pink) */}
               {eventPositions.map((pos, i) => (
                 <div key={i} className="absolute -top-1 w-2 h-2 rotate-45" style={{ left: `${(pos / data.length) * 100}%`, background: '#e6007a', outline: isLight ? '1.5px solid #1d1d1f' : 'none' }} />
               ))}
+              {/* AI markers: orange = max spread */}
+              <div className="absolute -top-1 w-2 h-2 rotate-45" style={{ left: `${(maxSpreadIdx / data.length) * 100}%`, background: '#f97316', outline: isLight ? '1.5px solid #1d1d1f' : '1px solid rgba(249,115,22,0.5)' }} title="Max Spread" />
+              {/* AI markers: purple = max confidence expansion */}
+              <div className="absolute -top-1 w-2 h-2 rotate-45" style={{ left: `${(minConfIdx / data.length) * 100}%`, background: '#9333ea', outline: isLight ? '1.5px solid #1d1d1f' : '1px solid rgba(147,51,234,0.5)' }} title="Max Confidence Expansion" />
+              {/* AI markers: white = peak volatility */}
+              <div className="absolute -top-1 w-2 h-2 rotate-45" style={{ left: `${(peakVolIdx / data.length) * 100}%`, background: isLight ? '#1d1d1f' : '#f5f5f7', outline: isLight ? '1.5px solid #1d1d1f' : '1px solid rgba(255,255,255,0.5)' }} title="Peak Volatility" />
               {useCompare && [120, 280, 380].map((pos, i) => (
                 <div key={`c${i}`} className="absolute -top-1 w-2 h-2 rotate-45" style={{ left: `${(pos / data.length) * 100}%`, background: isLight ? '#e6007a' : '#0a84ff', outline: isLight ? '1.5px solid #1d1d1f' : 'none' }} />
               ))}
@@ -376,7 +393,7 @@ export default function ReplayPage() {
           </div>
         </div>
 
-        {/* Frame Inspector */}
+        {/* Right Panel with tabs */}
         <motion.div
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
@@ -384,77 +401,120 @@ export default function ReplayPage() {
           className="w-full lg:w-80 frosted-glass border-l border-border p-6 overflow-y-auto"
           style={{ borderLeft: '2px solid #e6007a' }}
         >
-          <h2 className="label-caps mb-6">Frame Inspector</h2>
+          {/* Tab selector */}
+          <div className="flex items-center gap-1 p-1 rounded-full surface-1 mb-6">
+            <button
+              onClick={() => setInspectorTab('inspector')}
+              className={`px-3 py-1.5 rounded-full text-[11px] font-medium apple-transition flex-1 text-center ${inspectorTab === 'inspector' ? 'surface-2 inner-glow text-foreground' : 'text-muted-foreground'}`}
+            >
+              Frame Inspector
+            </button>
+            <button
+              onClick={() => setInspectorTab('autopsy')}
+              className={`px-3 py-1.5 rounded-full text-[11px] font-medium apple-transition flex-1 text-center ${inspectorTab === 'autopsy' ? 'text-foreground' : 'text-muted-foreground'}`}
+              style={inspectorTab === 'autopsy' ? { background: '#e6007a', color: '#fff' } : {}}
+            >
+              Autopsy
+            </button>
+          </div>
 
-          {useCompare && compareCurrent ? (
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <div className="text-xs font-medium text-foreground mb-3">{selectedAsset}</div>
-                {[
-                  { label: 'PRICE', value: `$${formatPrice(current.price)}` },
-                  { label: 'BID', value: `$${formatPrice(current.bid)}` },
-                  { label: 'ASK', value: `$${formatPrice(current.ask)}` },
-                  { label: 'SPREAD', value: `$${current.spread.toFixed(2)}` },
-                  { label: 'CONF', value: `${(current.confidence * 100).toFixed(1)}%` },
-                ].map(row => (
-                  <div key={row.label} className="mb-2">
-                    <div className="text-[9px] uppercase tracking-[0.08em] text-muted-foreground">{row.label}</div>
-                    <div className="text-[13px] tabular-nums text-foreground font-medium">{row.value}</div>
+          {inspectorTab === 'inspector' ? (
+            <>
+              {useCompare && compareCurrent ? (
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <div className="text-xs font-medium text-foreground mb-3">{selectedAsset}</div>
+                    {[
+                      { label: 'PRICE', value: `$${formatPrice(current.price)}` },
+                      { label: 'BID', value: `$${formatPrice(current.bid)}` },
+                      { label: 'ASK', value: `$${formatPrice(current.ask)}` },
+                      { label: 'SPREAD', value: `$${current.spread.toFixed(2)}` },
+                      { label: 'CONF', value: `${(current.confidence * 100).toFixed(1)}%` },
+                    ].map(row => (
+                      <div key={row.label} className="mb-2">
+                        <div className="text-[9px] uppercase tracking-[0.08em] text-muted-foreground">{row.label}</div>
+                        <div className="text-[13px] tabular-nums text-foreground font-medium">{row.value}</div>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-              <div>
-                <div className="text-xs font-medium mb-3" style={{ color: '#0a84ff' }}>{compareAsset}</div>
-                {[
-                  { label: 'PRICE', value: `$${formatPrice(compareCurrent.price)}` },
-                  { label: 'BID', value: `$${formatPrice(compareCurrent.bid)}` },
-                  { label: 'ASK', value: `$${formatPrice(compareCurrent.ask)}` },
-                  { label: 'SPREAD', value: `$${compareCurrent.spread.toFixed(2)}` },
-                  { label: 'CONF', value: `${(compareCurrent.confidence * 100).toFixed(1)}%` },
-                ].map(row => (
-                  <div key={row.label} className="mb-2">
-                    <div className="text-[9px] uppercase tracking-[0.08em] text-muted-foreground">{row.label}</div>
-                    <div className="text-[13px] tabular-nums text-foreground font-medium">{row.value}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {[
-                { label: 'PRICE', value: `$${formatPrice(current.price)}`, change: priceChange },
-                { label: 'BID', value: `$${formatPrice(current.bid)}` },
-                { label: 'ASK', value: `$${formatPrice(current.ask)}` },
-                { label: 'SPREAD', value: `$${current.spread.toFixed(2)}` },
-                { label: 'CONFIDENCE', value: `${(current.confidence * 100).toFixed(1)}%` },
-                { label: 'FRAME', value: `${frame} / ${data.length}` },
-                { label: 'RESOLUTION', value: timeframe },
-              ].map(row => (
-                <div key={row.label}>
-                  <div className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground mb-0.5">{row.label}</div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-[15px] tabular-nums text-foreground font-medium">{row.value}</span>
-                    {'change' in row && row.change !== undefined && (
-                      <span className={`text-xs tabular-nums ${row.change >= 0 ? 'text-positive' : 'text-negative'}`}>
-                        {row.change >= 0 ? '+' : ''}{row.change.toFixed(2)}
-                      </span>
-                    )}
+                  <div>
+                    <div className="text-xs font-medium mb-3" style={{ color: '#0a84ff' }}>{compareAsset}</div>
+                    {[
+                      { label: 'PRICE', value: `$${formatPrice(compareCurrent.price)}` },
+                      { label: 'BID', value: `$${formatPrice(compareCurrent.bid)}` },
+                      { label: 'ASK', value: `$${formatPrice(compareCurrent.ask)}` },
+                      { label: 'SPREAD', value: `$${compareCurrent.spread.toFixed(2)}` },
+                      { label: 'CONF', value: `${(compareCurrent.confidence * 100).toFixed(1)}%` },
+                    ].map(row => (
+                      <div key={row.label} className="mb-2">
+                        <div className="text-[9px] uppercase tracking-[0.08em] text-muted-foreground">{row.label}</div>
+                        <div className="text-[13px] tabular-nums text-foreground font-medium">{row.value}</div>
+                      </div>
+                    ))}
                   </div>
                 </div>
-              ))}
-            </div>
-          )}
+              ) : (
+                <div className="space-y-4">
+                  {[
+                    { label: 'PRICE', value: `$${formatPrice(current.price)}`, change: priceChange },
+                    { label: 'BID', value: `$${formatPrice(current.bid)}` },
+                    { label: 'ASK', value: `$${formatPrice(current.ask)}` },
+                    { label: 'SPREAD', value: `$${current.spread.toFixed(2)}` },
+                    { label: 'CONFIDENCE', value: `${(current.confidence * 100).toFixed(1)}%` },
+                    { label: 'FRAME', value: `${frame} / ${data.length}` },
+                    { label: 'RESOLUTION', value: timeframe },
+                  ].map(row => (
+                    <div key={row.label}>
+                      <div className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground mb-0.5">{row.label}</div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[15px] tabular-nums text-foreground font-medium">{row.value}</span>
+                        {'change' in row && row.change !== undefined && (
+                          <span className={`text-xs tabular-nums ${row.change >= 0 ? 'text-positive' : 'text-negative'}`}>
+                            {row.change >= 0 ? '+' : ''}{row.change.toFixed(2)}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
 
-          <div className="mt-8">
-            <h3 className="label-caps mb-3">Timeline Events</h3>
-            <div className="flex flex-wrap gap-2">
-              {['Flash Crash', 'Spread Spike', 'Recovery', 'Confidence Drop'].map(tag => (
-                <span key={tag} className="px-3 py-1 rounded-full surface-1 text-[11px] text-muted-foreground font-medium">
-                  {tag}
-                </span>
-              ))}
-            </div>
-          </div>
+              <div className="mt-8">
+                <h3 className="label-caps mb-3">Timeline Events</h3>
+                <div className="flex flex-wrap gap-2">
+                  {['Flash Crash', 'Spread Spike', 'Recovery', 'Confidence Drop'].map(tag => (
+                    <span key={tag} className="px-3 py-1 rounded-full surface-1 text-[11px] text-muted-foreground font-medium">
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              {/* AI Marker Legend */}
+              <div className="mt-6">
+                <h3 className="label-caps mb-3">AI Markers</h3>
+                <div className="space-y-2">
+                  {[
+                    { color: '#f97316', label: 'Max Spread', frame: maxSpreadIdx },
+                    { color: '#9333ea', label: 'Max Confidence Expansion', frame: minConfIdx },
+                    { color: isLight ? '#1d1d1f' : '#f5f5f7', label: 'Peak Volatility', frame: peakVolIdx },
+                  ].map(m => (
+                    <button
+                      key={m.label}
+                      onClick={() => setFrame(m.frame)}
+                      className="flex items-center gap-2 w-full text-left apple-transition hover:opacity-80"
+                    >
+                      <div className="w-2 h-2 rotate-45 flex-shrink-0" style={{ background: m.color }} />
+                      <span className="text-[11px] text-muted-foreground">{m.label}</span>
+                      <span className="text-[10px] tabular-nums text-muted-foreground ml-auto">#{m.frame}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </>
+          ) : (
+            <MarketAutopsy />
+          )}
         </motion.div>
       </div>
 

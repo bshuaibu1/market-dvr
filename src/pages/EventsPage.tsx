@@ -10,6 +10,7 @@ const filters = [
   { label: 'Pump 🟢', type: 'pump' },
   { label: 'Spread Spike 🟡', type: 'spread' },
   { label: 'Confidence Drop ⚪', type: 'confidence' },
+  { label: 'Divergence 🟣', type: 'divergence' },
 ];
 
 const typeIcons: Record<string, { bg: string; color: string; glow: string }> = {
@@ -17,6 +18,7 @@ const typeIcons: Record<string, { bg: string; color: string; glow: string }> = {
   pump: { bg: 'rgba(50,215,75,0.15)', color: '#32d74b', glow: '0 0 20px rgba(50,215,75,0.3)' },
   spread: { bg: 'rgba(255,214,10,0.15)', color: '#ffd60a', glow: '0 0 20px rgba(255,214,10,0.3)' },
   confidence: { bg: 'rgba(134,134,139,0.15)', color: '#86868b', glow: '0 0 20px rgba(134,134,139,0.3)' },
+  divergence: { bg: 'rgba(147,51,234,0.15)', color: '#9333ea', glow: '0 0 20px rgba(147,51,234,0.3)' },
 };
 
 function generateEventSparkline(type: string): number[] {
@@ -33,6 +35,9 @@ function generateEventSparkline(type: string): number[] {
       else val += (Math.random() - 0.5) * 0.3;
     } else if (type === 'spread') {
       val += (Math.random() - 0.5) * (t > 0.3 && t < 0.6 ? 3 : 0.5);
+    } else if (type === 'divergence') {
+      // Erratic movement showing disagreement
+      val += (Math.random() - 0.5) * (t > 0.2 && t < 0.7 ? 4 : 0.3);
     } else {
       val += (Math.random() - 0.5) * 0.8;
     }
@@ -59,6 +64,19 @@ function MiniSparkline({ data, color, width = 80, height = 32 }: { data: number[
   );
 }
 
+// Add confidence divergence events to existing events
+const divergenceEvents: MarketEvent[] = [
+  { id: 'd1', type: 'confidence' as any, asset: 'ETH/USD', description: 'Confidence divergence — price sources disagreed by 2.8% for 12 seconds', timestamp: '18 min ago', color: '#9333ea' },
+  { id: 'd2', type: 'confidence' as any, asset: 'SOL/USD', description: 'Confidence divergence — exchange prices diverged sharply during liquidation cascade', timestamp: '52 min ago', color: '#9333ea' },
+];
+
+// Extend events with divergence type
+const allEventsRaw = [
+  ...mockEvents,
+  { ...divergenceEvents[0], type: 'divergence' as any },
+  { ...divergenceEvents[1], type: 'divergence' as any },
+].sort(() => Math.random() - 0.5); // shuffle for realism
+
 const featuredEvent = mockEvents[0]; // BTC flash crash
 const featuredSparkline = generateEventSparkline(featuredEvent.type);
 
@@ -71,7 +89,7 @@ const stats = [
 
 export default function EventsPage() {
   const [activeFilter, setActiveFilter] = useState<string | null>(null);
-  const filtered = activeFilter ? mockEvents.filter(e => e.type === activeFilter) : mockEvents;
+  const filtered = activeFilter ? allEventsRaw.filter(e => e.type === activeFilter) : allEventsRaw;
 
   const featIcon = typeIcons[featuredEvent.type];
 
@@ -149,8 +167,9 @@ export default function EventsPage() {
 }
 
 function EventCard({ event, index }: { event: MarketEvent; index: number }) {
-  const icon = typeIcons[event.type];
+  const icon = typeIcons[event.type] || typeIcons.confidence;
   const sparkline = generateEventSparkline(event.type);
+  const isDivergence = event.type === ('divergence' as any);
 
   return (
     <motion.div
@@ -167,8 +186,27 @@ function EventCard({ event, index }: { event: MarketEvent; index: number }) {
       </div>
 
       <div className="flex-1 min-w-0">
-        <div className="text-sm font-medium text-foreground">{event.asset}</div>
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-medium text-foreground">{event.asset}</span>
+          {isDivergence && (
+            <span
+              className="text-[9px] uppercase tracking-widest font-semibold px-2 py-0.5 rounded-full"
+              style={{
+                background: 'rgba(147,51,234,0.15)',
+                color: '#9333ea',
+                border: '1px solid rgba(147,51,234,0.3)',
+              }}
+            >
+              Divergence
+            </span>
+          )}
+        </div>
         <div className="text-sm text-muted-foreground truncate">{event.description}</div>
+        {isDivergence && (
+          <div className="flex items-center gap-3 mt-1">
+            <span className="text-[10px] tabular-nums text-muted-foreground">Confidence: <span className="text-foreground font-medium">92.1%</span> → <span style={{ color: '#9333ea' }} className="font-medium">54.3%</span></span>
+          </div>
+        )}
         <div className="text-xs text-muted-foreground mt-1">{event.timestamp}</div>
       </div>
 
