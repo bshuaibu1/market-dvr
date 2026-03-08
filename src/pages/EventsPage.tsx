@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import Navbar from '@/components/Navbar';
+import { mockEvents, MarketEvent } from '@/lib/mockData';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 
