@@ -2,9 +2,16 @@ import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import Navbar from '@/components/Navbar';
 import { generateReplayData, formatPrice, allAssetsList } from '@/lib/mockData';
 import { motion } from 'framer-motion';
-import { Play, Pause, SkipBack, SkipForward, Share2, Keyboard, GitCompareArrows } from 'lucide-react';
+import { Play, Pause, SkipBack, SkipForward, Share2, Keyboard, GitCompareArrows, Zap } from 'lucide-react';
 import ShortcutsModal from '@/components/ShortcutsModal';
 import ShareModal from '@/components/ShareModal';
+import TimeframeChart, { isRawTimeframe, isVolumeTimeframe, getTicksPerCandle, getCandleCount } from '@/components/TimeframeChart';
+
+const timeframes = ['50ms', '200ms', '1s', '5s', '30s', '1m', '5m', '15m', '1h'];
+const timeframeLabels: Record<string, string> = {
+  '50ms': '50ms', '200ms': '200ms', '1s': '1s', '5s': '5s', '30s': '30s',
+  '1m': '1m', '5m': '5m', '15m': '15m', '1h': '1h',
+};
 
 const speeds = ['0.25x', '0.5x', '1x', '2x', '4x'];
 const speedMap: Record<string, number> = { '0.25x': 200, '0.5x': 100, '1x': 50, '2x': 25, '4x': 12 };
