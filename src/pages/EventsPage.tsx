@@ -314,7 +314,7 @@ function EventCard({ event, index, isLight }: { event: MarketEvent; index: numbe
         e.currentTarget.style.borderTopColor = L ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.06)';
         e.currentTarget.style.borderRightColor = L ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.06)';
         e.currentTarget.style.borderBottomColor = L ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.06)';
-      }
+      }}
     >
       {/* Badge — fixed width */}
       <span
