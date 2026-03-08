@@ -204,21 +204,34 @@ export default function LivePage() {
 
       <div className="max-w-6xl mx-auto px-6 py-8">
         {/* Tab Bar */}
-        <div className="flex items-center gap-2 mb-8">
-          {tabs.map(tab => (
-            <button
-              key={tab.value}
-              onClick={() => setActiveTab(tab.value)}
-              className="px-4 py-1.5 rounded-full text-sm font-medium apple-transition"
-              style={{
-                background: activeTab === tab.value ? '#f5f5f7' : 'transparent',
-                color: activeTab === tab.value ? '#0d0d0d' : '#86868b',
-                border: activeTab === tab.value ? 'none' : '1px solid rgba(255,255,255,0.08)',
-              }}
-            >
-              {tab.label}
-            </button>
-          ))}
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-8">
+          <div className="flex items-center gap-2">
+            {tabs.map(tab => (
+              <button
+                key={tab.value}
+                onClick={() => setActiveTab(tab.value)}
+                className="px-4 py-1.5 rounded-full text-sm font-medium apple-transition"
+                style={{
+                  background: activeTab === tab.value ? '#f5f5f7' : 'transparent',
+                  color: activeTab === tab.value ? '#0d0d0d' : '#86868b',
+                  border: activeTab === tab.value ? 'none' : '1px solid rgba(255,255,255,0.08)',
+                }}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+          <div className="relative sm:ml-auto w-full sm:w-[220px]">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <input
+              type="text"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Search assets..."
+              className="w-full h-9 pl-8 pr-3 rounded-2xl text-sm text-foreground placeholder:text-muted-foreground bg-transparent apple-transition focus:outline-none"
+              style={{ border: '1px solid rgba(255,255,255,0.08)' }}
+            />
+          </div>
         </div>
 
         {/* Content */}
