@@ -2,9 +2,16 @@ import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import Navbar from '@/components/Navbar';
 import { generateReplayData, formatPrice, allAssetsList } from '@/lib/mockData';
 import { motion } from 'framer-motion';
-import { Play, Pause, SkipBack, SkipForward, Share2, Keyboard, GitCompareArrows } from 'lucide-react';
+import { Play, Pause, SkipBack, SkipForward, Share2, Keyboard, GitCompareArrows, Zap } from 'lucide-react';
 import ShortcutsModal from '@/components/ShortcutsModal';
 import ShareModal from '@/components/ShareModal';
+import TimeframeChart, { isRawTimeframe, isVolumeTimeframe, getTicksPerCandle, getCandleCount } from '@/components/TimeframeChart';
+
+const timeframes = ['50ms', '200ms', '1s', '5s', '30s', '1m', '5m', '15m', '1h'];
+const timeframeLabels: Record<string, string> = {
+  '50ms': '50ms', '200ms': '200ms', '1s': '1s', '5s': '5s', '30s': '30s',
+  '1m': '1m', '5m': '5m', '15m': '15m', '1h': '1h',
+};
 
 const speeds = ['0.25x', '0.5x', '1x', '2x', '4x'];
 const speedMap: Record<string, number> = { '0.25x': 200, '0.5x': 100, '1x': 50, '2x': 25, '4x': 12 };
@@ -29,6 +36,11 @@ export default function ReplayPage() {
   const [showConfidence, setShowConfidence] = useState(true);
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [showShare, setShowShare] = useState(false);
+  const [timeframe, setTimeframe] = useState('1s');
+
+  const isRaw = isRawTimeframe(timeframe);
+  const showVol = isVolumeTimeframe(timeframe);
+  const totalFrames = isRaw ? data.length : getCandleCount(data.length, timeframe);
 
   const playRef = useRef<ReturnType<typeof setInterval>>();
 
@@ -237,28 +249,54 @@ export default function ReplayPage() {
                 </button>
               ))}
             </div>
-          )}
+           )}
+
+          {/* Timeframe selector pills */}
+          <div className="flex items-center gap-1.5 mb-4 flex-wrap">
+            <div className="flex items-center gap-0.5 p-1 rounded-full surface-1">
+              {timeframes.map(tf => (
+                <button
+                  key={tf}
+                  onClick={() => { setTimeframe(tf); setFrame(0); setPlaying(false); }}
+                  className={`px-2.5 py-1 rounded-full text-[11px] font-medium apple-transition ${timeframe === tf ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+                  style={timeframe === tf ? { background: '#e6007a', color: '#fff' } : {}}
+                >
+                  {timeframeLabels[tf]}
+                </button>
+              ))}
+            </div>
+            {isRaw && (
+              <span className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-semibold tracking-wide" style={{ color: '#e6007a', background: 'rgba(230,0,122,0.1)', border: '1px solid rgba(230,0,122,0.2)' }}>
+                <Zap size={10} /> Pyth Pro Only
+              </span>
+            )}
+          </div>
 
           {/* Chart */}
           <div className="flex-1 min-h-0 relative">
             <div className="absolute top-3 left-4 z-10">
               <span className="text-2xl tabular-nums text-foreground font-medium">${formatPrice(current.price)}</span>
             </div>
-            <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} className="w-full h-full" preserveAspectRatio="none">
-              {[0,1,2,3,4].map(i => (
-                <line key={i} x1="0" y1={i * chartHeight / 4} x2={chartWidth} y2={i * chartHeight / 4} stroke="rgba(255,255,255,0.03)" />
-              ))}
-              {!useCompare && showConfidence && confFill && <polygon points={confFill} fill="rgba(230,0,122,0.06)" />}
-              {!useCompare && showBid && bidLine && <polyline points={bidLine} fill="none" stroke="#0a84ff" strokeWidth="1" opacity="0.6" />}
-              {!useCompare && showAsk && askLine && <polyline points={askLine} fill="none" stroke="#ff453a" strokeWidth="1" opacity="0.6" />}
-              <polyline points={priceLine} fill="none" stroke="#f5f5f7" strokeWidth="2" />
-              {useCompare && compareLine && <polyline points={compareLine} fill="none" stroke="#0a84ff" strokeWidth="2" />}
-              <line x1={toX(frame)} y1="0" x2={toX(frame)} y2={chartHeight} stroke="rgba(255,255,255,0.15)" strokeWidth="1" strokeDasharray="4,4" />
-              <circle cx={toX(frame)} cy={useCompare ? toY(((current.price - startPrice1) / startPrice1) * 100) : toY(current.price)} r="4" fill="#f5f5f7" />
-              {useCompare && compareCurrent && (
-                <circle cx={toX(frame)} cy={toY(((compareCurrent.price - startPrice2) / startPrice2) * 100)} r="4" fill="#0a84ff" />
-              )}
-            </svg>
+            {/* Use TimeframeChart for non-compare, non-default timeframes */}
+            {!useCompare && timeframe !== '1s' ? (
+              <TimeframeChart rawData={data} timeframe={timeframe} frame={frame} chartWidth={chartWidth} chartHeight={chartHeight} />
+            ) : (
+              <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} className="w-full h-full" preserveAspectRatio="none">
+                {[0,1,2,3,4].map(i => (
+                  <line key={i} x1="0" y1={i * chartHeight / 4} x2={chartWidth} y2={i * chartHeight / 4} stroke="rgba(255,255,255,0.03)" />
+                ))}
+                {!useCompare && showConfidence && confFill && <polygon points={confFill} fill="rgba(230,0,122,0.06)" />}
+                {!useCompare && showBid && bidLine && <polyline points={bidLine} fill="none" stroke="#0a84ff" strokeWidth="1" opacity="0.6" />}
+                {!useCompare && showAsk && askLine && <polyline points={askLine} fill="none" stroke="#ff453a" strokeWidth="1" opacity="0.6" />}
+                <polyline points={priceLine} fill="none" stroke="#f5f5f7" strokeWidth="2" />
+                {useCompare && compareLine && <polyline points={compareLine} fill="none" stroke="#0a84ff" strokeWidth="2" />}
+                <line x1={toX(frame)} y1="0" x2={toX(frame)} y2={chartHeight} stroke="rgba(255,255,255,0.15)" strokeWidth="1" strokeDasharray="4,4" />
+                <circle cx={toX(frame)} cy={useCompare ? toY(((current.price - startPrice1) / startPrice1) * 100) : toY(current.price)} r="4" fill="#f5f5f7" />
+                {useCompare && compareCurrent && (
+                  <circle cx={toX(frame)} cy={toY(((compareCurrent.price - startPrice2) / startPrice2) * 100)} r="4" fill="#0a84ff" />
+                )}
+              </svg>
+            )}
           </div>
 
           {/* Spread panel (single mode only) */}
@@ -382,6 +420,7 @@ export default function ReplayPage() {
                 { label: 'SPREAD', value: `$${current.spread.toFixed(2)}` },
                 { label: 'CONFIDENCE', value: `${(current.confidence * 100).toFixed(1)}%` },
                 { label: 'FRAME', value: `${frame} / ${data.length}` },
+                { label: 'RESOLUTION', value: timeframe },
               ].map(row => (
                 <div key={row.label}>
                   <div className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground mb-0.5">{row.label}</div>
