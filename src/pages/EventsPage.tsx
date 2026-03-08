@@ -159,11 +159,7 @@ export default function EventsPage() {
         </div>
       </div>
       
-    </div>
-  );
-}
-
-function EventCard({event: MarketEvent; index: number }) {
+function EventCard({event: MarketEvent; event, index }: {  index: number }) {
   const icon = typeIcons[event.type] || typeIcons.confidence;
   const sparkline = generateEventSparkline(event.type);
   const isDivergence = event.type === ('divergence' as any);
