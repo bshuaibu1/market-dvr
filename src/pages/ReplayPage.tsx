@@ -453,7 +453,7 @@ export default function ReplayPage() {
 
           {/* Spread panel */}
           {!useCompare && (
-            <div className="mt-4" style={{ height: isMobile ? 56 : 64 }}>
+            <div className="mt-2 md:mt-4" style={{ height: isMobile ? 48 : 64 }}>
               <div className="flex items-center gap-3 mb-2">
                 <span className="label-caps">Spread Width</span>
                 <span className="text-sm tabular-nums text-foreground font-medium">${current.spread.toFixed(2)}</span>
