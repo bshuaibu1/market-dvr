@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Pause } from 'lucide-react';
+import { useTheme } from '@/components/ThemeProvider';
 
 // Generate a BTC flash crash: sharp drop over ~30% of frames, then partial recovery
 function generateFlashCrashData(length: number): number[] {
@@ -13,19 +14,16 @@ function generateFlashCrashData(length: number): number[] {
   for (let i = 0; i < length; i++) {
     let price: number;
     if (i <= crashEnd) {
-      // Sharp crash
       const t = i / crashEnd;
-      const ease = t * t; // accelerating drop
+      const ease = t * t;
       price = startPrice - (startPrice - crashBottom) * ease;
     } else if (i <= recoveryEnd) {
-      // Gradual recovery
       const t = (i - crashEnd) / (recoveryEnd - crashEnd);
-      const ease = 1 - (1 - t) * (1 - t); // decelerating recovery
+      const ease = 1 - (1 - t) * (1 - t);
       price = crashBottom + (recoveryTop - crashBottom) * ease;
     } else {
       price = recoveryTop + (Math.random() - 0.5) * 100;
     }
-    // Add small noise
     price += (Math.random() - 0.5) * 80;
     data.push(price);
   }
@@ -38,11 +36,13 @@ const flashCrashData = generateFlashCrashData(TOTAL_FRAMES);
 export default function HeroReplayCard() {
   const [frame, setFrame] = useState(0);
   const animRef = useRef<ReturnType<typeof setInterval>>();
+  const { theme } = useTheme();
+  const isLight = theme === 'light';
 
   useEffect(() => {
     animRef.current = setInterval(() => {
       setFrame(f => (f + 1) % TOTAL_FRAMES);
-    }, 50); // 15s loop at 50ms per frame = 300 frames
+    }, 50);
     return () => clearInterval(animRef.current);
   }, []);
 
@@ -55,7 +55,6 @@ export default function HeroReplayCard() {
   const toX = (i: number) => (i / (TOTAL_FRAMES - 1)) * chartW;
   const toY = (v: number) => chartH - ((v - minP) / rangeP) * chartH;
 
-  // Build path up to current frame
   const visiblePrices = prices.slice(0, frame + 1);
   const linePath = visiblePrices.map((p, i) => `${i === 0 ? 'M' : 'L'}${toX(i)},${toY(p)}`).join(' ');
   const fillPath = linePath + ` L${toX(frame)},${chartH} L0,${chartH} Z`;
@@ -68,9 +67,11 @@ export default function HeroReplayCard() {
       <div
         className="rounded-2xl overflow-hidden relative"
         style={{
-          background: 'rgba(255,255,255,0.04)',
-          border: '1px solid rgba(255,255,255,0.08)',
-          boxShadow: '0 0 40px rgba(230,0,122,0.12), 0 0 80px rgba(230,0,122,0.05)',
+          background: isLight ? '#ffffff' : 'rgba(255,255,255,0.04)',
+          border: isLight ? '1px solid rgba(0,0,0,0.1)' : '1px solid rgba(255,255,255,0.08)',
+          boxShadow: isLight
+            ? '0 0 40px rgba(230,0,122,0.08), 0 4px 20px rgba(0,0,0,0.06)'
+            : '0 0 40px rgba(230,0,122,0.12), 0 0 80px rgba(230,0,122,0.05)',
         }}
       >
         {/* Top bar */}
@@ -80,40 +81,43 @@ export default function HeroReplayCard() {
           </span>
           <div className="flex items-center gap-1.5">
             <div className="w-1.5 h-1.5 rounded-full bg-negative pulse-red" />
-            <span className="text-[10px] font-medium text-negative tracking-wide uppercase">REC was LIVE</span>
+            <span className="text-[10px] font-medium tracking-wide uppercase" style={{ color: isLight ? '#cc0000' : '#ff453a' }}>REC was LIVE</span>
           </div>
         </div>
 
         {/* Chart */}
         <div className="px-4 py-2">
           <svg viewBox={`0 0 ${chartW} ${chartH}`} className="w-full" style={{ height: 180 }} preserveAspectRatio="none">
-            {/* Grid */}
             {[0, 1, 2, 3].map(i => (
-              <line key={i} x1="0" y1={i * chartH / 3} x2={chartW} y2={i * chartH / 3} stroke="rgba(255,255,255,0.03)" />
+              <line key={i} x1="0" y1={i * chartH / 3} x2={chartW} y2={i * chartH / 3} stroke={isLight ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.03)'} />
             ))}
-            {/* Gradient fill */}
             <defs>
               <linearGradient id="heroGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#e6007a" stopOpacity="0.15" />
+                <stop offset="0%" stopColor="#e6007a" stopOpacity={isLight ? '0.08' : '0.15'} />
                 <stop offset="100%" stopColor="#e6007a" stopOpacity="0" />
               </linearGradient>
+              {isLight && (
+                <filter id="dotShadow" x="-50%" y="-50%" width="200%" height="200%">
+                  <feDropShadow dx="0" dy="1" stdDeviation="2" floodColor="#e6007a" floodOpacity="0.4" />
+                </filter>
+              )}
             </defs>
             <path d={fillPath} fill="url(#heroGrad)" />
-            <path d={linePath} fill="none" stroke="#f5f5f7" strokeWidth="1.5" />
+            <path d={linePath} fill="none" stroke={isLight ? '#1d1d1f' : '#f5f5f7'} strokeWidth={isLight ? '2.5' : '1.5'} />
             {/* Cursor dot */}
-            <circle cx={toX(frame)} cy={toY(currentPrice)} r="3" fill="#e6007a" />
-            <circle cx={toX(frame)} cy={toY(currentPrice)} r="6" fill="none" stroke="#e6007a" strokeWidth="0.8" opacity="0.4" />
+            <circle cx={toX(frame)} cy={toY(currentPrice)} r={isLight ? '4' : '3'} fill="#e6007a" filter={isLight ? 'url(#dotShadow)' : undefined} />
+            <circle cx={toX(frame)} cy={toY(currentPrice)} r={isLight ? '7' : '6'} fill="none" stroke="#e6007a" strokeWidth="0.8" opacity="0.4" />
           </svg>
         </div>
 
         {/* Mock DVR controls */}
         <div className="px-4 pb-3 flex items-center gap-3">
-          <div className="w-6 h-6 rounded-full flex items-center justify-center" style={{ background: 'rgba(255,255,255,0.08)' }}>
+          <div className="w-6 h-6 rounded-full flex items-center justify-center" style={{ background: isLight ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.08)' }}>
             <Pause size={10} className="text-foreground" />
           </div>
-          <div className="flex-1 h-1 rounded-full relative" style={{ background: 'rgba(255,255,255,0.08)' }}>
+          <div className="flex-1 h-1 rounded-full relative" style={{ background: isLight ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.08)' }}>
             <div className="absolute left-0 top-0 h-full rounded-full" style={{ width: `${scrubberPct}%`, background: '#e6007a' }} />
-            <div className="absolute top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full bg-foreground" style={{ left: `${scrubberPct}%`, transform: `translate(-50%, -50%)` }} />
+            <div className="absolute top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full" style={{ left: `${scrubberPct}%`, transform: 'translate(-50%, -50%)', background: isLight ? '#1d1d1f' : '#f5f5f7' }} />
           </div>
           <span className="text-[10px] tabular-nums text-muted-foreground font-medium">1x</span>
         </div>

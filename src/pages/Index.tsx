@@ -41,7 +41,7 @@ export default function Index() {
   return (
     <div className="min-h-screen bg-background overflow-hidden">
       {/* Hero */}
-      <section className="relative min-h-screen flex flex-col items-center justify-center px-6">
+      <section className="relative flex flex-col items-center justify-center px-6 pt-32 pb-16">
         {/* Background orb */}
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/3 w-[600px] h-[600px] gradient-orb opacity-40 blur-3xl pointer-events-none" />
 
@@ -49,7 +49,7 @@ export default function Index() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.8 }}
-          className="label-caps mb-4"
+          className="label-caps mb-2"
         >
           Introducing
         </motion.span>
@@ -58,7 +58,7 @@ export default function Index() {
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.1, ease: [0.25, 0.46, 0.45, 0.94] }}
-          className="mb-12"
+          className="mb-6"
         >
           <DVRDevice />
         </motion.div>
@@ -67,7 +67,7 @@ export default function Index() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.3 }}
-          className="heading-thin text-center mb-6"
+          className="heading-thin text-center mb-4"
           style={{ fontSize: 'clamp(48px, 6vw, 80px)', fontWeight: 200 }}
         >
           The DVR for Financial Markets
@@ -88,7 +88,7 @@ export default function Index() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.55 }}
-          className="mb-10"
+          className="mb-8"
         >
           <HeroReplayCard />
         </motion.div>

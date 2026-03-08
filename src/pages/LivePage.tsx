@@ -48,9 +48,18 @@ const classBadgeColors: Record<AssetClass, { bg: string; text: string }> = {
 };
 
 function MarketPulseChart({ assets }: { assets: AssetWithClass[] }) {
+  const { theme } = useTheme();
+  const isLight = theme === 'light';
   const width = 800;
   const height = 200;
   const padding = { top: 10, right: 10, bottom: 10, left: 10 };
+
+  // Light mode uses higher contrast colors for the 3 representative assets
+  const lightColors: Record<string, string> = {
+    'BTC/USD': '#1d1d1f',
+    'XAU/USD': '#b8860b',
+    'EUR/USD': '#0055d4',
+  };
 
   const lines = useMemo(() => {
     return assets.map(asset => {
@@ -77,7 +86,7 @@ function MarketPulseChart({ assets }: { assets: AssetWithClass[] }) {
         x1={padding.left} x2={width - padding.right}
         y1={padding.top + ((allMax - 0) / range) * chartH}
         y2={padding.top + ((allMax - 0) / range) * chartH}
-        stroke="rgba(255,255,255,0.06)" strokeWidth="1" strokeDasharray="4 4"
+        stroke={isLight ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.06)'} strokeWidth="1" strokeDasharray="4 4"
       />
       {lines.map(line => {
         const points = line.pctChanges.map((pct, i) => {
@@ -85,16 +94,19 @@ function MarketPulseChart({ assets }: { assets: AssetWithClass[] }) {
           const y = padding.top + ((allMax - pct) / range) * chartH;
           return `${x},${y}`;
         }).join(' ');
+        const color = isLight
+          ? (lightColors[line.symbol] || '#666666')
+          : (assetColors[line.symbol] || '#f5f5f7');
         return (
           <polyline
             key={line.symbol}
             points={points}
             fill="none"
-            stroke={assetColors[line.symbol] || '#f5f5f7'}
-            strokeWidth="1.5"
+            stroke={color}
+            strokeWidth={isLight ? '2.5' : '1.5'}
             strokeLinecap="round"
             strokeLinejoin="round"
-            opacity="0.8"
+            opacity={isLight ? '1' : '0.8'}
           />
         );
       })}
