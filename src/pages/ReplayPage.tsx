@@ -36,6 +36,11 @@ export default function ReplayPage() {
   const [showConfidence, setShowConfidence] = useState(true);
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [showShare, setShowShare] = useState(false);
+  const [timeframe, setTimeframe] = useState('1s');
+
+  const isRaw = isRawTimeframe(timeframe);
+  const showVol = isVolumeTimeframe(timeframe);
+  const totalFrames = isRaw ? data.length : getCandleCount(data.length, timeframe);
 
   const playRef = useRef<ReturnType<typeof setInterval>>();
 
