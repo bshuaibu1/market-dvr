@@ -177,6 +177,13 @@ function AllAssetsTable({ assets }: { assets: AssetWithClass[] }) {
 }
 
 export default function LivePage() {
+  const { theme } = useTheme();
+  const isLight = theme === 'light';
+  const lightLegendColors: Record<string, string> = {
+    'BTC/USD': '#1d1d1f',
+    'XAU/USD': '#b8860b',
+    'EUR/USD': '#0055d4',
+  };
   const [assets, setAssets] = useState(getInitialAssets);
   const [activeTab, setActiveTab] = useState<TabType>('all');
   const [search, setSearch] = useState('');
