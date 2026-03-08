@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import Navbar from '@/components/Navbar';
+import MobileBottomNav from '@/components/MobileBottomNav';
 import AssetCard from '@/components/AssetCard';
 import RecordingBar from '@/components/RecordingBar';
 import CorrelationMatrix from '@/components/CorrelationMatrix';
@@ -207,7 +208,7 @@ export default function LivePage() {
   const allEvents = mockEvents;
 
   return (
-    <div className="min-h-screen bg-background pt-14 pb-16">
+    <div className="min-h-screen bg-background pt-14 pb-16 max-md:pb-[calc(64px+52px)]">
       <Navbar />
 
       <div className="max-w-6xl mx-auto px-4 md:px-6 py-8">
@@ -319,6 +320,7 @@ export default function LivePage() {
       </div>
 
       <RecordingBar />
+      <MobileBottomNav />
     </div>
   );
 }

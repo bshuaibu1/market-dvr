@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import Navbar from '@/components/Navbar';
+import MobileBottomNav from '@/components/MobileBottomNav';
 import { generateReplayData, formatPrice, allAssetsList } from '@/lib/mockData';
 import { motion } from 'framer-motion';
 import { Play, Pause, SkipBack, SkipForward, Share2, Keyboard, GitCompareArrows } from 'lucide-react';
@@ -98,7 +99,7 @@ export default function ReplayPage() {
   const compareCurrent = useCompare ? compareData[frame] : null;
 
   const chartWidth = 800;
-  const chartHeight = isMobile ? 200 : 300;
+  const chartHeight = isMobile ? 220 : 300;
 
   const startPrice1 = data[0].price;
   const startPrice2 = useCompare ? compareData[0].price : 0;
@@ -296,7 +297,7 @@ export default function ReplayPage() {
   );
 
   return (
-    <div className="min-h-screen bg-background pt-14">
+    <div className="min-h-screen bg-background pt-14 max-md:pb-[68px]">
       <Navbar />
 
       <div className="flex flex-col lg:flex-row h-auto lg:h-[calc(100vh-56px)]">
@@ -397,7 +398,7 @@ export default function ReplayPage() {
            )}
 
           {/* Timeframe selector pills */}
-          <div className="flex items-center gap-1.5 mb-4">
+          <div className="flex items-center gap-1.5 mb-2 md:mb-4">
             <div className="flex items-center gap-0.5 p-1 rounded-full surface-1 overflow-x-auto scrollbar-hide">
               {timeframes.map(tf => (
                 <button
@@ -425,7 +426,7 @@ export default function ReplayPage() {
             }}
           >
             <div className="absolute top-3 left-4 z-10">
-              <span className="text-xl md:text-2xl tabular-nums text-foreground font-medium">${formatPrice(current.price)}</span>
+              <span className="text-[28px] md:text-2xl tabular-nums text-foreground font-medium">${formatPrice(current.price)}</span>
             </div>
             {!useCompare && timeframe !== '1s' ? (
               <TimeframeChart rawData={data} timeframe={timeframe} frame={frame} chartWidth={chartWidth} chartHeight={chartHeight} isLight={isLight} />
@@ -579,6 +580,7 @@ export default function ReplayPage() {
             : undefined
         }
       />
+      <MobileBottomNav />
     </div>
   );
 }

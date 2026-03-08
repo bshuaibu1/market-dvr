@@ -1,10 +1,9 @@
 import { Link, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Sun, Moon, MoreHorizontal } from 'lucide-react';
+import { Sun, Moon } from 'lucide-react';
 import { AlertBell } from '@/components/AlertSystem';
 import { useTheme } from '@/components/ThemeProvider';
 import LogoMark from '@/components/LogoMark';
-import { useState, useRef, useEffect } from 'react';
 
 const tabs = [
   { label: 'Live', path: '/live' },
@@ -17,17 +16,9 @@ export default function Navbar() {
   const location = useLocation();
   const { theme, toggleTheme } = useTheme();
   const isLight = theme === 'light';
-  const [moreOpen, setMoreOpen] = useState(false);
-  const moreRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (!moreOpen) return;
-    const handler = (e: MouseEvent) => {
-      if (moreRef.current && !moreRef.current.contains(e.target as Node)) setMoreOpen(false);
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [moreOpen]);
+
+
 
   return (
     <nav
@@ -69,34 +60,6 @@ export default function Navbar() {
         })}
       </div>
 
-      {/* Mobile scrollable tabs */}
-      <div className="flex md:hidden flex-1 mx-3 overflow-x-auto scrollbar-hide">
-        <div className="flex items-center gap-1 rounded-full surface-1 p-1 whitespace-nowrap">
-          {tabs.map(tab => {
-            const active = location.pathname === tab.path;
-            return (
-              <Link
-                key={tab.path}
-                to={tab.path}
-                className="relative px-3 py-1.5 text-xs font-medium rounded-full apple-transition flex-shrink-0"
-              >
-                {active && (
-                  <motion.div
-                    layoutId="tab-indicator-mobile"
-                    className="absolute inset-0 rounded-full"
-                    style={{ background: isLight ? '#1d1d1f' : '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.3)' }}
-                    transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-                  />
-                )}
-                <span className={`relative z-10 ${active ? (isLight ? 'text-white' : 'text-black') : 'text-muted-foreground'}`}>
-                  {tab.label}
-                </span>
-              </Link>
-            );
-          })}
-        </div>
-      </div>
-
       {/* Desktop right icons */}
       <div className="hidden md:flex ml-auto items-center gap-2">
         <button
@@ -113,41 +76,12 @@ export default function Navbar() {
         </div>
       </div>
 
-      {/* Mobile: recording dot + more menu */}
-      <div className="flex md:hidden items-center gap-2 ml-auto flex-shrink-0" ref={moreRef}>
+      {/* Mobile: REC indicator only */}
+      <div className="flex md:hidden items-center ml-auto flex-shrink-0">
         <div className="flex items-center gap-1.5 rounded-full px-2.5 py-1.5 surface-1">
           <div className="w-1.5 h-1.5 rounded-full bg-negative pulse-red" />
           <span className="text-[10px] font-medium text-negative tracking-wide uppercase">REC</span>
         </div>
-        <button
-          onClick={() => setMoreOpen(!moreOpen)}
-          className="w-9 h-9 rounded-full flex items-center justify-center surface-1 apple-transition text-muted-foreground"
-          aria-label="More options"
-        >
-          <MoreHorizontal size={16} />
-        </button>
-        {moreOpen && (
-          <div
-            className="absolute top-14 right-4 rounded-xl p-2 surface-1 flex flex-col gap-1 z-50"
-            style={{
-              border: `1px solid ${isLight ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.08)'}`,
-              boxShadow: '0 8px 30px rgba(0,0,0,0.2)',
-              minWidth: 160,
-            }}
-          >
-            <button
-              onClick={() => { toggleTheme(); setMoreOpen(false); }}
-              className="flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm text-foreground apple-transition hover:bg-accent/50"
-            >
-              {theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />}
-              {theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
-            </button>
-            <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm text-foreground">
-              <AlertBell />
-              <span>Alerts</span>
-            </div>
-          </div>
-        )}
       </div>
     </nav>
   );

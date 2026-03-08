@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import Navbar from '@/components/Navbar';
+import MobileBottomNav from '@/components/MobileBottomNav';
 import RecordingBar from '@/components/RecordingBar';
 import { getInitialAssets, tickAsset, formatPrice, AssetWithClass, AssetClass } from '@/lib/mockData';
 import { Link } from 'react-router-dom';
@@ -154,7 +155,7 @@ export default function HeatmapPage() {
   const stress = useMemo(() => getStressLabel(assets), [assets]);
 
   return (
-    <div className="min-h-screen bg-background pt-14 pb-16">
+    <div className="min-h-screen bg-background pt-14 pb-16 max-md:pb-[calc(64px+52px)]">
       <Navbar />
       <div className="max-w-6xl mx-auto px-4 md:px-6 py-8">
         <div className="mb-8">
@@ -199,6 +200,7 @@ export default function HeatmapPage() {
         </div>
       </div>
       <RecordingBar />
+      <MobileBottomNav />
     </div>
   );
 }
