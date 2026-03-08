@@ -58,10 +58,10 @@ function generateSparkline(base: number, volatility: number): number[] {
   return points;
 }
 
-export function getInitialAssets(): Asset[] {
+export function getInitialAssets(): AssetWithClass[] {
   return baseAssets.map(a => ({
     ...a,
-    sparkline: generateSparkline(a.price, 0.001),
+    sparkline: generateSparkline(a.price, a.assetClass === 'forex' ? 0.0001 : a.assetClass === 'commodities' ? 0.0005 : 0.001),
   }));
 }
 
