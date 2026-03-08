@@ -17,14 +17,8 @@ export default function Navbar() {
   const { theme, toggleTheme } = useTheme();
   const isLight = theme === 'light';
 
-  useEffect(() => {
-    if (!moreOpen) return;
-    const handler = (e: MouseEvent) => {
-      if (moreRef.current && !moreRef.current.contains(e.target as Node)) setMoreOpen(false);
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [moreOpen]);
+
+
 
   return (
     <nav

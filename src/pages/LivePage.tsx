@@ -320,6 +320,7 @@ export default function LivePage() {
       </div>
 
       <RecordingBar />
+      <MobileBottomNav />
     </div>
   );
 }

@@ -200,6 +200,7 @@ export default function HeatmapPage() {
         </div>
       </div>
       <RecordingBar />
+      <MobileBottomNav />
     </div>
   );
 }
