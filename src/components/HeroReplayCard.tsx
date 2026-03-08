@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react';
 import { Pause } from 'lucide-react';
 import { useTheme } from '@/components/ThemeProvider';
 
-// Generate a BTC flash crash: sharp drop over ~30% of frames, then partial recovery
 function generateFlashCrashData(length: number): number[] {
   const data: number[] = [];
   const startPrice = 84200;
@@ -63,7 +62,7 @@ export default function HeroReplayCard() {
   const scrubberPct = (frame / (TOTAL_FRAMES - 1)) * 100;
 
   return (
-    <div className="w-full max-w-[620px]">
+    <div className="w-full max-w-[620px] px-4 md:px-0">
       <div
         className="rounded-2xl overflow-hidden relative"
         style={{
@@ -75,7 +74,7 @@ export default function HeroReplayCard() {
         }}
       >
         {/* Top bar */}
-        <div className="flex items-center justify-between px-4 pt-3 pb-1">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between px-4 pt-3 pb-1 gap-1">
           <span className="text-[10px] text-muted-foreground font-medium tracking-wide">
             BTC/USD Flash Crash · Mar 4 2026 · 14:32:07 UTC
           </span>
@@ -87,7 +86,7 @@ export default function HeroReplayCard() {
 
         {/* Chart */}
         <div className="px-4 py-2">
-          <svg viewBox={`0 0 ${chartW} ${chartH}`} className="w-full" style={{ height: 180 }} preserveAspectRatio="none">
+          <svg viewBox={`0 0 ${chartW} ${chartH}`} className="w-full" style={{ height: 'clamp(120px, 30vw, 180px)' }} preserveAspectRatio="none">
             {[0, 1, 2, 3].map(i => (
               <line key={i} x1="0" y1={i * chartH / 3} x2={chartW} y2={i * chartH / 3} stroke={isLight ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.03)'} />
             ))}
@@ -104,7 +103,6 @@ export default function HeroReplayCard() {
             </defs>
             <path d={fillPath} fill="url(#heroGrad)" />
             <path d={linePath} fill="none" stroke={isLight ? '#1d1d1f' : '#f5f5f7'} strokeWidth={isLight ? '2.5' : '1.5'} />
-            {/* Cursor dot */}
             <circle cx={toX(frame)} cy={toY(currentPrice)} r={isLight ? '4' : '3'} fill="#e6007a" filter={isLight ? 'url(#dotShadow)' : undefined} />
             <circle cx={toX(frame)} cy={toY(currentPrice)} r={isLight ? '7' : '6'} fill="none" stroke="#e6007a" strokeWidth="0.8" opacity="0.4" />
           </svg>
