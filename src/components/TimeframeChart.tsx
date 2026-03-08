@@ -14,6 +14,7 @@ interface TimeframeChartProps {
   frame: number;
   chartWidth: number;
   chartHeight: number;
+  isLight?: boolean;
 }
 
 const ticksPerCandle: Record<string, number> = {
@@ -31,10 +32,16 @@ export function getCandleCount(rawLength: number, tf: string) {
   return Math.ceil(rawLength / tpc);
 }
 
-export default function TimeframeChart({ rawData, timeframe, frame, chartWidth, chartHeight }: TimeframeChartProps) {
+export default function TimeframeChart({ rawData, timeframe, frame, chartWidth, chartHeight, isLight = false }: TimeframeChartProps) {
   const tpc = ticksPerCandle[timeframe] || 5;
   const isRaw = isRawTimeframe(timeframe);
   const showVolume = isVolumeTimeframe(timeframe);
+
+  const gridColor = isLight ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.03)';
+  const labelColor = isLight ? 'rgba(0,0,0,0.3)' : 'rgba(255,255,255,0.25)';
+  const cursorColor = isLight ? 'rgba(0,0,0,0.15)' : 'rgba(255,255,255,0.15)';
+  const volLineColor = isLight ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.04)';
+  const volLabelColor = isLight ? 'rgba(0,0,0,0.25)' : 'rgba(255,255,255,0.15)';
 
   const candles = useMemo(() => {
     if (isRaw) return [];
@@ -71,26 +78,21 @@ export default function TimeframeChart({ rawData, timeframe, frame, chartWidth, 
     const frameX = toX(clampedFrame);
     const frameY = toY(rawData[clampedFrame].price);
 
-    // Show label
     const label = timeframe === '50ms' ? 'Raw Ticks · 50ms' : 'Raw Ticks · 200ms';
 
     return (
       <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} className="w-full h-full" preserveAspectRatio="none">
         {[0, 1, 2, 3, 4].map(i => (
-          <line key={i} x1="0" y1={i * mainChartHeight / 4} x2={chartWidth} y2={i * mainChartHeight / 4} stroke="rgba(255,255,255,0.03)" />
+          <line key={i} x1="0" y1={i * mainChartHeight / 4} x2={chartWidth} y2={i * mainChartHeight / 4} stroke={gridColor} />
         ))}
-        {/* Label */}
-        <text x={chartWidth - 10} y="16" textAnchor="end" fill="rgba(255,255,255,0.25)" fontSize="11" fontFamily="Inter, sans-serif">
+        <text x={chartWidth - 10} y="16" textAnchor="end" fill={labelColor} fontSize="11" fontFamily="Inter, sans-serif">
           {label}
         </text>
-        {/* Thin connecting line */}
-        <polyline points={line} fill="none" stroke="rgba(245,245,247,0.3)" strokeWidth="0.8" />
-        {/* Individual tick dots — sample every Nth for performance */}
+        <polyline points={line} fill="none" stroke={isLight ? '#1d1d1f' : 'rgba(245,245,247,0.3)'} strokeWidth={isLight ? '2.5' : '0.8'} opacity={isLight ? '0.7' : '1'} />
         {rawData.filter((_, i) => i % Math.max(1, Math.floor(rawData.length / 200)) === 0).map((d, _, __, idx = rawData.indexOf(d)) => (
-          <circle key={idx} cx={toX(rawData.indexOf(d))} cy={toY(d.price)} r="1.8" fill="#f5f5f7" opacity="0.6" />
+          <circle key={idx} cx={toX(rawData.indexOf(d))} cy={toY(d.price)} r="1.8" fill={isLight ? '#1d1d1f' : '#f5f5f7'} opacity={isLight ? '0.8' : '0.6'} />
         ))}
-        {/* Frame cursor */}
-        <line x1={frameX} y1="0" x2={frameX} y2={chartHeight} stroke="rgba(255,255,255,0.15)" strokeWidth="1" strokeDasharray="4,4" />
+        <line x1={frameX} y1="0" x2={frameX} y2={chartHeight} stroke={cursorColor} strokeWidth="1" strokeDasharray="4,4" />
         <circle cx={frameX} cy={frameY} r="5" fill="#e6007a" />
         <circle cx={frameX} cy={frameY} r="8" fill="none" stroke="#e6007a" strokeWidth="1" opacity="0.3" />
       </svg>
@@ -118,15 +120,12 @@ export default function TimeframeChart({ rawData, timeframe, frame, chartWidth, 
 
   return (
     <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} className="w-full h-full" preserveAspectRatio="none">
-      {/* Grid lines */}
       {[0, 1, 2, 3, 4].map(i => (
-        <line key={i} x1="0" y1={i * mainChartHeight / 4} x2={chartWidth} y2={i * mainChartHeight / 4} stroke="rgba(255,255,255,0.03)" />
+        <line key={i} x1="0" y1={i * mainChartHeight / 4} x2={chartWidth} y2={i * mainChartHeight / 4} stroke={gridColor} />
       ))}
-      {/* Label */}
-      <text x={chartWidth - 10} y="16" textAnchor="end" fill="rgba(255,255,255,0.25)" fontSize="11" fontFamily="Inter, sans-serif">
+      <text x={chartWidth - 10} y="16" textAnchor="end" fill={labelColor} fontSize="11" fontFamily="Inter, sans-serif">
         {tfLabel}
       </text>
-      {/* Candles */}
       {candles.map((c, i) => {
         const x = toX(i);
         const isUp = c.close >= c.open;
@@ -138,19 +137,18 @@ export default function TimeframeChart({ rawData, timeframe, frame, chartWidth, 
 
         return (
           <g key={i} opacity={isCurrent ? 1 : 0.85}>
-            <line x1={x} y1={toY(c.high)} x2={x} y2={toY(c.low)} stroke={color} strokeWidth="1" opacity="0.6" />
+            <line x1={x} y1={toY(c.high)} x2={x} y2={toY(c.low)} stroke={color} strokeWidth={isLight ? '1.5' : '1'} opacity={isLight ? '0.8' : '0.6'} />
             <rect x={x - candleWidth / 2} y={bodyTop} width={candleWidth} height={bodyHeight} fill={color} rx="1" />
             {isCurrent && (
-              <rect x={x - candleWidth / 2 - 1} y={bodyTop - 1} width={candleWidth + 2} height={bodyHeight + 2} fill="none" stroke="#f5f5f7" strokeWidth="1" rx="2" opacity="0.5" />
+              <rect x={x - candleWidth / 2 - 1} y={bodyTop - 1} width={candleWidth + 2} height={bodyHeight + 2} fill="none" stroke={isLight ? '#1d1d1f' : '#f5f5f7'} strokeWidth="1" rx="2" opacity="0.5" />
             )}
           </g>
         );
       })}
-      {/* Volume bars */}
       {showVolume && (
         <>
-          <line x1="0" y1={volumeTop} x2={chartWidth} y2={volumeTop} stroke="rgba(255,255,255,0.04)" />
-          <text x="4" y={volumeTop + 12} fill="rgba(255,255,255,0.15)" fontSize="9" fontFamily="Inter, sans-serif">VOL</text>
+          <line x1="0" y1={volumeTop} x2={chartWidth} y2={volumeTop} stroke={volLineColor} />
+          <text x="4" y={volumeTop + 12} fill={volLabelColor} fontSize="9" fontFamily="Inter, sans-serif">VOL</text>
           {candles.map((c, i) => {
             const x = toX(i);
             const barHeight = (c.volume / maxVolume) * volumeHeight;
@@ -162,15 +160,14 @@ export default function TimeframeChart({ rawData, timeframe, frame, chartWidth, 
                 y={volumeTop + volumeHeight - barHeight}
                 width={candleWidth}
                 height={barHeight}
-                fill={isUp ? 'rgba(50,215,75,0.15)' : 'rgba(255,69,58,0.15)'}
+                fill={isUp ? (isLight ? 'rgba(50,215,75,0.25)' : 'rgba(50,215,75,0.15)') : (isLight ? 'rgba(255,69,58,0.25)' : 'rgba(255,69,58,0.15)')}
                 rx="1"
               />
             );
           })}
         </>
       )}
-      {/* Frame cursor */}
-      <line x1={toX(currentCandleIdx)} y1="0" x2={toX(currentCandleIdx)} y2={chartHeight} stroke="rgba(255,255,255,0.12)" strokeWidth="1" strokeDasharray="4,4" />
+      <line x1={toX(currentCandleIdx)} y1="0" x2={toX(currentCandleIdx)} y2={chartHeight} stroke={cursorColor} strokeWidth="1" strokeDasharray="4,4" />
     </svg>
   );
 }
