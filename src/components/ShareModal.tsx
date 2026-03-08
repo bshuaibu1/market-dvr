@@ -143,8 +143,9 @@ export default function ShareModal({ open, onOpenChange, asset, frame, frameData
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full" style={{ background: '#e6007a' }} />
-                  <span className="text-xs font-semibold text-foreground tracking-tight">Market DVR</span>
+                  <LogoMark size={20} variant="dark" />
+                  <span className="text-xs font-semibold text-white tracking-tight" style={{ fontFamily: 'Inter, sans-serif', fontWeight: 600 }}>Market DVR</span>
+                  <span className="text-[10px]" style={{ color: 'rgba(255,255,255,0.5)', fontFamily: 'Inter, sans-serif' }}>· Powered by Pyth Pro</span>
                 </div>
                 <span className="text-[10px] text-muted-foreground">Frame #{frame}</span>
               </div>
