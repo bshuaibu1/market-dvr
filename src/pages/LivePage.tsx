@@ -1,11 +1,20 @@
 import { useState, useEffect, useMemo } from 'react';
 import Navbar from '@/components/Navbar';
 import AssetCard from '@/components/AssetCard';
-import EventItem from '@/components/EventItem';
 import RecordingBar from '@/components/RecordingBar';
-import { getInitialAssets, tickAsset, mockEvents, Asset } from '@/lib/mockData';
+import { getInitialAssets, tickAsset, mockEvents, formatPrice, AssetWithClass, AssetClass } from '@/lib/mockData';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
+import { Badge } from '@/components/ui/badge';
+
+type TabType = 'all' | 'crypto' | 'commodities' | 'forex';
+
+const tabs: { value: TabType; label: string }[] = [
+  { value: 'all', label: 'All' },
+  { value: 'crypto', label: 'Crypto' },
+  { value: 'commodities', label: 'Commodities' },
+  { value: 'forex', label: 'Forex' },
+];
 
 const assetColors: Record<string, string> = {
   'BTC/USD': '#f5f5f7',
@@ -14,9 +23,27 @@ const assetColors: Record<string, string> = {
   'BNB/USD': '#ffd60a',
   'WIF/USD': '#ff453a',
   'BONK/USD': '#e6007a',
+  'XAU/USD': '#ffd700',
+  'XAG/USD': '#c0c0c0',
+  'WTI/USD': '#8b6914',
+  'BRENT/USD': '#a0522d',
+  'NATGAS/USD': '#87ceeb',
+  'COPPER/USD': '#b87333',
+  'EUR/USD': '#0a84ff',
+  'GBP/USD': '#ff6b6b',
+  'USD/JPY': '#32d74b',
+  'USD/CHF': '#ff453a',
+  'AUD/USD': '#ffd60a',
+  'USD/CAD': '#e6007a',
 };
 
-function MarketPulseChart({ assets }: { assets: Asset[] }) {
+const classBadgeColors: Record<AssetClass, { bg: string; text: string }> = {
+  crypto: { bg: 'rgba(160, 32, 240, 0.15)', text: '#bf7fff' },
+  commodities: { bg: 'rgba(255, 214, 10, 0.15)', text: '#ffd60a' },
+  forex: { bg: 'rgba(10, 132, 255, 0.15)', text: '#0a84ff' },
+};
+
+function MarketPulseChart({ assets }: { assets: AssetWithClass[] }) {
   const width = 800;
   const height = 200;
   const padding = { top: 10, right: 10, bottom: 10, left: 10 };
@@ -42,7 +69,6 @@ function MarketPulseChart({ assets }: { assets: Asset[] }) {
 
   return (
     <svg width="100%" height={height} viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none">
-      {/* Zero line */}
       <line
         x1={padding.left} x2={width - padding.right}
         y1={padding.top + ((allMax - 0) / range) * chartH}
@@ -72,8 +98,71 @@ function MarketPulseChart({ assets }: { assets: Asset[] }) {
   );
 }
 
+function AllAssetsTable({ assets }: { assets: AssetWithClass[] }) {
+  return (
+    <div className="surface-1 rounded-2xl overflow-hidden" style={{ border: '1px solid rgba(255,255,255,0.08)' }}>
+      <table className="w-full text-sm">
+        <thead>
+          <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+            <th className="text-left py-3 px-4 label-caps font-normal">Asset</th>
+            <th className="text-left py-3 px-4 label-caps font-normal">Class</th>
+            <th className="text-right py-3 px-4 label-caps font-normal">Price</th>
+            <th className="text-right py-3 px-4 label-caps font-normal">Change %</th>
+            <th className="text-right py-3 px-4 label-caps font-normal">Spread</th>
+            <th className="text-right py-3 px-4 label-caps font-normal">Confidence</th>
+          </tr>
+        </thead>
+        <tbody>
+          {assets.map((asset, i) => {
+            const positive = asset.change >= 0;
+            const badge = classBadgeColors[asset.assetClass];
+            return (
+              <tr
+                key={asset.symbol}
+                className="apple-transition hover:bg-accent/50"
+                style={{
+                  background: i % 2 === 1 ? 'rgba(255,255,255,0.02)' : 'transparent',
+                  borderBottom: '1px solid rgba(255,255,255,0.04)',
+                }}
+              >
+                <td className="py-3 px-4">
+                  <div className="flex items-center gap-2">
+                    <span className="text-foreground font-medium">{asset.symbol}</span>
+                    <span className="text-muted-foreground text-xs">{asset.name}</span>
+                  </div>
+                </td>
+                <td className="py-3 px-4">
+                  <span
+                    className="text-[10px] uppercase tracking-widest font-medium px-2 py-0.5 rounded-full"
+                    style={{ background: badge.bg, color: badge.text }}
+                  >
+                    {asset.assetClass}
+                  </span>
+                </td>
+                <td className="py-3 px-4 text-right tabular-nums text-foreground font-medium">
+                  ${formatPrice(asset.price)}
+                </td>
+                <td className={`py-3 px-4 text-right tabular-nums font-medium ${positive ? 'text-positive' : 'text-negative'}`}>
+                  {positive ? '+' : ''}{asset.change.toFixed(2)}%
+                </td>
+                <td className="py-3 px-4 text-right tabular-nums text-muted-foreground">
+                  ${asset.spread < 0.01 ? asset.spread.toFixed(6) : asset.spread.toFixed(4)}
+                </td>
+                <td className="py-3 px-4 text-right tabular-nums text-foreground">
+                  {(asset.confidence * 100).toFixed(1)}%
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 export default function LivePage() {
   const [assets, setAssets] = useState(getInitialAssets);
+  const [activeTab, setActiveTab] = useState<TabType>('all');
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -82,6 +171,21 @@ export default function LivePage() {
     return () => clearInterval(interval);
   }, []);
 
+  const filteredAssets = useMemo(() => {
+    if (activeTab === 'all') return assets;
+    return assets.filter(a => a.assetClass === activeTab);
+  }, [assets, activeTab]);
+
+  const pulseAssets = useMemo(() => {
+    if (activeTab === 'all') {
+      // One representative from each class
+      return assets.filter(a =>
+        a.symbol === 'BTC/USD' || a.symbol === 'XAU/USD' || a.symbol === 'EUR/USD'
+      );
+    }
+    return filteredAssets;
+  }, [assets, filteredAssets, activeTab]);
+
   const allEvents = mockEvents;
 
   return (
@@ -89,24 +193,49 @@ export default function LivePage() {
       <Navbar />
 
       <div className="max-w-6xl mx-auto px-6 py-8">
+        {/* Tab Bar */}
+        <div className="flex items-center gap-2 mb-8">
+          {tabs.map(tab => (
+            <button
+              key={tab.value}
+              onClick={() => setActiveTab(tab.value)}
+              className="px-4 py-1.5 rounded-full text-sm font-medium apple-transition"
+              style={{
+                background: activeTab === tab.value ? '#f5f5f7' : 'transparent',
+                color: activeTab === tab.value ? '#0d0d0d' : '#86868b',
+                border: activeTab === tab.value ? 'none' : '1px solid rgba(255,255,255,0.08)',
+              }}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Content */}
         <motion.div
+          key={activeTab}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ duration: 0.3 }}
-          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
+          transition={{ duration: 0.15 }}
         >
-          {assets.map(asset => (
-            <AssetCard key={asset.symbol} asset={asset} />
-          ))}
+          {activeTab === 'all' ? (
+            <AllAssetsTable assets={assets} />
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {filteredAssets.map(asset => (
+                <AssetCard key={asset.symbol} asset={asset} />
+              ))}
+            </div>
+          )}
         </motion.div>
 
         {/* Market Pulse */}
         <div className="mt-12">
           <h2 className="label-caps mb-4">Market Pulse</h2>
           <div className="surface-1 rounded-2xl p-6" style={{ border: '1px solid rgba(255,255,255,0.08)' }}>
-            <MarketPulseChart assets={assets} />
+            <MarketPulseChart assets={pulseAssets} />
             <div className="flex items-center gap-5 mt-4 flex-wrap">
-              {assets.map(asset => {
+              {pulseAssets.map(asset => {
                 const positive = asset.change >= 0;
                 return (
                   <div key={asset.symbol} className="flex items-center gap-2">
