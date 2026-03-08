@@ -282,6 +282,9 @@ export default function LivePage() {
           </div>
         </div>
 
+        {/* Correlation Matrix */}
+        <CorrelationMatrix assets={assets} />
+
         {/* Recent Events */}
         <div className="mt-12">
           <h2 className="label-caps mb-4">Recent Events</h2>
