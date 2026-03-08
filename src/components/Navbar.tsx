@@ -27,9 +27,9 @@ export default function Navbar() {
     >
       <Link to="/" className="flex items-center gap-2 mr-auto">
         <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <rect x="0.5" y="0.5" width="27" height="27" rx="5.5" fill="#1a1a1a" stroke="rgba(255,255,255,0.12)" strokeWidth="1" />
-          <polyline points="7,13 12,17 16,9 21,14" stroke="#e6007a" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-          <circle cx="14" cy="21" r="2" fill="#e6007a" />
+          <rect x="0.5" y="0.5" width="27" height="27" rx="5.5" fill="#1a1a1a" stroke="rgba(255,255,255,0.15)" strokeWidth="1" />
+          <polyline points="6,15 10,11 14,16 18,8 22,12" stroke="#ffffff" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+          <circle cx="21" cy="21" r="2.5" fill="#e6007a" />
         </svg>
         <span className="text-foreground font-semibold text-sm tracking-tight">Market DVR</span>
       </Link>
