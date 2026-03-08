@@ -65,7 +65,7 @@ export function getInitialAssets(): AssetWithClass[] {
   }));
 }
 
-export function tickAsset(asset: Asset | AssetWithClass): typeof asset {
+export function tickAsset(asset: AssetWithClass): AssetWithClass {
   const assetClass = 'assetClass' in asset ? asset.assetClass : 'crypto';
   let volatility: number;
   if (assetClass === 'forex') {
