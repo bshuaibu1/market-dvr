@@ -41,9 +41,9 @@ const assetColors: Record<string, string> = {
   'USD/CAD': '#e6007a',
 };
 
-const classBadgeColors: Record<AssetClass, { bg: string; text: string }> = {
+const classBadgeColors: Record<AssetClass, { bg: string; text: string; lightBg?: string; lightText?: string; lightBorder?: string }> = {
   crypto: { bg: 'rgba(160, 32, 240, 0.15)', text: '#bf7fff' },
-  commodities: { bg: 'rgba(255, 214, 10, 0.15)', text: '#ffd60a' },
+  commodities: { bg: 'rgba(255, 214, 10, 0.15)', text: '#ffd60a', lightBg: 'rgba(180, 120, 0, 0.12)', lightText: '#8a6000', lightBorder: '1px solid rgba(180, 120, 0, 0.3)' },
   forex: { bg: 'rgba(10, 132, 255, 0.15)', text: '#0a84ff' },
 };
 
@@ -114,7 +114,7 @@ function MarketPulseChart({ assets }: { assets: AssetWithClass[] }) {
   );
 }
 
-function AllAssetsTable({ assets }: { assets: AssetWithClass[] }) {
+function AllAssetsTable({ assets, isLight }: { assets: AssetWithClass[]; isLight: boolean }) {
   return (
     <div className="surface-1 rounded-2xl overflow-hidden" style={{ border: '1px solid rgba(255,255,255,0.08)' }}>
       <table className="w-full text-sm">
@@ -150,7 +150,7 @@ function AllAssetsTable({ assets }: { assets: AssetWithClass[] }) {
                 <td className="py-3 px-4">
                   <span
                     className="text-[10px] uppercase tracking-widest font-medium px-2 py-0.5 rounded-full"
-                    style={{ background: badge.bg, color: badge.text }}
+                    style={{ background: isLight && badge.lightBg ? badge.lightBg : badge.bg, color: isLight && badge.lightText ? badge.lightText : badge.text, border: isLight && badge.lightBorder ? badge.lightBorder : 'none' }}
                   >
                     {asset.assetClass}
                   </span>
@@ -270,7 +270,7 @@ export default function LivePage() {
           {filteredAssets.length === 0 ? (
             <div className="py-16 text-center text-muted-foreground text-sm">No assets found</div>
           ) : activeTab === 'all' ? (
-            <AllAssetsTable assets={filteredAssets} />
+            <AllAssetsTable assets={filteredAssets} isLight={isLight} />
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {filteredAssets.map(asset => (
