@@ -236,13 +236,15 @@ export default function LivePage() {
 
         {/* Content */}
         <motion.div
-          key={activeTab}
+          key={activeTab + search}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.15 }}
         >
-          {activeTab === 'all' ? (
-            <AllAssetsTable assets={assets} />
+          {filteredAssets.length === 0 ? (
+            <div className="py-16 text-center text-muted-foreground text-sm">No assets found</div>
+          ) : activeTab === 'all' ? (
+            <AllAssetsTable assets={filteredAssets} />
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {filteredAssets.map(asset => (
