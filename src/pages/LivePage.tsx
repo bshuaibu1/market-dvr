@@ -2,7 +2,9 @@ import { useState, useEffect, useMemo } from 'react';
 import Navbar from '@/components/Navbar';
 import AssetCard from '@/components/AssetCard';
 import RecordingBar from '@/components/RecordingBar';
+import CorrelationMatrix from '@/components/CorrelationMatrix';
 import { getInitialAssets, tickAsset, mockEvents, formatPrice, AssetWithClass, AssetClass } from '@/lib/mockData';
+import { checkAlerts } from '@/components/AlertSystem';
 import { Search } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
@@ -168,7 +170,11 @@ export default function LivePage() {
 
   useEffect(() => {
     const interval = setInterval(() => {
-      setAssets(prev => prev.map(tickAsset));
+      setAssets(prev => {
+        const updated = prev.map(tickAsset);
+        checkAlerts(updated);
+        return updated;
+      });
     }, 200);
     return () => clearInterval(interval);
   }, []);
@@ -275,6 +281,9 @@ export default function LivePage() {
             </div>
           </div>
         </div>
+
+        {/* Correlation Matrix */}
+        <CorrelationMatrix assets={assets} />
 
         {/* Recent Events */}
         <div className="mt-12">

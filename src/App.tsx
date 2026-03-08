@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
 import LivePage from "./pages/LivePage";
 import ReplayPage from "./pages/ReplayPage";
+import HeatmapPage from "./pages/HeatmapPage";
 import EventsPage from "./pages/EventsPage";
 import NotFound from "./pages/NotFound";
 
@@ -21,6 +22,7 @@ const App = () => (
           <Route path="/" element={<Index />} />
           <Route path="/live" element={<LivePage />} />
           <Route path="/replay" element={<ReplayPage />} />
+          <Route path="/heatmap" element={<HeatmapPage />} />
           <Route path="/events" element={<EventsPage />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
