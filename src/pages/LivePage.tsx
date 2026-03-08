@@ -114,7 +114,7 @@ function MarketPulseChart({ assets }: { assets: AssetWithClass[] }) {
   );
 }
 
-function AllAssetsTable({ assets }: { assets: AssetWithClass[] }) {
+function AllAssetsTable({ assets, isLight }: { assets: AssetWithClass[]; isLight: boolean }) {
   return (
     <div className="surface-1 rounded-2xl overflow-hidden" style={{ border: '1px solid rgba(255,255,255,0.08)' }}>
       <table className="w-full text-sm">
