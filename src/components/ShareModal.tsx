@@ -1,9 +1,10 @@
 import { useState, useRef, useCallback } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { Copy, Download, Link as LinkIcon, Image as ImageIcon, Check, Film, Loader2 } from 'lucide-react';
+import { Copy, Download, Link as LinkIcon, Image as ImageIcon, Check, Film, Loader2, X } from 'lucide-react';
 import { formatPrice } from '@/lib/mockData';
 import { toPng } from 'html-to-image';
 import LogoMark from '@/components/LogoMark';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface ShareModalProps {
   open: boolean;
@@ -23,6 +24,7 @@ export default function ShareModal({ open, onOpenChange, asset, frame, frameData
   const [exporting, setExporting] = useState(false);
   const [exportDone, setExportDone] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
+  const isMobile = useIsMobile();
 
   const shareUrl = `${window.location.origin}/replay?asset=${encodeURIComponent(asset)}&frame=${frame}`;
 
@@ -92,6 +94,243 @@ export default function ShareModal({ open, onOpenChange, asset, frame, frameData
     { key: 'clip' as const, icon: Film, label: 'Export Clip' },
   ];
 
+  const modalContent = (
+    <>
+      {/* Tab selector */}
+      <div className="flex gap-2 mt-2 mb-4">
+        {tabs.map(t => (
+          <button
+            key={t.key}
+            onClick={() => { setActiveTab(t.key); setExportDone(false); }}
+            className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-medium apple-transition"
+            style={{
+              background: activeTab === t.key ? 'rgba(230,0,122,0.15)' : 'rgba(255,255,255,0.04)',
+              border: activeTab === t.key ? '1px solid #e6007a' : '1px solid rgba(255,255,255,0.08)',
+              color: activeTab === t.key ? '#e6007a' : '#86868b',
+            }}
+          >
+            <t.icon size={16} /> {t.label}
+          </button>
+        ))}
+      </div>
+
+      {activeTab === 'link' ? (
+        <div className="space-y-3">
+          <div className="flex items-center gap-2 rounded-xl p-3" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
+            <span className="text-xs text-muted-foreground truncate flex-1 tabular-nums min-w-0">{shareUrl}</span>
+            <button
+              onClick={handleCopyLink}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-primary-foreground apple-transition flex-shrink-0"
+              style={{ background: '#e6007a' }}
+            >
+              {copied ? <Check size={12} /> : <Copy size={12} />}
+              {copied ? 'Copied!' : 'Copy'}
+            </button>
+          </div>
+          <p className="text-xs text-muted-foreground">Anyone with this link can replay this exact moment.</p>
+        </div>
+      ) : activeTab === 'image' ? (
+        <div className="space-y-4">
+          <div
+            ref={cardRef}
+            className="rounded-2xl p-6 space-y-3 mx-auto"
+            style={{ background: '#0d0d0d', border: '1px solid rgba(255,255,255,0.12)', width: 600, maxWidth: '100%' }}
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <LogoMark size={20} variant="dark" />
+                <span className="text-xs font-semibold text-white tracking-tight" style={{ fontFamily: 'Inter, sans-serif', fontWeight: 600 }}>Market DVR</span>
+                <span className="text-[10px]" style={{ color: 'rgba(255,255,255,0.5)', fontFamily: 'Inter, sans-serif' }}>· Powered by Pyth Pro</span>
+              </div>
+              <span className="text-[10px] text-muted-foreground">Frame #{frame}</span>
+            </div>
+
+            <div className="flex items-end justify-between">
+              <div>
+                <div className="text-lg font-medium text-foreground">{asset}</div>
+                <div className="text-2xl font-semibold text-foreground tabular-nums mt-1">${formatPrice(frameData.price)}</div>
+              </div>
+              {eventName && (
+                <div className="px-3 py-1 rounded-full text-[10px] font-medium" style={{ background: 'rgba(230,0,122,0.15)', color: '#e6007a' }}>
+                  {eventName}
+                </div>
+              )}
+            </div>
+
+            {sparkPoints && (
+              <div className="rounded-xl overflow-hidden" style={{ background: 'rgba(255,255,255,0.03)' }}>
+                <svg width={sparkW} height={sparkH} viewBox={`0 0 ${sparkW} ${sparkH}`} className="w-full" preserveAspectRatio="none">
+                  <polyline
+                    points={sparkPoints}
+                    fill="none"
+                    stroke={sparkPositive ? '#32d74b' : '#ff453a'}
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </div>
+            )}
+
+            <div className="grid grid-cols-4 gap-3">
+              {[
+                { label: 'BID', value: `$${formatPrice(frameData.bid)}` },
+                { label: 'ASK', value: `$${formatPrice(frameData.ask)}` },
+                { label: 'SPREAD', value: `$${frameData.spread.toFixed(2)}` },
+                { label: 'CONF', value: `${(frameData.confidence * 100).toFixed(1)}%` },
+              ].map(s => (
+                <div key={s.label}>
+                  <div className="text-[9px] uppercase tracking-[0.08em] text-muted-foreground">{s.label}</div>
+                  <div className="text-xs tabular-nums text-foreground font-medium mt-0.5">{s.value}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex gap-2">
+            <button
+              onClick={handleDownloadPng}
+              className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium text-primary-foreground apple-transition"
+              style={{ background: '#e6007a' }}
+            >
+              <Download size={14} /> Download PNG
+            </button>
+            <button
+              onClick={handleCopyImage}
+              className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium text-foreground apple-transition surface-1"
+            >
+              {copied ? <Check size={14} /> : <Copy size={14} />}
+              {copied ? 'Copied!' : 'Copy to clipboard'}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Export a {clipDuration} animated replay clip with watermark — perfect for sharing on Twitter
+          </p>
+
+          <div>
+            <div className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground mb-2">Duration</div>
+            <div className="flex gap-1.5">
+              {(['5s', '10s', '30s'] as const).map(d => (
+                <button
+                  key={d}
+                  onClick={() => setClipDuration(d)}
+                  className="px-4 py-2 rounded-xl text-xs font-medium apple-transition"
+                  style={{
+                    background: clipDuration === d ? 'rgba(230,0,122,0.15)' : 'rgba(255,255,255,0.04)',
+                    border: clipDuration === d ? '1px solid #e6007a' : '1px solid rgba(255,255,255,0.08)',
+                    color: clipDuration === d ? '#e6007a' : '#86868b',
+                  }}
+                >
+                  {d}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <div className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground mb-2">Playback Speed</div>
+            <div className="flex gap-1.5">
+              {(['0.25x', '0.5x', '1x'] as const).map(s => (
+                <button
+                  key={s}
+                  onClick={() => setClipSpeed(s)}
+                  className="px-4 py-2 rounded-xl text-xs font-medium apple-transition"
+                  style={{
+                    background: clipSpeed === s ? 'rgba(230,0,122,0.15)' : 'rgba(255,255,255,0.04)',
+                    border: clipSpeed === s ? '1px solid #e6007a' : '1px solid rgba(255,255,255,0.08)',
+                    color: clipSpeed === s ? '#e6007a' : '#86868b',
+                  }}
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <p className="text-[11px] text-muted-foreground">Starting from current frame #{frame}</p>
+
+          <div className="rounded-xl p-4 relative overflow-hidden" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
+            <div className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground mb-2">Watermark Preview</div>
+            <div className="h-24 rounded-lg relative" style={{ background: 'rgba(0,0,0,0.4)' }}>
+              <div className="absolute top-2 right-2 text-[9px] text-muted-foreground tabular-nums">{asset} • Frame #{frame}</div>
+              <div className="absolute bottom-0 left-0 right-0 h-8" style={{ background: 'linear-gradient(transparent, rgba(0,0,0,0.6))' }} />
+              <div
+                className="absolute bottom-2 left-2 flex items-center gap-1.5"
+                style={{
+                  background: 'rgba(0,0,0,0.6)',
+                  backdropFilter: 'blur(8px)',
+                  padding: '6px 12px',
+                  borderRadius: '100px',
+                }}
+              >
+                <LogoMark size={16} variant="dark" />
+                <span className="text-[9px] text-white font-semibold" style={{ fontFamily: 'Inter, sans-serif' }}>Market DVR</span>
+                <span className="text-[9px]" style={{ color: 'rgba(255,255,255,0.6)', fontFamily: 'Inter, sans-serif' }}>· Powered by Pyth Pro</span>
+              </div>
+            </div>
+          </div>
+
+          <button
+            onClick={handleExportClip}
+            disabled={exporting}
+            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-medium text-primary-foreground apple-transition disabled:opacity-60"
+            style={{ background: '#e6007a' }}
+          >
+            {exporting ? (
+              <>
+                <Loader2 size={14} className="animate-spin" /> Generating clip…
+              </>
+            ) : exportDone ? (
+              <>
+                <Check size={14} /> Clip ready — check your downloads
+              </>
+            ) : (
+              <>
+                <Film size={14} /> Export Clip
+              </>
+            )}
+          </button>
+          <p className="text-[11px] text-muted-foreground text-center">Free to share. No account required.</p>
+        </div>
+      )}
+    </>
+  );
+
+  // Mobile: bottom sheet
+  if (isMobile) {
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent
+          className="frosted-glass border-border !max-w-full !w-full !translate-x-0 !translate-y-0 !top-auto !left-0 !bottom-0 !right-0 overflow-y-auto"
+          style={{
+            background: 'rgba(13,13,13,0.95)',
+            borderRadius: '20px 20px 0 0',
+            maxHeight: '60vh',
+            position: 'fixed',
+            animation: 'none',
+          }}
+        >
+          <div className="flex items-center justify-between mb-2">
+            <DialogTitle className="text-foreground text-lg font-medium">Share this moment</DialogTitle>
+            <button
+              onClick={() => onOpenChange(false)}
+              className="w-11 h-11 flex items-center justify-center rounded-full surface-1"
+              aria-label="Close"
+            >
+              <X size={18} className="text-muted-foreground" />
+            </button>
+          </div>
+          <DialogDescription className="text-muted-foreground text-sm sr-only">Share or export a snapshot of this replay frame.</DialogDescription>
+          {modalContent}
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
+  // Desktop: centered dialog
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="frosted-glass border-border max-w-lg" style={{ background: 'rgba(13,13,13,0.95)' }}>
@@ -99,215 +338,7 @@ export default function ShareModal({ open, onOpenChange, asset, frame, frameData
           <DialogTitle className="text-foreground text-lg font-medium">Share this moment</DialogTitle>
           <DialogDescription className="text-muted-foreground text-sm">Share or export a snapshot of this replay frame.</DialogDescription>
         </DialogHeader>
-
-        {/* Tab selector */}
-        <div className="flex gap-2 mt-2 mb-4">
-          {tabs.map(t => (
-            <button
-              key={t.key}
-              onClick={() => { setActiveTab(t.key); setExportDone(false); }}
-              className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-medium apple-transition"
-              style={{
-                background: activeTab === t.key ? 'rgba(230,0,122,0.15)' : 'rgba(255,255,255,0.04)',
-                border: activeTab === t.key ? '1px solid #e6007a' : '1px solid rgba(255,255,255,0.08)',
-                color: activeTab === t.key ? '#e6007a' : '#86868b',
-              }}
-            >
-              <t.icon size={16} /> {t.label}
-            </button>
-          ))}
-        </div>
-
-        {activeTab === 'link' ? (
-          <div className="space-y-3">
-            <div className="flex items-center gap-2 rounded-xl p-3" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
-              <span className="text-xs text-muted-foreground truncate flex-1 tabular-nums">{shareUrl}</span>
-              <button
-                onClick={handleCopyLink}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-primary-foreground apple-transition flex-shrink-0"
-                style={{ background: '#e6007a' }}
-              >
-                {copied ? <Check size={12} /> : <Copy size={12} />}
-                {copied ? 'Copied!' : 'Copy'}
-              </button>
-            </div>
-            <p className="text-xs text-muted-foreground">Anyone with this link can replay this exact moment.</p>
-          </div>
-        ) : activeTab === 'image' ? (
-          <div className="space-y-4">
-            {/* Export card preview — 600px wide */}
-            <div
-              ref={cardRef}
-              className="rounded-2xl p-6 space-y-3 mx-auto"
-              style={{ background: '#0d0d0d', border: '1px solid rgba(255,255,255,0.12)', width: 600, maxWidth: '100%' }}
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <LogoMark size={20} variant="dark" />
-                  <span className="text-xs font-semibold text-white tracking-tight" style={{ fontFamily: 'Inter, sans-serif', fontWeight: 600 }}>Market DVR</span>
-                  <span className="text-[10px]" style={{ color: 'rgba(255,255,255,0.5)', fontFamily: 'Inter, sans-serif' }}>· Powered by Pyth Pro</span>
-                </div>
-                <span className="text-[10px] text-muted-foreground">Frame #{frame}</span>
-              </div>
-
-              <div className="flex items-end justify-between">
-                <div>
-                  <div className="text-lg font-medium text-foreground">{asset}</div>
-                  <div className="text-2xl font-semibold text-foreground tabular-nums mt-1">${formatPrice(frameData.price)}</div>
-                </div>
-                {eventName && (
-                  <div className="px-3 py-1 rounded-full text-[10px] font-medium" style={{ background: 'rgba(230,0,122,0.15)', color: '#e6007a' }}>
-                    {eventName}
-                  </div>
-                )}
-              </div>
-
-              {/* Sparkline chart */}
-              {sparkPoints && (
-                <div className="rounded-xl overflow-hidden" style={{ background: 'rgba(255,255,255,0.03)' }}>
-                  <svg width={sparkW} height={sparkH} viewBox={`0 0 ${sparkW} ${sparkH}`} className="w-full" preserveAspectRatio="none">
-                    <polyline
-                      points={sparkPoints}
-                      fill="none"
-                      stroke={sparkPositive ? '#32d74b' : '#ff453a'}
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
-                </div>
-              )}
-
-              <div className="grid grid-cols-4 gap-3">
-                {[
-                  { label: 'BID', value: `$${formatPrice(frameData.bid)}` },
-                  { label: 'ASK', value: `$${formatPrice(frameData.ask)}` },
-                  { label: 'SPREAD', value: `$${frameData.spread.toFixed(2)}` },
-                  { label: 'CONF', value: `${(frameData.confidence * 100).toFixed(1)}%` },
-                ].map(s => (
-                  <div key={s.label}>
-                    <div className="text-[9px] uppercase tracking-[0.08em] text-muted-foreground">{s.label}</div>
-                    <div className="text-xs tabular-nums text-foreground font-medium mt-0.5">{s.value}</div>
-                  </div>
-                ))}
-              </div>
-
-            </div>
-
-            <div className="flex gap-2">
-              <button
-                onClick={handleDownloadPng}
-                className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium text-primary-foreground apple-transition"
-                style={{ background: '#e6007a' }}
-              >
-                <Download size={14} /> Download PNG
-              </button>
-              <button
-                onClick={handleCopyImage}
-                className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium text-foreground apple-transition surface-1"
-              >
-                {copied ? <Check size={14} /> : <Copy size={14} />}
-                {copied ? 'Copied!' : 'Copy to clipboard'}
-              </button>
-            </div>
-          </div>
-        ) : (
-          /* Export Clip tab */
-          <div className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              Export a {clipDuration} animated replay clip with watermark — perfect for sharing on Twitter
-            </p>
-
-            {/* Duration selector */}
-            <div>
-              <div className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground mb-2">Duration</div>
-              <div className="flex gap-1.5">
-                {(['5s', '10s', '30s'] as const).map(d => (
-                  <button
-                    key={d}
-                    onClick={() => setClipDuration(d)}
-                    className="px-4 py-2 rounded-xl text-xs font-medium apple-transition"
-                    style={{
-                      background: clipDuration === d ? 'rgba(230,0,122,0.15)' : 'rgba(255,255,255,0.04)',
-                      border: clipDuration === d ? '1px solid #e6007a' : '1px solid rgba(255,255,255,0.08)',
-                      color: clipDuration === d ? '#e6007a' : '#86868b',
-                    }}
-                  >
-                    {d}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Speed selector */}
-            <div>
-              <div className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground mb-2">Playback Speed</div>
-              <div className="flex gap-1.5">
-                {(['0.25x', '0.5x', '1x'] as const).map(s => (
-                  <button
-                    key={s}
-                    onClick={() => setClipSpeed(s)}
-                    className="px-4 py-2 rounded-xl text-xs font-medium apple-transition"
-                    style={{
-                      background: clipSpeed === s ? 'rgba(230,0,122,0.15)' : 'rgba(255,255,255,0.04)',
-                      border: clipSpeed === s ? '1px solid #e6007a' : '1px solid rgba(255,255,255,0.08)',
-                      color: clipSpeed === s ? '#e6007a' : '#86868b',
-                    }}
-                  >
-                    {s}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <p className="text-[11px] text-muted-foreground">Starting from current frame #{frame}</p>
-
-            {/* Watermark preview */}
-            <div className="rounded-xl p-4 relative overflow-hidden" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
-              <div className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground mb-2">Watermark Preview</div>
-              <div className="h-24 rounded-lg relative" style={{ background: 'rgba(0,0,0,0.4)' }}>
-                <div className="absolute top-2 right-2 text-[9px] text-muted-foreground tabular-nums">{asset} • Frame #{frame}</div>
-                <div className="absolute bottom-0 left-0 right-0 h-8" style={{ background: 'linear-gradient(transparent, rgba(0,0,0,0.6))' }} />
-                <div
-                  className="absolute bottom-2 left-2 flex items-center gap-1.5"
-                  style={{
-                    background: 'rgba(0,0,0,0.6)',
-                    backdropFilter: 'blur(8px)',
-                    padding: '6px 12px',
-                    borderRadius: '100px',
-                  }}
-                >
-                  <LogoMark size={16} variant="dark" />
-                  <span className="text-[9px] text-white font-semibold" style={{ fontFamily: 'Inter, sans-serif' }}>Market DVR</span>
-                  <span className="text-[9px]" style={{ color: 'rgba(255,255,255,0.6)', fontFamily: 'Inter, sans-serif' }}>· Powered by Pyth Pro</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Export button */}
-            <button
-              onClick={handleExportClip}
-              disabled={exporting}
-              className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-medium text-primary-foreground apple-transition disabled:opacity-60"
-              style={{ background: '#e6007a' }}
-            >
-              {exporting ? (
-                <>
-                  <Loader2 size={14} className="animate-spin" /> Generating clip…
-                </>
-              ) : exportDone ? (
-                <>
-                  <Check size={14} /> Clip ready — check your downloads
-                </>
-              ) : (
-                <>
-                  <Film size={14} /> Export Clip
-                </>
-              )}
-            </button>
-            <p className="text-[11px] text-muted-foreground text-center">Free to share. No account required.</p>
-          </div>
-        )}
+        {modalContent}
       </DialogContent>
     </Dialog>
   );

@@ -160,6 +160,7 @@ export default function EventsPage() {
           ))}
         </div>
       </div>
+      <MobileBottomNav />
     </div>
   );
 }
