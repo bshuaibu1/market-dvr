@@ -152,7 +152,6 @@ function AllAssetsTable({ assets }: { assets: AssetWithClass[] }) {
                     className="text-[10px] uppercase tracking-widest font-medium px-2 py-0.5 rounded-full"
                     style={{ background: isLight && badge.lightBg ? badge.lightBg : badge.bg, color: isLight && badge.lightText ? badge.lightText : badge.text, border: isLight && badge.lightBorder ? badge.lightBorder : 'none' }}
                   >
-                  >
                     {asset.assetClass}
                   </span>
                 </td>
