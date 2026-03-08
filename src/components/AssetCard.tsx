@@ -32,6 +32,7 @@ export default function AssetCard({ asset }: Props) {
       </div>
 
       {/* Confidence bar */}
+      <div className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground mb-1">Confidence</div>
       <div className="w-full h-1 rounded-full" style={{ background: 'rgba(255,255,255,0.06)' }}>
         <div
           className="h-full rounded-full apple-transition"
@@ -40,7 +41,7 @@ export default function AssetCard({ asset }: Props) {
       </div>
 
       <div className="mt-auto pt-2">
-        <SparklineChart data={asset.sparkline} positive={positive} width={200} height={40} />
+        <SparklineChart data={asset.sparkline} positive={positive} width={200} height={56} />
       </div>
     </div>
   );

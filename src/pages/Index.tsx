@@ -57,7 +57,7 @@ export default function Index() {
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.1, ease: [0.25, 0.46, 0.45, 0.94] }}
-          className="mb-10"
+          className="mb-16"
         >
           <DVRDevice />
         </motion.div>
@@ -66,7 +66,8 @@ export default function Index() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.3 }}
-          className="heading-thin text-5xl md:text-7xl text-center mb-6"
+          className="heading-thin text-center mb-6"
+          style={{ fontSize: 'clamp(48px, 6vw, 80px)', fontWeight: 200 }}
         >
           The DVR for Financial Markets
         </motion.h1>

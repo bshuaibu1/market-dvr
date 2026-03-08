@@ -43,7 +43,8 @@ export default function ReplayPage() {
   const maxP = Math.max(...prices) + 50;
   const rangeP = maxP - minP;
 
-  const toX = (i: number) => (i / (data.length - 1)) * chartWidth;
+  const chartPadLeft = 20;
+  const toX = (i: number) => chartPadLeft + (i / (data.length - 1)) * (chartWidth - chartPadLeft);
   const toY = (v: number) => chartHeight - ((v - minP) / rangeP) * chartHeight;
 
   const priceLine = data.map((d, i) => `${toX(i)},${toY(d.price)}`).join(' ');
@@ -100,6 +101,10 @@ export default function ReplayPage() {
 
           {/* Chart */}
           <div className="flex-1 min-h-0 relative">
+            {/* Floating price label */}
+            <div className="absolute top-3 left-4 z-10">
+              <span className="text-2xl tabular-nums text-foreground font-medium">${formatPrice(current.price)}</span>
+            </div>
             <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} className="w-full h-full" preserveAspectRatio="none">
               {/* Grid */}
               {[0,1,2,3,4].map(i => (
