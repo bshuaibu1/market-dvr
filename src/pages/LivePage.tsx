@@ -3,6 +3,7 @@ import Navbar from '@/components/Navbar';
 import AssetCard from '@/components/AssetCard';
 import RecordingBar from '@/components/RecordingBar';
 import { getInitialAssets, tickAsset, mockEvents, formatPrice, AssetWithClass, AssetClass } from '@/lib/mockData';
+import { Search } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
