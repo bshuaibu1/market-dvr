@@ -187,7 +187,7 @@ export default function EventsPage() {
             </div>
             {/* Chart 40% */}
             <div className="flex items-center justify-center p-5 md:p-6" style={{ flex: '0 0 40%' }}>
-              <MiniSparkline data={featuredSparkline} color={featConf.color} width={200} height={80} fill />
+              <MiniSparkline data={featuredSparkline} color={featConf.color} width={200} height={80} />
             </div>
           </div>
         </motion.div>

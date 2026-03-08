@@ -48,11 +48,23 @@ export const baseAssets: AssetWithClass[] = [
   { symbol: 'USD/CAD', name: 'Canadian Dollar', price: 1.3580, change: -0.06, spread: 0.00016, confidence: 0.96, volatile: false, sparkline: [], assetClass: 'forex' },
 ];
 
-function generateSparkline(base: number, volatility: number): number[] {
+function generateSparkline(base: number, volatility: number, assetClass?: string): number[] {
   const points: number[] = [];
   let current = base;
   for (let i = 0; i < 60; i++) {
-    current += (Math.random() - 0.5) * volatility * base;
+    if (assetClass === 'crypto') {
+      // Sharp spikes and recoveries
+      const spike = Math.random() < 0.08 ? (Math.random() - 0.5) * 0.025 * base : 0;
+      current += (Math.random() - 0.5) * volatility * base * 3 + spike;
+    } else if (assetClass === 'commodities') {
+      // Smoother, moderate swings
+      current += (Math.random() - 0.5) * volatility * base * 2.5;
+    } else if (assetClass === 'forex') {
+      // Very slow drift, tiny movements
+      current += (Math.random() - 0.5) * volatility * base * 2;
+    } else {
+      current += (Math.random() - 0.5) * volatility * base;
+    }
     points.push(current);
   }
   return points;

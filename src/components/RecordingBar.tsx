@@ -21,7 +21,7 @@ export default function RecordingBar() {
         <span className="text-xs font-medium text-foreground md:hidden">REC</span>
       </div>
       <div className="flex-1 text-center text-[12px] md:text-xs text-muted-foreground tabular-nums truncate px-2">
-        {h}h {m.toString().padStart(2, '0')}m {s.toString().padStart(2, '0')}s <span className="hidden sm:inline">captured across</span> <span className="sm:hidden">·</span> 6 feeds
+        {h}h {m.toString().padStart(2, '0')}m {s.toString().padStart(2, '0')}s <span className="hidden sm:inline">captured across</span> <span className="sm:hidden">·</span> 6 feeds <span className="hidden md:inline">· Powered by <span className="inline-block w-1.5 h-1.5 rounded-full align-middle" style={{ background: '#e6007a' }} /> Pyth Pro</span>
       </div>
       <Link to="/replay" className="text-xs font-medium text-foreground hover:text-primary apple-transition flex-shrink-0 whitespace-nowrap">
         <span className="hidden sm:inline">View Replay →</span>

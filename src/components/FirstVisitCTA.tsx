@@ -27,7 +27,16 @@ export default function FirstVisitCTA() {
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: 20 }}
           transition={{ duration: 0.4, ease: [0.25, 0.46, 0.45, 0.94] }}
-          className="relative w-full max-w-[620px] mx-auto mt-3 px-4 md:px-0"
+          className="px-4 md:px-0"
+          style={{
+            position: 'fixed',
+            bottom: 60,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            width: 'auto',
+            maxWidth: 600,
+            zIndex: 1000,
+          }}
         >
           <div
             className="relative rounded-xl px-5 py-3 text-sm"
