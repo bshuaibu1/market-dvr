@@ -287,17 +287,21 @@ export default function ReplayPage() {
             ) : (
               <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} className="w-full h-full" preserveAspectRatio="none">
                 {[0,1,2,3,4].map(i => (
-                  <line key={i} x1="0" y1={i * chartHeight / 4} x2={chartWidth} y2={i * chartHeight / 4} stroke="rgba(255,255,255,0.03)" />
+                  <line key={i} x1="0" y1={i * chartHeight / 4} x2={chartWidth} y2={i * chartHeight / 4} stroke={isLight ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.03)'} />
                 ))}
-                {!useCompare && showConfidence && confFill && <polygon points={confFill} fill="rgba(230,0,122,0.06)" />}
-                {!useCompare && showBid && bidLine && <polyline points={bidLine} fill="none" stroke="#0a84ff" strokeWidth="1" opacity="0.6" />}
-                {!useCompare && showAsk && askLine && <polyline points={askLine} fill="none" stroke="#ff453a" strokeWidth="1" opacity="0.6" />}
-                <polyline points={priceLine} fill="none" stroke="#f5f5f7" strokeWidth="2" />
-                {useCompare && compareLine && <polyline points={compareLine} fill="none" stroke="#0a84ff" strokeWidth="2" />}
-                <line x1={toX(frame)} y1="0" x2={toX(frame)} y2={chartHeight} stroke="rgba(255,255,255,0.15)" strokeWidth="1" strokeDasharray="4,4" />
-                <circle cx={toX(frame)} cy={useCompare ? toY(((current.price - startPrice1) / startPrice1) * 100) : toY(current.price)} r="4" fill="#f5f5f7" />
+                {!useCompare && showConfidence && confFill && (
+                  <>
+                    <polygon points={confFill} fill={isLight ? 'rgba(230,0,122,0.12)' : 'rgba(230,0,122,0.06)'} stroke={isLight ? '#e6007a' : 'none'} strokeWidth={isLight ? '1.5' : '0'} />
+                  </>
+                )}
+                {!useCompare && showBid && bidLine && <polyline points={bidLine} fill="none" stroke={isLight ? '#0055d4' : '#0a84ff'} strokeWidth={isLight ? '2.5' : '1'} opacity={isLight ? '1' : '0.6'} />}
+                {!useCompare && showAsk && askLine && <polyline points={askLine} fill="none" stroke={isLight ? '#cc0000' : '#ff453a'} strokeWidth={isLight ? '2.5' : '1'} opacity={isLight ? '1' : '0.6'} />}
+                <polyline points={priceLine} fill="none" stroke={useCompare ? (isLight ? '#0055d4' : '#f5f5f7') : (isLight ? '#1d1d1f' : '#f5f5f7')} strokeWidth={isLight ? '2.5' : '2'} />
+                {useCompare && compareLine && <polyline points={compareLine} fill="none" stroke={isLight ? '#e6007a' : '#0a84ff'} strokeWidth={isLight ? '2.5' : '2'} />}
+                <line x1={toX(frame)} y1="0" x2={toX(frame)} y2={chartHeight} stroke={isLight ? 'rgba(0,0,0,0.15)' : 'rgba(255,255,255,0.15)'} strokeWidth="1" strokeDasharray="4,4" />
+                <circle cx={toX(frame)} cy={useCompare ? toY(((current.price - startPrice1) / startPrice1) * 100) : toY(current.price)} r="4" fill={useCompare ? (isLight ? '#0055d4' : '#f5f5f7') : (isLight ? '#1d1d1f' : '#f5f5f7')} />
                 {useCompare && compareCurrent && (
-                  <circle cx={toX(frame)} cy={toY(((compareCurrent.price - startPrice2) / startPrice2) * 100)} r="4" fill="#0a84ff" />
+                  <circle cx={toX(frame)} cy={toY(((compareCurrent.price - startPrice2) / startPrice2) * 100)} r="4" fill={isLight ? '#e6007a' : '#0a84ff'} />
                 )}
               </svg>
             )}
