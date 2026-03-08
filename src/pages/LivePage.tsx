@@ -164,6 +164,7 @@ function AllAssetsTable({ assets }: { assets: AssetWithClass[] }) {
 export default function LivePage() {
   const [assets, setAssets] = useState(getInitialAssets);
   const [activeTab, setActiveTab] = useState<TabType>('all');
+  const [search, setSearch] = useState('');
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -173,9 +174,17 @@ export default function LivePage() {
   }, []);
 
   const filteredAssets = useMemo(() => {
-    if (activeTab === 'all') return assets;
-    return assets.filter(a => a.assetClass === activeTab);
-  }, [assets, activeTab]);
+    let result = activeTab === 'all' ? assets : assets.filter(a => a.assetClass === activeTab);
+    if (search.trim()) {
+      const q = search.trim().toLowerCase();
+      result = result.filter(a =>
+        a.symbol.toLowerCase().includes(q) ||
+        a.name.toLowerCase().includes(q) ||
+        a.assetClass.toLowerCase().includes(q)
+      );
+    }
+    return result;
+  }, [assets, activeTab, search]);
 
   const pulseAssets = useMemo(() => {
     if (activeTab === 'all') {
