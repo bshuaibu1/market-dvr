@@ -85,41 +85,12 @@ export default function Navbar() {
         </div>
       </div>
 
-      {/* Mobile: recording dot + more menu */}
-      <div className="flex md:hidden items-center gap-2 ml-auto flex-shrink-0" ref={moreRef}>
+      {/* Mobile: REC indicator only */}
+      <div className="flex md:hidden items-center ml-auto flex-shrink-0">
         <div className="flex items-center gap-1.5 rounded-full px-2.5 py-1.5 surface-1">
           <div className="w-1.5 h-1.5 rounded-full bg-negative pulse-red" />
           <span className="text-[10px] font-medium text-negative tracking-wide uppercase">REC</span>
         </div>
-        <button
-          onClick={() => setMoreOpen(!moreOpen)}
-          className="w-9 h-9 rounded-full flex items-center justify-center surface-1 apple-transition text-muted-foreground"
-          aria-label="More options"
-        >
-          <MoreHorizontal size={16} />
-        </button>
-        {moreOpen && (
-          <div
-            className="absolute top-14 right-4 rounded-xl p-2 surface-1 flex flex-col gap-1 z-50"
-            style={{
-              border: `1px solid ${isLight ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.08)'}`,
-              boxShadow: '0 8px 30px rgba(0,0,0,0.2)',
-              minWidth: 160,
-            }}
-          >
-            <button
-              onClick={() => { toggleTheme(); setMoreOpen(false); }}
-              className="flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm text-foreground apple-transition hover:bg-accent/50"
-            >
-              {theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />}
-              {theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
-            </button>
-            <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm text-foreground">
-              <AlertBell />
-              <span>Alerts</span>
-            </div>
-          </div>
-        )}
       </div>
     </nav>
   );
