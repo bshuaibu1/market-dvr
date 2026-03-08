@@ -398,7 +398,7 @@ export default function ReplayPage() {
            )}
 
           {/* Timeframe selector pills */}
-          <div className="flex items-center gap-1.5 mb-4">
+          <div className="flex items-center gap-1.5 mb-2 md:mb-4">
             <div className="flex items-center gap-0.5 p-1 rounded-full surface-1 overflow-x-auto scrollbar-hide">
               {timeframes.map(tf => (
                 <button
