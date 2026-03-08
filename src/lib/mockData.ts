@@ -81,11 +81,11 @@ export function tickAsset(asset: AssetWithClass): AssetWithClass {
   const assetClass = 'assetClass' in asset ? asset.assetClass : 'crypto';
   let volatility: number;
   if (assetClass === 'forex') {
-    volatility = asset.volatile ? 0.00008 : 0.00003;
+    volatility = asset.volatile ? 0.00015 : 0.00006;
   } else if (assetClass === 'commodities') {
-    volatility = asset.volatile ? 0.0004 : 0.00015;
-  } else {
     volatility = asset.volatile ? 0.0008 : 0.0003;
+  } else {
+    volatility = asset.volatile ? 0.0018 : 0.0007;
   }
   const delta = (Math.random() - 0.5) * volatility * asset.price;
   const newPrice = asset.price + delta;
