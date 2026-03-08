@@ -16,8 +16,6 @@ export default function Navbar() {
   const location = useLocation();
   const { theme, toggleTheme } = useTheme();
   const isLight = theme === 'light';
-  const [moreOpen, setMoreOpen] = useState(false);
-  const moreRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!moreOpen) return;
