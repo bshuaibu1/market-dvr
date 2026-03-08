@@ -7,6 +7,7 @@ import pythLogo from '@/assets/pyth-logo.png';
 import ShortcutsModal from '@/components/ShortcutsModal';
 import ShareModal from '@/components/ShareModal';
 import TimeframeChart, { isRawTimeframe, isVolumeTimeframe, getTicksPerCandle, getCandleCount } from '@/components/TimeframeChart';
+import { useTheme } from '@/components/ThemeProvider';
 
 const timeframes = ['50ms', '200ms', '1s', '5s', '30s', '1m', '5m', '15m', '1h'];
 const timeframeLabels: Record<string, string> = {
