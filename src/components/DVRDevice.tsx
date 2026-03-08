@@ -2,17 +2,17 @@ import { motion } from 'framer-motion';
 
 export default function DVRDevice() {
   return (
-    <div className="relative w-[380px] h-[240px] mx-auto">
+    <div className="relative w-[304px] h-[192px] md:w-[380px] md:h-[240px] mx-auto" style={{ maxWidth: '100%' }}>
       {/* Animated gradient orb behind device */}
       <motion.div
         animate={{ scale: [1, 1.15, 1] }}
         transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
-        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] pointer-events-none"
+        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] md:w-[500px] h-[400px] md:h-[500px] pointer-events-none"
         style={{ background: 'radial-gradient(ellipse at center, rgba(230,0,122,0.08) 0%, transparent 70%)' }}
       />
 
       {/* Soft pink/purple glow underneath */}
-      <div className="absolute -bottom-12 left-1/2 -translate-x-1/2 w-[320px] h-[80px]" style={{
+      <div className="absolute -bottom-12 left-1/2 -translate-x-1/2 w-[260px] md:w-[320px] h-[80px]" style={{
         background: 'radial-gradient(ellipse at center, rgba(230,0,122,0.25) 0%, rgba(120,0,200,0.08) 50%, transparent 80%)',
         filter: 'blur(20px)',
       }} />
@@ -48,16 +48,14 @@ export default function DVRDevice() {
           }} />
 
           {/* Screen area */}
-          <div className="absolute top-6 left-6 right-[150px] bottom-6 rounded-xl overflow-hidden" style={{
+          <div className="absolute top-4 left-4 right-[120px] bottom-4 md:top-6 md:left-6 md:right-[150px] md:bottom-6 rounded-xl overflow-hidden" style={{
             background: '#000',
             border: '1px solid rgba(255,255,255,0.06)',
             boxShadow: 'inset 0 2px 8px rgba(0,0,0,0.5)',
           }}>
-            {/* Screen glare */}
             <div className="absolute inset-0" style={{
               background: 'linear-gradient(135deg, rgba(255,255,255,0.03) 0%, transparent 40%)',
             }} />
-            {/* Mini chart on screen */}
             <svg viewBox="0 0 180 120" className="w-full h-full p-3 relative z-10">
               {[0,1,2,3].map(i => (
                 <line key={i} x1="0" y1={30*i+15} x2="180" y2={30*i+15} stroke="rgba(255,255,255,0.04)" strokeWidth="0.5" />
@@ -78,40 +76,37 @@ export default function DVRDevice() {
           </div>
 
           {/* Right control panel */}
-          <div className="absolute top-6 right-5 bottom-6 w-[115px] flex flex-col items-center justify-between py-3">
-            {/* REC button with pulsing glow */}
+          <div className="absolute top-4 right-3 bottom-4 w-[90px] md:top-6 md:right-5 md:bottom-6 md:w-[115px] flex flex-col items-center justify-between py-2 md:py-3">
             <motion.div
               animate={{ boxShadow: ['0 0 12px rgba(230,0,122,0.3)', '0 0 30px rgba(230,0,122,0.7)', '0 0 12px rgba(230,0,122,0.3)'] }}
               transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
-              className="w-11 h-11 rounded-full flex items-center justify-center"
+              className="w-9 h-9 md:w-11 md:h-11 rounded-full flex items-center justify-center"
               style={{
                 background: 'radial-gradient(circle, #e6007a 20%, #b3005f 100%)',
                 border: '2px solid rgba(255,255,255,0.18)',
                 boxShadow: '0 0 15px rgba(230,0,122,0.5), inset 0 1px 0 rgba(255,255,255,0.15)',
               }}
             >
-              <span className="text-[8px] font-bold tracking-wider text-white">REC</span>
+              <span className="text-[7px] md:text-[8px] font-bold tracking-wider text-white">REC</span>
             </motion.div>
 
-            {/* Status indicators */}
             <div className="flex flex-col gap-2 items-center">
               <div className="flex items-center gap-1.5">
                 <div className="w-1.5 h-1.5 rounded-full bg-positive" />
-                <span className="text-[8px] text-muted-foreground">LIVE</span>
+                <span className="text-[7px] md:text-[8px] text-muted-foreground">LIVE</span>
               </div>
               <div className="flex items-center gap-1.5">
                 <div className="w-1.5 h-1.5 rounded-full" style={{ background: '#e6007a' }} />
-                <span className="text-[8px] text-muted-foreground">6 FEEDS</span>
+                <span className="text-[7px] md:text-[8px] text-muted-foreground">6 FEEDS</span>
               </div>
             </div>
 
-            {/* Volume knob with 3D effect */}
-            <div className="w-9 h-9 rounded-full" style={{
+            <div className="w-7 h-7 md:w-9 md:h-9 rounded-full" style={{
               background: 'conic-gradient(from 180deg, #333 0%, #1a1a1a 50%, #333 100%)',
               border: '1px solid rgba(255,255,255,0.1)',
               boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.1), 0 2px 6px rgba(0,0,0,0.4)',
             }}>
-              <div className="w-0.5 h-3 bg-muted-foreground rounded-full mx-auto mt-1.5" />
+              <div className="w-0.5 h-2.5 md:h-3 bg-muted-foreground rounded-full mx-auto mt-1 md:mt-1.5" />
             </div>
           </div>
 
@@ -122,7 +117,6 @@ export default function DVRDevice() {
             ))}
           </div>
 
-          {/* Bottom edge shadow for 3D depth */}
           <div className="absolute -bottom-1 left-2 right-2 h-2 rounded-b-2xl" style={{
             background: 'linear-gradient(180deg, rgba(0,0,0,0.3), transparent)',
             filter: 'blur(2px)',
