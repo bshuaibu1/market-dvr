@@ -315,9 +315,9 @@ export default function ReplayPage() {
                 <span className="text-sm tabular-nums text-foreground font-medium">${current.spread.toFixed(2)}</span>
               </div>
               <svg viewBox={`0 0 ${chartWidth} 60`} className="w-full h-full" preserveAspectRatio="none">
-                <polygon points={spreadFillPoly} fill="rgba(230,0,122,0.1)" />
-                <polyline points={spreadLine} fill="none" stroke="#e6007a" strokeWidth="1.5" />
-                <line x1={toX(frame)} y1="0" x2={toX(frame)} y2="60" stroke="rgba(255,255,255,0.1)" strokeWidth="1" strokeDasharray="3,3" />
+                <polygon points={spreadFillPoly} fill={isLight ? 'rgba(230,0,122,0.15)' : 'rgba(230,0,122,0.1)'} />
+                <polyline points={spreadLine} fill="none" stroke="#e6007a" strokeWidth={isLight ? '2' : '1.5'} />
+                <line x1={toX(frame)} y1="0" x2={toX(frame)} y2="60" stroke={isLight ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.1)'} strokeWidth="1" strokeDasharray="3,3" />
               </svg>
             </div>
           )}
