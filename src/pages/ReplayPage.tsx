@@ -297,12 +297,12 @@ export default function ReplayPage() {
   );
 
   return (
-    <div className="min-h-screen bg-background pt-14assName="flex flex-col lg:flex-row h-auto lg:h-[calc(100vh-56px)]">
+    <div className="min-h-screen bg-background pt-14x-col lg:flex-row h-auto lg:h-[calc(100vh-56px)]">
         {/* Main chart area */}
         <div className="flex-1 flex flex-col p-4 md:p-6 min-w-0">
-          {/*  max-md:gap-1Top  max-md:gap-1bar */}
+          {/*  max-md:gap-1Top  max-md:gap-1bar  max-md:gap-1*/}
           <div className="flex flex-wrap items-center gap-2 md:gap-3 mb-4">
-2 md:mb-            <select
+2 md2 md:mb-:mb-            <select
               value={selectedAsset}
               onChange={e => { setSelectedAsset(e.target.value); setFrame(250); setPlaying(false); }}
               className="h-11 md:h-9 rounded-xl bg-background text-foreground text-sm px-3 font-medium focus:outline-none min-w-[120px]"
@@ -376,7 +376,7 @@ export default function ReplayPage() {
               </div>
             </div>
           ) : (
-            <div className="flex items-center gap-1 mb-4 p-1 rounded-full surface-1 w-fit">
+            <div className="flex items-center gap-11 md:mb- mb-4 p-1 rounded-full surface-1 w-fit">
               {[
                 { label: 'Bid', active: showBid, toggle: () => setShowBid(!showBid), color: '#0a84ff' },
                 { label: 'Ask', active: showAsk, toggle: () => setShowAsk(!showAsk), color: '#ff453a' },
