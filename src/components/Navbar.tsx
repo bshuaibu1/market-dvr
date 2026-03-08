@@ -14,9 +14,17 @@ const tabs = [
 export default function Navbar() {
   const location = useLocation();
   const { theme, toggleTheme } = useTheme();
+  const isLight = theme === 'light';
 
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 h-14 frosted-glass border-b border-border flex items-center px-6">
+    <nav
+      className="fixed top-0 left-0 right-0 z-50 h-14 frosted-glass flex items-center px-6"
+      style={{
+        borderBottom: isLight ? '1px solid rgba(0,0,0,0.06)' : '1px solid hsl(var(--border))',
+        boxShadow: isLight ? '0 1px 3px rgba(0,0,0,0.04)' : 'none',
+        background: isLight ? 'rgba(255,255,255,0.85)' : undefined,
+      }}
+    >
       <Link to="/" className="flex items-center gap-2 mr-auto">
         <div className="w-2 h-2 rounded-full bg-negative pulse-red" />
         <span className="text-foreground font-semibold text-sm tracking-tight">Market DVR</span>
@@ -35,11 +43,11 @@ export default function Navbar() {
                 <motion.div
                   layoutId="tab-indicator"
                   className="absolute inset-0 rounded-full"
-                  style={{ background: theme === 'dark' ? '#fff' : '#1d1d1f', boxShadow: '0 1px 3px rgba(0,0,0,0.3)' }}
+                  style={{ background: isLight ? '#1d1d1f' : '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.3)' }}
                   transition={{ type: 'spring', stiffness: 400, damping: 30 }}
                 />
               )}
-              <span className={`relative z-10 ${active ? (theme === 'dark' ? 'text-black' : 'text-white') : 'text-muted-foreground'}`}>
+              <span className={`relative z-10 ${active ? (isLight ? 'text-white' : 'text-black') : 'text-muted-foreground'}`}>
                 {tab.label}
               </span>
             </Link>
