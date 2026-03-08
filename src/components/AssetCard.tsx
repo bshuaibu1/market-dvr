@@ -41,7 +41,7 @@ export default function AssetCard({ asset }: Props) {
       </div>
 
       <div className="mt-auto pt-2">
-        <SparklineChart data={asset.sparkline} positive={positive} width={200} height={40} />
+        <SparklineChart data={asset.sparkline} positive={positive} width={200} height={56} />
       </div>
     </div>
   );

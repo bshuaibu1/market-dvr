@@ -6,7 +6,7 @@ interface Props {
   positive?: boolean;
 }
 
-export default function SparklineChart({ data, width = 120, height = 40, positive = true }: Props) {
+export default function SparklineChart({ data, width = 120, height = 56, positive = true }: Props) {
   if (data.length < 2) return null;
 
   const min = Math.min(...data);
@@ -19,13 +19,10 @@ export default function SparklineChart({ data, width = 120, height = 40, positiv
     return `${x},${y}`;
   }).join(' ');
 
-  const fillPoints = `0,${height} ${points} ${width},${height}`;
   const strokeColor = positive ? '#32d74b' : '#ff453a';
-  const fillColor = positive ? 'rgba(50,215,75,0.08)' : 'rgba(255,69,58,0.08)';
 
   return (
     <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} className="overflow-visible">
-      <polygon points={fillPoints} fill={fillColor} />
       <polyline points={points} fill="none" stroke={strokeColor} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );

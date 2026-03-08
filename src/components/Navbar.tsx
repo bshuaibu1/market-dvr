@@ -29,11 +29,12 @@ export default function Navbar() {
               {active && (
                 <motion.div
                   layoutId="tab-indicator"
-                  className="absolute inset-0 rounded-full surface-2 inner-glow"
+                  className="absolute inset-0 rounded-full"
+                  style={{ background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.3)' }}
                   transition={{ type: 'spring', stiffness: 400, damping: 30 }}
                 />
               )}
-              <span className={`relative z-10 ${active ? 'text-foreground' : 'text-muted-foreground'}`}>
+              <span className={`relative z-10 ${active ? 'text-black' : 'text-muted-foreground'}`}>
                 {tab.label}
               </span>
             </Link>
