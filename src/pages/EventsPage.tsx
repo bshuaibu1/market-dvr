@@ -92,7 +92,7 @@ export default function EventsPage() {
   const featIcon = typeIcons[featuredEvent.type];
 
   return (
-    <div className="min-h-screen bg-background pt-14">
+    <div className="min-h-screen bg-background pt-14 pb-4 max-md:pb-[68px]">
       <Navbar />
 
       <div className="max-w-4xl mx-auto px-4 md:px-6 py-8">

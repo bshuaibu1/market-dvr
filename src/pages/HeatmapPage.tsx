@@ -155,7 +155,7 @@ export default function HeatmapPage() {
   const stress = useMemo(() => getStressLabel(assets), [assets]);
 
   return (
-    <div className="min-h-screen bg-background pt-14 pb-16">
+    <div className="min-h-screen bg-background pt-14 pb-16 max-md:pb-[calc(64px+52px)]">
       <Navbar />
       <div className="max-w-6xl mx-auto px-4 md:px-6 py-8">
         <div className="mb-8">
