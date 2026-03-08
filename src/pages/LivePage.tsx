@@ -3,6 +3,7 @@ import Navbar from '@/components/Navbar';
 import AssetCard from '@/components/AssetCard';
 import RecordingBar from '@/components/RecordingBar';
 import { getInitialAssets, tickAsset, mockEvents, formatPrice, AssetWithClass, AssetClass } from '@/lib/mockData';
+import { Search } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
@@ -163,6 +164,7 @@ function AllAssetsTable({ assets }: { assets: AssetWithClass[] }) {
 export default function LivePage() {
   const [assets, setAssets] = useState(getInitialAssets);
   const [activeTab, setActiveTab] = useState<TabType>('all');
+  const [search, setSearch] = useState('');
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -172,9 +174,17 @@ export default function LivePage() {
   }, []);
 
   const filteredAssets = useMemo(() => {
-    if (activeTab === 'all') return assets;
-    return assets.filter(a => a.assetClass === activeTab);
-  }, [assets, activeTab]);
+    let result = activeTab === 'all' ? assets : assets.filter(a => a.assetClass === activeTab);
+    if (search.trim()) {
+      const q = search.trim().toLowerCase();
+      result = result.filter(a =>
+        a.symbol.toLowerCase().includes(q) ||
+        a.name.toLowerCase().includes(q) ||
+        a.assetClass.toLowerCase().includes(q)
+      );
+    }
+    return result;
+  }, [assets, activeTab, search]);
 
   const pulseAssets = useMemo(() => {
     if (activeTab === 'all') {
@@ -194,32 +204,47 @@ export default function LivePage() {
 
       <div className="max-w-6xl mx-auto px-6 py-8">
         {/* Tab Bar */}
-        <div className="flex items-center gap-2 mb-8">
-          {tabs.map(tab => (
-            <button
-              key={tab.value}
-              onClick={() => setActiveTab(tab.value)}
-              className="px-4 py-1.5 rounded-full text-sm font-medium apple-transition"
-              style={{
-                background: activeTab === tab.value ? '#f5f5f7' : 'transparent',
-                color: activeTab === tab.value ? '#0d0d0d' : '#86868b',
-                border: activeTab === tab.value ? 'none' : '1px solid rgba(255,255,255,0.08)',
-              }}
-            >
-              {tab.label}
-            </button>
-          ))}
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-8">
+          <div className="flex items-center gap-2">
+            {tabs.map(tab => (
+              <button
+                key={tab.value}
+                onClick={() => setActiveTab(tab.value)}
+                className="px-4 py-1.5 rounded-full text-sm font-medium apple-transition"
+                style={{
+                  background: activeTab === tab.value ? '#f5f5f7' : 'transparent',
+                  color: activeTab === tab.value ? '#0d0d0d' : '#86868b',
+                  border: activeTab === tab.value ? 'none' : '1px solid rgba(255,255,255,0.08)',
+                }}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+          <div className="relative sm:ml-auto w-full sm:w-[220px]">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <input
+              type="text"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Search assets..."
+              className="w-full h-9 pl-8 pr-3 rounded-2xl text-sm text-foreground placeholder:text-muted-foreground bg-transparent apple-transition focus:outline-none"
+              style={{ border: '1px solid rgba(255,255,255,0.08)' }}
+            />
+          </div>
         </div>
 
         {/* Content */}
         <motion.div
-          key={activeTab}
+          key={activeTab + search}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.15 }}
         >
-          {activeTab === 'all' ? (
-            <AllAssetsTable assets={assets} />
+          {filteredAssets.length === 0 ? (
+            <div className="py-16 text-center text-muted-foreground text-sm">No assets found</div>
+          ) : activeTab === 'all' ? (
+            <AllAssetsTable assets={filteredAssets} />
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {filteredAssets.map(asset => (
