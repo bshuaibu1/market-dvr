@@ -36,7 +36,6 @@ function generateEventSparkline(type: string): number[] {
     } else if (type === 'spread') {
       val += (Math.random() - 0.5) * (t > 0.3 && t < 0.6 ? 3 : 0.5);
     } else if (type === 'divergence') {
-      // Erratic movement showing disagreement
       val += (Math.random() - 0.5) * (t > 0.2 && t < 0.7 ? 4 : 0.3);
     } else {
       val += (Math.random() - 0.5) * 0.8;
@@ -64,20 +63,18 @@ function MiniSparkline({ data, color, width = 80, height = 32 }: { data: number[
   );
 }
 
-// Add confidence divergence events to existing events
 const divergenceEvents: MarketEvent[] = [
   { id: 'd1', type: 'confidence' as any, asset: 'ETH/USD', description: 'Confidence divergence — price sources disagreed by 2.8% for 12 seconds', timestamp: '18 min ago', color: '#9333ea' },
   { id: 'd2', type: 'confidence' as any, asset: 'SOL/USD', description: 'Confidence divergence — exchange prices diverged sharply during liquidation cascade', timestamp: '52 min ago', color: '#9333ea' },
 ];
 
-// Extend events with divergence type
 const allEventsRaw = [
   ...mockEvents,
   { ...divergenceEvents[0], type: 'divergence' as any },
   { ...divergenceEvents[1], type: 'divergence' as any },
-].sort(() => Math.random() - 0.5); // shuffle for realism
+].sort(() => Math.random() - 0.5);
 
-const featuredEvent = mockEvents[0]; // BTC flash crash
+const featuredEvent = mockEvents[0];
 const featuredSparkline = generateEventSparkline(featuredEvent.type);
 
 const stats = [
@@ -97,7 +94,7 @@ export default function EventsPage() {
     <div className="min-h-screen bg-background pt-14">
       <Navbar />
 
-      <div className="max-w-4xl mx-auto px-6 py-8">
+      <div className="max-w-4xl mx-auto px-4 md:px-6 py-8">
         <h1 className="heading-thin text-3xl mb-8">Events</h1>
 
         {/* Featured Event */}
@@ -105,20 +102,20 @@ export default function EventsPage() {
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3 }}
-          className="surface-1 rounded-2xl p-6 mb-8 relative overflow-hidden"
+          className="surface-1 rounded-2xl p-4 md:p-6 mb-8 relative overflow-hidden"
           style={{ border: '1px solid rgba(255,255,255,0.08)' }}
         >
           <div className="text-[11px] uppercase tracking-[0.08em] font-medium mb-3" style={{ color: '#e6007a' }}>
             Most Dramatic Event
           </div>
-          <div className="flex items-start justify-between gap-6">
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 sm:gap-6">
             <div className="flex-1">
               <div className="text-lg font-medium text-foreground mb-1">{featuredEvent.asset}</div>
               <div className="text-sm text-muted-foreground leading-relaxed mb-2">{featuredEvent.description}</div>
               <div className="text-xs text-muted-foreground mb-4">{featuredEvent.timestamp}</div>
               <Link
                 to="/replay"
-                className="inline-flex items-center px-5 py-2.5 rounded-xl text-sm font-medium text-primary-foreground apple-transition"
+                className="inline-flex items-center justify-center px-5 py-2.5 rounded-xl text-sm font-medium text-primary-foreground apple-transition w-full sm:w-auto min-h-[44px]"
                 style={{ background: '#e6007a' }}
                 onMouseEnter={e => (e.currentTarget.style.opacity = '0.85')}
                 onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
@@ -126,19 +123,19 @@ export default function EventsPage() {
                 Replay this moment →
               </Link>
             </div>
-            <div className="flex-shrink-0">
+            <div className="flex-shrink-0 w-full sm:w-auto">
               <MiniSparkline data={featuredSparkline} color={featIcon.color} width={180} height={64} />
             </div>
           </div>
         </motion.div>
 
         {/* Filter bar */}
-        <div className="flex items-center gap-2 mb-6 flex-wrap">
+        <div className="flex items-center gap-2 mb-6 overflow-x-auto scrollbar-hide pb-1">
           {filters.map(f => (
             <button
               key={f.label}
               onClick={() => setActiveFilter(f.type)}
-              className={`px-4 py-2 rounded-full text-xs font-medium apple-transition ${activeFilter === f.type ? 'surface-2 inner-glow text-foreground' : 'surface-1 text-muted-foreground hover:text-foreground'}`}
+              className={`px-4 py-2 rounded-full text-xs font-medium apple-transition flex-shrink-0 whitespace-nowrap min-h-[44px] md:min-h-0 ${activeFilter === f.type ? 'surface-2 inner-glow text-foreground' : 'surface-1 text-muted-foreground hover:text-foreground'}`}
             >
               {f.label}
             </button>
@@ -176,7 +173,7 @@ function EventCard({ event, index }: { event: MarketEvent; index: number }) {
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.05, duration: 0.3 }}
-      className="surface-1 rounded-2xl p-5 card-hover flex items-center gap-4"
+      className="surface-1 rounded-2xl p-4 md:p-5 card-hover flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4"
     >
       <div
         className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0"
@@ -187,7 +184,7 @@ function EventCard({ event, index }: { event: MarketEvent; index: number }) {
 
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-foreground">{event.asset}</span>
+          <span className="text-[13px] md:text-sm font-medium text-foreground">{event.asset}</span>
           {isDivergence && (
             <span
               className="text-[9px] uppercase tracking-widest font-semibold px-2 py-0.5 rounded-full"
@@ -201,7 +198,7 @@ function EventCard({ event, index }: { event: MarketEvent; index: number }) {
             </span>
           )}
         </div>
-        <div className="text-sm text-muted-foreground truncate">{event.description}</div>
+        <div className="text-[13px] md:text-sm text-muted-foreground truncate">{event.description}</div>
         {isDivergence && (
           <div className="flex items-center gap-3 mt-1">
             <span className="text-[10px] tabular-nums text-muted-foreground">Confidence: <span className="text-foreground font-medium">92.1%</span> → <span style={{ color: '#9333ea' }} className="font-medium">54.3%</span></span>
@@ -216,7 +213,7 @@ function EventCard({ event, index }: { event: MarketEvent; index: number }) {
 
       <Link
         to="/replay"
-        className="px-4 py-2 rounded-xl text-xs font-medium text-muted-foreground apple-transition hover:text-primary-foreground"
+        className="px-4 py-2 rounded-xl text-xs font-medium text-muted-foreground apple-transition hover:text-primary-foreground min-h-[44px] flex items-center justify-center w-full sm:w-auto"
         style={{ border: '1px solid rgba(255,255,255,0.08)' }}
         onMouseEnter={e => { e.currentTarget.style.background = '#e6007a'; e.currentTarget.style.borderColor = '#e6007a'; }}
         onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'; }}

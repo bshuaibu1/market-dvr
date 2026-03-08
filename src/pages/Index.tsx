@@ -38,7 +38,6 @@ const fadeUp = {
   }),
 };
 
-// Generate particle positions once
 const particles = Array.from({ length: 40 }, () => ({
   x: Math.random() * 100,
   y: Math.random() * 100,
@@ -56,9 +55,9 @@ export default function Index() {
     const rect = heroRef.current.getBoundingClientRect();
     const cx = rect.left + rect.width / 2;
     const cy = rect.top + rect.height / 2;
-    const px = (e.clientX - cx) / (rect.width / 2); // -1 to 1
+    const px = (e.clientX - cx) / (rect.width / 2);
     const py = (e.clientY - cy) / (rect.height / 2);
-    setTilt({ x: py * -6, y: px * 6 }); // ±6deg
+    setTilt({ x: py * -6, y: px * 6 });
   }, []);
 
   const handleMouseLeave = useCallback(() => {
@@ -72,12 +71,9 @@ export default function Index() {
         ref={heroRef}
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
-        className="relative flex flex-col items-center justify-center px-6 pt-32 pb-16"
+        className="relative flex flex-col items-center justify-center px-4 md:px-6 pt-24 md:pt-32 pb-16"
       >
-        {/* Background orb */}
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/3 w-[600px] h-[600px] gradient-orb opacity-40 blur-3xl pointer-events-none" />
-
-        {/* Large radial glow behind DVR */}
         <div
           className="absolute top-[28%] left-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none"
           style={{
@@ -88,7 +84,6 @@ export default function Index() {
           }}
         />
 
-        {/* Particle field */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           {particles.map((p, i) => (
             <motion.div
@@ -129,7 +124,7 @@ export default function Index() {
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.1, ease: [0.25, 0.46, 0.45, 0.94] }}
-          className="mb-6 relative z-10"
+          className="mb-6 relative z-10 w-full flex justify-center"
           style={{
             perspective: 1200,
             willChange: 'transform',
@@ -140,7 +135,9 @@ export default function Index() {
               transform: `perspective(1200px) rotateX(${8 + tilt.x}deg) rotateY(${-4 + tilt.y}deg)`,
               transition: 'transform 0.1s ease-out',
               willChange: 'transform',
+              maxWidth: 320,
             }}
+            className="md:!max-w-none"
           >
             <DVRDevice />
           </div>
@@ -150,8 +147,8 @@ export default function Index() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.3 }}
-          className="heading-thin text-center mb-4 relative z-10"
-          style={{ fontSize: 'clamp(48px, 6vw, 80px)', fontWeight: 200 }}
+          className="heading-thin text-center mb-4 relative z-10 px-4"
+          style={{ fontSize: 'clamp(32px, 8vw, 80px)', fontWeight: 200 }}
         >
           The DVR for Financial Markets
         </motion.h1>
@@ -160,18 +157,17 @@ export default function Index() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.45 }}
-          className="text-muted-foreground text-lg md:text-xl text-center max-w-[520px] mb-8 leading-relaxed relative z-10"
+          className="text-muted-foreground text-base md:text-lg lg:text-xl text-center max-w-[520px] mb-8 leading-relaxed relative z-10 px-4"
         >
           Record every market crash, pump, and liquidation cascade.
           Replay it frame by frame at 50ms resolution. Share the moment.
         </motion.p>
 
-        {/* Featured Replay Preview with subtle 3D lean */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.55 }}
-          className="mb-8 relative z-10"
+          className="mb-8 relative z-10 w-full flex justify-center"
           style={{
             transform: 'perspective(800px) rotateX(2deg)',
             willChange: 'transform',
@@ -184,17 +180,17 @@ export default function Index() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.7 }}
-          className="flex items-center gap-3 relative z-10"
+          className="flex flex-col sm:flex-row items-center gap-3 relative z-10 w-full sm:w-auto px-4 sm:px-0"
         >
           <Link
             to="/live"
-            className="px-6 py-3 rounded-xl text-sm font-medium apple-transition bg-primary text-primary-foreground"
+            className="px-6 py-3 rounded-xl text-sm font-medium apple-transition bg-primary text-primary-foreground w-full sm:w-auto text-center min-h-[44px] flex items-center justify-center"
           >
             Watch Live Markets
           </Link>
           <Link
             to="/replay"
-            className="px-6 py-3 rounded-xl text-sm font-medium text-foreground apple-transition border border-border"
+            className="px-6 py-3 rounded-xl text-sm font-medium text-foreground apple-transition border border-border w-full sm:w-auto text-center min-h-[44px] flex items-center justify-center"
           >
             Replay an Event
           </Link>
@@ -202,7 +198,7 @@ export default function Index() {
       </section>
 
       {/* Features */}
-      <section className="max-w-5xl mx-auto px-6 py-24">
+      <section className="max-w-5xl mx-auto px-4 md:px-6 py-24">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {features.map((f, i) => (
             <motion.div
@@ -223,7 +219,7 @@ export default function Index() {
       </section>
 
       {/* How it works */}
-      <section className="max-w-4xl mx-auto px-6 py-24">
+      <section className="max-w-4xl mx-auto px-4 md:px-6 py-24">
         <motion.h2
           initial="hidden"
           whileInView="visible"

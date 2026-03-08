@@ -4,6 +4,7 @@ import RecordingBar from '@/components/RecordingBar';
 import { getInitialAssets, tickAsset, formatPrice, AssetWithClass, AssetClass } from '@/lib/mockData';
 import { Link } from 'react-router-dom';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface HeatStyle {
   bg: string;
@@ -40,8 +41,9 @@ const normalSpreads: Record<string, number> = {
 
 const wideAssets = new Set(['BTC/USD', 'ETH/USD']);
 
-function ShimmerSquare({ asset }: { asset: AssetWithClass }) {
+function ShimmerSquare({ asset, isMobile }: { asset: AssetWithClass; isMobile: boolean }) {
   const [shimmer, setShimmer] = useState(false);
+  const [tapped, setTapped] = useState(false);
   const prevPrice = useRef(asset.price);
 
   useEffect(() => {
@@ -56,53 +58,67 @@ function ShimmerSquare({ asset }: { asset: AssetWithClass }) {
   const isWide = wideAssets.has(asset.symbol);
   const style = getHeatStyle(asset.confidence, asset.spread, normalSpreads[asset.symbol] || 1);
 
+  const content = (
+    <Link
+      to="/replay"
+      className="relative flex flex-col justify-between overflow-hidden apple-transition hover:brightness-110 cursor-pointer"
+      onClick={isMobile ? (e) => {
+        if (!tapped) { e.preventDefault(); setTapped(true); }
+        else { setTapped(false); }
+      } : undefined}
+      style={{
+        gridColumn: isMobile && isWide ? '1 / -1' : (isWide ? 'span 2' : 'span 1'),
+        background: style.bg,
+        borderRadius: 12,
+        borderTop: `1px solid ${style.border}`,
+        borderLeft: `1px solid rgba(255,255,255,0.04)`,
+        borderRight: `1px solid rgba(255,255,255,0.04)`,
+        borderBottom: `1px solid rgba(255,255,255,0.04)`,
+        borderTopColor: style.borderOpacity < 1 ? `${style.border}66` : style.border,
+        height: 72,
+        padding: '8px 10px',
+        transition: 'background 0.6s ease, border-color 0.6s ease',
+      }}
+    >
+      {shimmer && (
+        <div className="absolute inset-0 pointer-events-none" style={{ background: 'rgba(255,255,255,0.05)', animation: 'shimmerFade 0.3s ease-out forwards' }} />
+      )}
+      <div className="flex items-start justify-between">
+        <span className="text-foreground font-semibold" style={{ fontSize: isWide ? 13 : 11 }}>{asset.symbol}</span>
+      </div>
+      <div className="flex items-end justify-between">
+        <span className={`tabular-nums font-medium ${asset.change >= 0 ? 'text-positive' : 'text-negative'}`} style={{ fontSize: 11 }}>
+          {asset.change >= 0 ? '+' : ''}{asset.change.toFixed(2)}%
+        </span>
+        <span className="text-muted-foreground tabular-nums" style={{ fontSize: 10 }}>
+          {(asset.confidence * 100).toFixed(1)}%
+        </span>
+      </div>
+    </Link>
+  );
+
+  if (isMobile) {
+    return (
+      <>
+        {content}
+        {tapped && (
+          <div
+            className="col-span-full rounded-xl p-3 text-xs space-y-1"
+            style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
+          >
+            <div className="font-medium text-foreground">{asset.name} ({asset.symbol})</div>
+            <div className="text-muted-foreground">Price: <span className="text-foreground tabular-nums">${formatPrice(asset.price)}</span></div>
+            <div className="text-muted-foreground">Confidence: <span className="text-foreground tabular-nums">{(asset.confidence * 100).toFixed(1)}%</span></div>
+            <div className="text-muted-foreground">Spread: <span className="text-foreground tabular-nums">${asset.spread < 0.01 ? asset.spread.toFixed(6) : asset.spread.toFixed(4)}</span></div>
+          </div>
+        )}
+      </>
+    );
+  }
+
   return (
     <Tooltip>
-      <TooltipTrigger asChild>
-        <Link
-          to="/replay"
-          className="relative flex flex-col justify-between overflow-hidden apple-transition hover:brightness-110 cursor-pointer"
-          style={{
-            gridColumn: isWide ? 'span 2' : 'span 1',
-            background: style.bg,
-            borderRadius: 12,
-            borderTop: `1px solid ${style.border}`,
-            borderLeft: `1px solid rgba(255,255,255,0.04)`,
-            borderRight: `1px solid rgba(255,255,255,0.04)`,
-            borderBottom: `1px solid rgba(255,255,255,0.04)`,
-            borderTopColor: style.borderOpacity < 1 ? `${style.border}66` : style.border,
-            height: 72,
-            padding: '8px 10px',
-            transition: 'background 0.6s ease, border-color 0.6s ease',
-          }}
-        >
-          {shimmer && (
-            <div
-              className="absolute inset-0 pointer-events-none"
-              style={{
-                background: 'rgba(255,255,255,0.05)',
-                animation: 'shimmerFade 0.3s ease-out forwards',
-              }}
-            />
-          )}
-          <div className="flex items-start justify-between">
-            <span className="text-foreground font-semibold" style={{ fontSize: isWide ? 13 : 11 }}>
-              {asset.symbol}
-            </span>
-          </div>
-          <div className="flex items-end justify-between">
-            <span
-              className={`tabular-nums font-medium ${asset.change >= 0 ? 'text-positive' : 'text-negative'}`}
-              style={{ fontSize: 11 }}
-            >
-              {asset.change >= 0 ? '+' : ''}{asset.change.toFixed(2)}%
-            </span>
-            <span className="text-muted-foreground tabular-nums" style={{ fontSize: 10 }}>
-              {(asset.confidence * 100).toFixed(1)}%
-            </span>
-          </div>
-        </Link>
-      </TooltipTrigger>
+      <TooltipTrigger asChild>{content}</TooltipTrigger>
       <TooltipContent side="top" className="bg-popover border border-border rounded-xl p-3 max-w-[200px]">
         <div className="text-xs space-y-1">
           <div className="font-medium text-foreground">{asset.name} ({asset.symbol})</div>
@@ -118,6 +134,7 @@ function ShimmerSquare({ asset }: { asset: AssetWithClass }) {
 
 export default function HeatmapPage() {
   const [assets, setAssets] = useState(getInitialAssets);
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -139,23 +156,26 @@ export default function HeatmapPage() {
   return (
     <div className="min-h-screen bg-background pt-14 pb-16">
       <Navbar />
-      <div className="max-w-6xl mx-auto px-6 py-8">
+      <div className="max-w-6xl mx-auto px-4 md:px-6 py-8">
         <div className="mb-8">
           <h1 className="label-caps text-base mb-1">Volatility Heatmap</h1>
           <p className="text-sm text-muted-foreground">Real-time market stress across all asset classes</p>
         </div>
 
         <div className="space-y-8">
-          {groups.map(group => {
+          {groups.map((group, gi) => {
             const groupAssets = assets.filter(a => a.assetClass === group.cls);
             return (
               <div key={group.cls}>
-                <div className="label-caps mb-3 text-muted-foreground" style={{ fontSize: 10 }}>{group.label}</div>
+                <div className="label-caps mb-1 text-muted-foreground" style={{ fontSize: 10 }}>{group.label}</div>
+                {isMobile && gi === 0 && (
+                  <div className="text-[11px] text-muted-foreground mb-2">Tap for details</div>
+                )}
                 <div className="grid gap-1.5" style={{
-                  gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))',
+                  gridTemplateColumns: isMobile ? 'repeat(auto-fill, minmax(90px, 1fr))' : 'repeat(auto-fill, minmax(100px, 1fr))',
                 }}>
                   {groupAssets.map(asset => (
-                    <ShimmerSquare key={asset.symbol} asset={asset} />
+                    <ShimmerSquare key={asset.symbol} asset={asset} isMobile={isMobile} />
                   ))}
                 </div>
               </div>
@@ -163,8 +183,7 @@ export default function HeatmapPage() {
           })}
         </div>
 
-        {/* Bottom stats — minimal text only */}
-        <div className="mt-10 flex flex-wrap items-center gap-8">
+        <div className="mt-10 flex flex-wrap items-center gap-4 md:gap-8">
           <div className="flex items-center gap-2 text-xs">
             <span className="text-muted-foreground">Most Volatile:</span>
             <span className="text-negative font-medium tabular-nums">{mostVolatile.symbol} {(mostVolatile.confidence * 100).toFixed(1)}%</span>
