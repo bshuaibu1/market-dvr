@@ -9,6 +9,7 @@ import { Search } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
+import { useTheme } from '@/components/ThemeProvider';
 
 type TabType = 'all' | 'crypto' | 'commodities' | 'forex';
 
@@ -47,9 +48,18 @@ const classBadgeColors: Record<AssetClass, { bg: string; text: string }> = {
 };
 
 function MarketPulseChart({ assets }: { assets: AssetWithClass[] }) {
+  const { theme } = useTheme();
+  const isLight = theme === 'light';
   const width = 800;
   const height = 200;
   const padding = { top: 10, right: 10, bottom: 10, left: 10 };
+
+  // Light mode uses higher contrast colors for the 3 representative assets
+  const lightColors: Record<string, string> = {
+    'BTC/USD': '#1d1d1f',
+    'XAU/USD': '#b8860b',
+    'EUR/USD': '#0055d4',
+  };
 
   const lines = useMemo(() => {
     return assets.map(asset => {
@@ -76,7 +86,7 @@ function MarketPulseChart({ assets }: { assets: AssetWithClass[] }) {
         x1={padding.left} x2={width - padding.right}
         y1={padding.top + ((allMax - 0) / range) * chartH}
         y2={padding.top + ((allMax - 0) / range) * chartH}
-        stroke="rgba(255,255,255,0.06)" strokeWidth="1" strokeDasharray="4 4"
+        stroke={isLight ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.06)'} strokeWidth="1" strokeDasharray="4 4"
       />
       {lines.map(line => {
         const points = line.pctChanges.map((pct, i) => {
@@ -84,16 +94,19 @@ function MarketPulseChart({ assets }: { assets: AssetWithClass[] }) {
           const y = padding.top + ((allMax - pct) / range) * chartH;
           return `${x},${y}`;
         }).join(' ');
+        const color = isLight
+          ? (lightColors[line.symbol] || '#666666')
+          : (assetColors[line.symbol] || '#f5f5f7');
         return (
           <polyline
             key={line.symbol}
             points={points}
             fill="none"
-            stroke={assetColors[line.symbol] || '#f5f5f7'}
-            strokeWidth="1.5"
+            stroke={color}
+            strokeWidth={isLight ? '2.5' : '1.5'}
             strokeLinecap="round"
             strokeLinejoin="round"
-            opacity="0.8"
+            opacity={isLight ? '1' : '0.8'}
           />
         );
       })}
@@ -164,6 +177,13 @@ function AllAssetsTable({ assets }: { assets: AssetWithClass[] }) {
 }
 
 export default function LivePage() {
+  const { theme } = useTheme();
+  const isLight = theme === 'light';
+  const lightLegendColors: Record<string, string> = {
+    'BTC/USD': '#1d1d1f',
+    'XAU/USD': '#b8860b',
+    'EUR/USD': '#0055d4',
+  };
   const [assets, setAssets] = useState(getInitialAssets);
   const [activeTab, setActiveTab] = useState<TabType>('all');
   const [search, setSearch] = useState('');
@@ -263,14 +283,17 @@ export default function LivePage() {
         {/* Market Pulse */}
         <div className="mt-12">
           <h2 className="label-caps mb-4">Market Pulse</h2>
-          <div className="surface-1 rounded-2xl p-6" style={{ border: '1px solid rgba(255,255,255,0.08)' }}>
+          <div className="surface-1 rounded-2xl p-6" style={{ background: isLight ? '#ffffff' : undefined, border: isLight ? '1px solid rgba(0,0,0,0.08)' : '1px solid rgba(255,255,255,0.08)' }}>
             <MarketPulseChart assets={pulseAssets} />
             <div className="flex items-center gap-5 mt-4 flex-wrap">
               {pulseAssets.map(asset => {
                 const positive = asset.change >= 0;
+                const dotColor = isLight
+                  ? (lightLegendColors[asset.symbol] || '#666666')
+                  : (assetColors[asset.symbol] || '#f5f5f7');
                 return (
                   <div key={asset.symbol} className="flex items-center gap-2">
-                    <div className="w-2.5 h-2.5 rounded-full" style={{ background: assetColors[asset.symbol] }} />
+                    <div className="w-2.5 h-2.5 rounded-full" style={{ background: dotColor }} />
                     <span className="text-xs text-muted-foreground">{asset.symbol}</span>
                     <span className={`text-xs font-medium tabular-nums ${positive ? 'text-positive' : 'text-negative'}`}>
                       {positive ? '+' : ''}{asset.change.toFixed(2)}%
