@@ -297,7 +297,7 @@ export default function ReplayPage() {
   );
 
   return (
-    <div className="min-h-screen bg-background pt-14 max-md:pb-[68px]">
+    <div className="min-h-screen bg-background pt-14">
       <Navbar />
 
       <div className="flex flex-col lg:flex-row h-auto lg:h-[calc(100vh-56px)]">
