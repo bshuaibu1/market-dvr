@@ -1,10 +1,14 @@
 import { useMemo } from 'react';
+import { useTheme } from '@/components/ThemeProvider';
 
 interface Props {
   value: number; // 0-100
 }
 
 export default function StressGauge({ value }: Props) {
+  const { theme } = useTheme();
+  const light = theme === 'light';
+
   const color = useMemo(() => {
     if (value < 40) return '#32d74b';
     if (value < 70) return '#ff9f0a';
@@ -17,52 +21,64 @@ export default function StressGauge({ value }: Props) {
     return 'HIGH';
   }, [value]);
 
-  // SVG arc from -90deg to +90deg (semicircle)
-  const radius = 50;
+  const trackColor = light ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.08)';
+  const numberColor = light ? '#1d1d1f' : '#fff';
+
+  // Semicircle: 180 degrees, opening downward like a speedometer
+  const radius = 46;
   const cx = 60;
-  const cy = 55;
-  const startAngle = -180;
-  const endAngle = 0;
-  const sweep = (value / 100) * (endAngle - startAngle);
-  const currentAngle = startAngle + sweep;
+  const cy = 52;
+  const strokeW = 8;
 
   const toRad = (deg: number) => (deg * Math.PI) / 180;
-  const startX = cx + radius * Math.cos(toRad(startAngle));
-  const startY = cy + radius * Math.sin(toRad(startAngle));
-  const endX = cx + radius * Math.cos(toRad(currentAngle));
-  const endY = cy + radius * Math.sin(toRad(currentAngle));
-  const largeArc = sweep > 180 ? 1 : 0;
 
-  const bgEndX = cx + radius * Math.cos(toRad(endAngle));
-  const bgEndY = cy + radius * Math.sin(toRad(endAngle));
+  // Arc from 180° to 0° (left to right, top semicircle)
+  const startAngle = 180;
+  const endAngle = 0;
+  const sweep = (value / 100) * (startAngle - endAngle);
+  const currentAngle = startAngle - sweep;
+
+  const arcPoint = (angle: number) => ({
+    x: cx + radius * Math.cos(toRad(angle)),
+    y: cy - radius * Math.sin(toRad(angle)),
+  });
+
+  const bgStart = arcPoint(startAngle);
+  const bgEnd = arcPoint(endAngle);
+  const valEnd = arcPoint(currentAngle);
+  const largeArc = sweep > 180 ? 1 : 0;
 
   return (
     <div className="flex flex-col items-center">
-      <svg width="120" height="70" viewBox="0 0 120 70">
-        {/* Background arc */}
+      <svg width="120" height="72" viewBox="0 0 120 72">
+        {/* Full semicircle track */}
         <path
-          d={`M ${startX} ${startY} A ${radius} ${radius} 0 1 1 ${bgEndX} ${bgEndY}`}
+          d={`M ${bgStart.x} ${bgStart.y} A ${radius} ${radius} 0 1 1 ${bgEnd.x} ${bgEnd.y}`}
           fill="none"
-          stroke="rgba(255,255,255,0.06)"
-          strokeWidth="6"
+          stroke={trackColor}
+          strokeWidth={strokeW}
           strokeLinecap="round"
         />
-        {/* Value arc */}
+        {/* Filled portion */}
         {value > 0 && (
           <path
-            d={`M ${startX} ${startY} A ${radius} ${radius} 0 ${largeArc} 1 ${endX} ${endY}`}
+            d={`M ${bgStart.x} ${bgStart.y} A ${radius} ${radius} 0 ${largeArc} 1 ${valEnd.x} ${valEnd.y}`}
             fill="none"
             stroke={color}
-            strokeWidth="6"
+            strokeWidth={strokeW}
             strokeLinecap="round"
             style={{ transition: 'all 0.6s ease' }}
           />
         )}
+        {/* Center number */}
+        <text x={cx} y={cy - 2} textAnchor="middle" fill={numberColor} fontSize="24" fontWeight="300" fontFamily="Inter, -apple-system, sans-serif" style={{ fontVariantNumeric: 'tabular-nums' }}>
+          {Math.round(value)}
+        </text>
+        {/* Label below number */}
+        <text x={cx} y={cy + 14} textAnchor="middle" fill={color} fontSize="11" fontWeight="500" letterSpacing="0.08em" fontFamily="Inter, -apple-system, sans-serif">
+          {label}
+        </text>
       </svg>
-      <div className="flex items-center gap-1.5 -mt-2">
-        <span style={{ color, fontSize: 11, fontWeight: 500, letterSpacing: '0.08em' }}>{label}</span>
-        <span className="tabular-nums" style={{ color: 'rgba(255,255,255,0.5)', fontSize: 11 }}>· {Math.round(value)}</span>
-      </div>
     </div>
   );
 }
