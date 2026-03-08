@@ -9,6 +9,7 @@ import { Search } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
+import { useTheme } from '@/components/ThemeProvider';
 
 type TabType = 'all' | 'crypto' | 'commodities' | 'forex';
 
