@@ -304,7 +304,7 @@ export default function ReplayPage() {
         <div className="flex-1 flex flex-col p-4 md:p-6 min-w-0 max-md:gap-1">
           {/* Top bar */}
           <div className="flex flex-wrap items-center gap-2 md:gap-3 mb-2 md:mb-4">
-2 md2 md2 md:mb-:mb-:mb-            <select
+<select
               value={selectedAsset}
               onChange={e => { setSelectedAsset(e.target.value); setFrame(250); setPlaying(false); }}
               className="h-11 md:h-9 rounded-xl bg-background text-foreground text-sm px-3 font-medium focus:outline-none min-w-[120px]"
