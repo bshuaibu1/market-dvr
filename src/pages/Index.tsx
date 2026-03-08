@@ -2,6 +2,7 @@ import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import DVRDevice from '@/components/DVRDevice';
 import Footer from '@/components/Footer';
+import HeroReplayCard from '@/components/HeroReplayCard';
 import { Activity, Search, Share2 } from 'lucide-react';
 
 const features = [
@@ -57,7 +58,7 @@ export default function Index() {
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.1, ease: [0.25, 0.46, 0.45, 0.94] }}
-          className="mb-16"
+          className="mb-12"
         >
           <DVRDevice />
         </motion.div>
@@ -76,29 +77,37 @@ export default function Index() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.45 }}
-          className="text-muted-foreground text-lg md:text-xl text-center max-w-[520px] mb-10 leading-relaxed"
+          className="text-muted-foreground text-lg md:text-xl text-center max-w-[520px] mb-8 leading-relaxed"
         >
           Record every market crash, pump, and liquidation cascade.
           Replay it frame by frame at 50ms resolution. Share the moment.
         </motion.p>
 
+        {/* Featured Replay Preview */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.6 }}
+          transition={{ duration: 0.8, delay: 0.55 }}
+          className="mb-10"
+        >
+          <HeroReplayCard />
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8, delay: 0.7 }}
           className="flex items-center gap-3"
         >
           <Link
             to="/live"
-            className="px-6 py-3 rounded-xl text-sm font-medium apple-transition"
-            style={{ background: '#e6007a', color: '#fff' }}
+            className="px-6 py-3 rounded-xl text-sm font-medium apple-transition bg-primary text-primary-foreground"
           >
             Watch Live Markets
           </Link>
           <Link
             to="/replay"
-            className="px-6 py-3 rounded-xl text-sm font-medium text-foreground apple-transition"
-            style={{ border: '1px solid rgba(255,255,255,0.2)' }}
+            className="px-6 py-3 rounded-xl text-sm font-medium text-foreground apple-transition border border-border"
           >
             Replay an Event
           </Link>
@@ -150,7 +159,7 @@ export default function Index() {
               variants={fadeUp}
               className="text-center"
             >
-              <div className="text-xs font-medium tabular-nums mb-3" style={{ color: '#e6007a' }}>{step.num}</div>
+              <div className="text-xs font-medium tabular-nums mb-3 text-primary">{step.num}</div>
               <h3 className="text-foreground text-xl font-light tracking-tight mb-2">{step.title}</h3>
               <p className="text-sm text-muted-foreground leading-relaxed">{step.desc}</p>
             </motion.div>
