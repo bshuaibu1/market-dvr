@@ -283,14 +283,17 @@ export default function LivePage() {
         {/* Market Pulse */}
         <div className="mt-12">
           <h2 className="label-caps mb-4">Market Pulse</h2>
-          <div className="surface-1 rounded-2xl p-6" style={{ border: '1px solid rgba(255,255,255,0.08)' }}>
+          <div className="surface-1 rounded-2xl p-6" style={{ background: isLight ? '#ffffff' : undefined, border: isLight ? '1px solid rgba(0,0,0,0.08)' : '1px solid rgba(255,255,255,0.08)' }}>
             <MarketPulseChart assets={pulseAssets} />
             <div className="flex items-center gap-5 mt-4 flex-wrap">
               {pulseAssets.map(asset => {
                 const positive = asset.change >= 0;
+                const dotColor = isLight
+                  ? (lightLegendColors[asset.symbol] || '#666666')
+                  : (assetColors[asset.symbol] || '#f5f5f7');
                 return (
                   <div key={asset.symbol} className="flex items-center gap-2">
-                    <div className="w-2.5 h-2.5 rounded-full" style={{ background: assetColors[asset.symbol] }} />
+                    <div className="w-2.5 h-2.5 rounded-full" style={{ background: dotColor }} />
                     <span className="text-xs text-muted-foreground">{asset.symbol}</span>
                     <span className={`text-xs font-medium tabular-nums ${positive ? 'text-positive' : 'text-negative'}`}>
                       {positive ? '+' : ''}{asset.change.toFixed(2)}%
