@@ -339,7 +339,7 @@ export default function ReplayPage() {
                 onChange={e => setFrame(Number(e.target.value))}
                 className="w-full h-1 rounded-full appearance-none cursor-pointer"
                 style={{
-                  background: `linear-gradient(to right, #e6007a 0%, #e6007a ${(frame / (data.length - 1)) * 100}%, rgba(255,255,255,0.1) ${(frame / (data.length - 1)) * 100}%, rgba(255,255,255,0.1) 100%)`,
+                  background: `linear-gradient(to right, #e6007a 0%, #e6007a ${(frame / (data.length - 1)) * 100}%, ${isLight ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.1)'} ${(frame / (data.length - 1)) * 100}%, ${isLight ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.1)'} 100%)`,
                 }}
               />
             </div>
