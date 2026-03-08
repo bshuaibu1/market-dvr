@@ -41,9 +41,9 @@ const assetColors: Record<string, string> = {
   'USD/CAD': '#e6007a',
 };
 
-const classBadgeColors: Record<AssetClass, { bg: string; text: string }> = {
+const classBadgeColors: Record<AssetClass, { bg: string; text: string; lightBg?: string; lightText?: string; lightBorder?: string }> = {
   crypto: { bg: 'rgba(160, 32, 240, 0.15)', text: '#bf7fff' },
-  commodities: { bg: 'rgba(255, 214, 10, 0.15)', text: '#ffd60a' },
+  commodities: { bg: 'rgba(255, 214, 10, 0.15)', text: '#ffd60a', lightBg: 'rgba(180, 120, 0, 0.12)', lightText: '#8a6000', lightBorder: '1px solid rgba(180, 120, 0, 0.3)' },
   forex: { bg: 'rgba(10, 132, 255, 0.15)', text: '#0a84ff' },
 };
 
