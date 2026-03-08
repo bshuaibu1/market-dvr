@@ -1,135 +1,22 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Navbar from '@/components/Navbar';
-
 import RecordingBar from '@/components/RecordingBar';
-import { getInitialAssets, tickAsset, formatPrice, AssetWithClass, AssetClass } from '@/lib/mockData';
-import { Link } from 'react-router-dom';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { getInitialAssets, tickAsset, AssetWithClass } from '@/lib/mockData';
 import { useIsMobile } from '@/hooks/use-mobile';
+import InstitutionalCard from '@/components/heatmap/InstitutionalCard';
+import StressGauge from '@/components/heatmap/StressGauge';
+import TopMovers from '@/components/heatmap/TopMovers';
+import CorrelationPulse from '@/components/heatmap/CorrelationPulse';
+import MarketBottomBar from '@/components/heatmap/MarketBottomBar';
 
-interface HeatStyle {
-  bg: string;
-  border: string;
-  borderOpacity: number;
-}
-
-function getHeatStyle(confidence: number, spread: number, normalSpread: number): HeatStyle {
-  if (confidence < 0.8 || spread > normalSpread * 5) {
-    return { bg: 'rgba(255,69,58,0.35)', border: '#ff453a', borderOpacity: 1 };
-  }
-  if (confidence < 0.88) {
-    return { bg: 'rgba(255,159,10,0.25)', border: '#ff9f0a', borderOpacity: 1 };
-  }
-  if (confidence < 0.93) {
-    return { bg: 'rgba(50,215,75,0.15)', border: '#32d74b', borderOpacity: 1 };
-  }
-  return { bg: 'rgba(50,215,75,0.08)', border: '#32d74b', borderOpacity: 0.4 };
-}
-
-function getStressLabel(assets: AssetWithClass[]): { label: string; color: string } {
-  const avgConf = assets.reduce((s, a) => s + a.confidence, 0) / assets.length;
-  if (avgConf < 0.75) return { label: 'EXTREME', color: '#ff1744' };
-  if (avgConf < 0.82) return { label: 'HIGH', color: '#ff453a' };
-  if (avgConf < 0.9) return { label: 'MODERATE', color: '#ff9f0a' };
-  return { label: 'LOW', color: '#32d74b' };
-}
-
-const normalSpreads: Record<string, number> = {
-  'BTC/USD': 5, 'ETH/USD': 1.5, 'SOL/USD': 0.2, 'BNB/USD': 0.8, 'WIF/USD': 0.003, 'BONK/USD': 0.0000001,
-  'XAU/USD': 0.5, 'XAG/USD': 0.03, 'WTI/USD': 0.04, 'BRENT/USD': 0.05, 'NATGAS/USD': 0.005, 'COPPER/USD': 0.008,
-  'EUR/USD': 0.00015, 'GBP/USD': 0.00018, 'USD/JPY': 0.015, 'USD/CHF': 0.00012, 'AUD/USD': 0.00014, 'USD/CAD': 0.00016,
-};
-
-const wideAssets = new Set(['BTC/USD', 'ETH/USD']);
-
-function ShimmerSquare({ asset, isMobile }: { asset: AssetWithClass; isMobile: boolean }) {
-  const [shimmer, setShimmer] = useState(false);
-  const [tapped, setTapped] = useState(false);
-  const prevPrice = useRef(asset.price);
-
-  useEffect(() => {
-    if (asset.price !== prevPrice.current) {
-      prevPrice.current = asset.price;
-      setShimmer(true);
-      const t = setTimeout(() => setShimmer(false), 300);
-      return () => clearTimeout(t);
-    }
-  }, [asset.price]);
-
-  const isWide = wideAssets.has(asset.symbol);
-  const style = getHeatStyle(asset.confidence, asset.spread, normalSpreads[asset.symbol] || 1);
-
-  const content = (
-    <Link
-      to="/replay"
-      className="relative flex flex-col justify-between overflow-hidden apple-transition hover:brightness-110 cursor-pointer"
-      onClick={isMobile ? (e) => {
-        if (!tapped) { e.preventDefault(); setTapped(true); }
-        else { setTapped(false); }
-      } : undefined}
-      style={{
-        gridColumn: isMobile && isWide ? '1 / -1' : (isWide ? 'span 2' : 'span 1'),
-        background: style.bg,
-        borderRadius: 12,
-        borderTop: `1px solid ${style.border}`,
-        borderLeft: `1px solid rgba(255,255,255,0.04)`,
-        borderRight: `1px solid rgba(255,255,255,0.04)`,
-        borderBottom: `1px solid rgba(255,255,255,0.04)`,
-        borderTopColor: style.borderOpacity < 1 ? `${style.border}66` : style.border,
-        height: 72,
-        padding: '8px 10px',
-        transition: 'background 0.6s ease, border-color 0.6s ease',
-      }}
-    >
-      {shimmer && (
-        <div className="absolute inset-0 pointer-events-none" style={{ background: 'rgba(255,255,255,0.05)', animation: 'shimmerFade 0.3s ease-out forwards' }} />
-      )}
-      <div className="flex items-start justify-between">
-        <span className="text-foreground font-semibold" style={{ fontSize: isWide ? 13 : 11 }}>{asset.symbol}</span>
-      </div>
-      <div className="flex items-end justify-between">
-        <span className={`tabular-nums font-medium ${asset.change >= 0 ? 'text-positive' : 'text-negative'}`} style={{ fontSize: 11 }}>
-          {asset.change >= 0 ? '+' : ''}{asset.change.toFixed(2)}%
-        </span>
-        <span className="text-muted-foreground tabular-nums" style={{ fontSize: 10 }}>
-          {(asset.confidence * 100).toFixed(1)}%
-        </span>
-      </div>
-    </Link>
-  );
-
-  if (isMobile) {
-    return (
-      <>
-        {content}
-        {tapped && (
-          <div
-            className="col-span-full rounded-xl p-3 text-xs space-y-1"
-            style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
-          >
-            <div className="font-medium text-foreground">{asset.name} ({asset.symbol})</div>
-            <div className="text-muted-foreground">Price: <span className="text-foreground tabular-nums">${formatPrice(asset.price)}</span></div>
-            <div className="text-muted-foreground">Confidence: <span className="text-foreground tabular-nums">{(asset.confidence * 100).toFixed(1)}%</span></div>
-            <div className="text-muted-foreground">Spread: <span className="text-foreground tabular-nums">${asset.spread < 0.01 ? asset.spread.toFixed(6) : asset.spread.toFixed(4)}</span></div>
-          </div>
-        )}
-      </>
-    );
-  }
-
+function SectionLabel({ label }: { label: string }) {
   return (
-    <Tooltip>
-      <TooltipTrigger asChild>{content}</TooltipTrigger>
-      <TooltipContent side="top" className="bg-popover border border-border rounded-xl p-3 max-w-[200px]">
-        <div className="text-xs space-y-1">
-          <div className="font-medium text-foreground">{asset.name} ({asset.symbol})</div>
-          <div className="text-muted-foreground">Price: <span className="text-foreground tabular-nums">${formatPrice(asset.price)}</span></div>
-          <div className="text-muted-foreground">Confidence: <span className="text-foreground tabular-nums">{(asset.confidence * 100).toFixed(1)}%</span></div>
-          <div className="text-muted-foreground">Spread: <span className="text-foreground tabular-nums">${asset.spread < 0.01 ? asset.spread.toFixed(6) : asset.spread.toFixed(4)}</span></div>
-          <div className="text-muted-foreground">Volatility: <span className="text-foreground tabular-nums">{asset.volatile ? 'High' : 'Normal'}</span></div>
-        </div>
-      </TooltipContent>
-    </Tooltip>
+    <div className="flex items-center gap-3 mb-2">
+      <span style={{ fontSize: 10, letterSpacing: '0.12em', color: 'rgba(255,255,255,0.25)', fontWeight: 500, textTransform: 'uppercase' as const, whiteSpace: 'nowrap' as const }}>
+        {label}
+      </span>
+      <div className="flex-1 h-px" style={{ background: 'rgba(255,255,255,0.06)' }} />
+    </div>
   );
 }
 
@@ -144,61 +31,150 @@ export default function HeatmapPage() {
     return () => clearInterval(interval);
   }, []);
 
-  const groups: { label: string; cls: AssetClass }[] = [
-    { label: 'CRYPTO', cls: 'crypto' },
-    { label: 'COMMODITIES', cls: 'commodities' },
-    { label: 'FOREX', cls: 'forex' },
-  ];
+  const crypto = useMemo(() => assets.filter(a => a.assetClass === 'crypto'), [assets]);
+  const commodities = useMemo(() => assets.filter(a => a.assetClass === 'commodities'), [assets]);
+  const forex = useMemo(() => assets.filter(a => a.assetClass === 'forex'), [assets]);
 
-  const mostVolatile = useMemo(() => [...assets].sort((a, b) => a.confidence - b.confidence)[0], [assets]);
-  const mostStable = useMemo(() => [...assets].sort((a, b) => b.confidence - a.confidence)[0], [assets]);
-  const stress = useMemo(() => getStressLabel(assets), [assets]);
+  const avgConf = useMemo(() => assets.reduce((s, a) => s + a.confidence, 0) / assets.length, [assets]);
+  const stressValue = useMemo(() => Math.round((1 - avgConf) * 200), [avgConf]);
+  const stressLabel = useMemo(() => {
+    if (avgConf > 0.9) return 'LOW';
+    if (avgConf > 0.82) return 'MODERATE';
+    return 'HIGH';
+  }, [avgConf]);
+
+  // BTC, ETH are large; rest are small
+  const cryptoLarge = crypto.filter(a => a.symbol === 'BTC/USD' || a.symbol === 'ETH/USD');
+  const cryptoSmall = crypto.filter(a => a.symbol !== 'BTC/USD' && a.symbol !== 'ETH/USD');
 
   return (
-    <div className="min-h-screen bg-background pt-14 pb-16 max-md:pb-[calc(64px+52px)]">
+    <div className="min-h-screen bg-background pt-14 pb-0 max-md:pb-0">
       <Navbar />
-      <div className="max-w-6xl mx-auto px-4 md:px-6 py-8">
-        <div className="mb-8">
-          <h1 className="label-caps text-base mb-1">Volatility Heatmap</h1>
-          <p className="text-sm text-muted-foreground">Real-time market stress across all asset classes</p>
+      <div className="max-w-7xl mx-auto px-4 md:px-6 py-6 md:py-8">
+        {/* Header */}
+        <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-0">
+          <div>
+            <div style={{ fontSize: 11, letterSpacing: '0.15em', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase' as const, fontWeight: 500 }}>
+              VOLATILITY HEATMAP
+            </div>
+            <h1 style={{ fontSize: 28, fontWeight: 300, color: '#fff', marginTop: 4, lineHeight: 1.2 }}>Market Overview</h1>
+          </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            {[
+              { label: 'ASSETS TRACKED', value: `${assets.length}` },
+              { label: 'AVG CONFIDENCE', value: `${(avgConf * 100).toFixed(1)}%` },
+              { label: 'MARKET STRESS', value: stressLabel },
+            ].map(pill => (
+              <div
+                key={pill.label}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg tabular-nums"
+                style={{
+                  background: 'rgba(255,255,255,0.04)',
+                  border: '1px solid rgba(255,255,255,0.08)',
+                  fontSize: 12,
+                }}
+              >
+                <span style={{ color: 'rgba(255,255,255,0.4)' }}>{pill.label}</span>
+                <span style={{ color: '#fff', fontWeight: 500 }}>{pill.value}</span>
+              </div>
+            ))}
+          </div>
         </div>
 
-        <div className="space-y-8">
-          {groups.map((group, gi) => {
-            const groupAssets = assets.filter(a => a.assetClass === group.cls);
-            return (
-              <div key={group.cls}>
-                <div className="label-caps mb-1 text-muted-foreground" style={{ fontSize: 10 }}>{group.label}</div>
-                {isMobile && gi === 0 && (
-                  <div className="text-[11px] text-muted-foreground mb-2">Tap for details</div>
-                )}
-                <div className="grid gap-1.5" style={{
-                  gridTemplateColumns: isMobile ? 'repeat(auto-fill, minmax(90px, 1fr))' : 'repeat(auto-fill, minmax(100px, 1fr))',
-                }}>
-                  {groupAssets.map(asset => (
-                    <ShimmerSquare key={asset.symbol} asset={asset} isMobile={isMobile} />
-                  ))}
+        {/* Divider */}
+        <div className="my-5" style={{ height: 1, background: 'rgba(255,255,255,0.06)' }} />
+
+        {/* Two column layout */}
+        <div className="flex flex-col lg:flex-row gap-6">
+          {/* Left: heatmap grid — 70% */}
+          <div className="flex-1 lg:w-[70%] space-y-6">
+            {/* Crypto */}
+            <div>
+              <SectionLabel label="Crypto" />
+              <div className="grid grid-cols-2 gap-2">
+                {cryptoLarge.map(a => (
+                  <InstitutionalCard key={a.symbol} asset={a} large />
+                ))}
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-2">
+                {cryptoSmall.map(a => (
+                  <InstitutionalCard key={a.symbol} asset={a} />
+                ))}
+              </div>
+            </div>
+
+            {/* Commodities */}
+            <div>
+              <SectionLabel label="Commodities" />
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                {commodities.map(a => (
+                  <InstitutionalCard key={a.symbol} asset={a} />
+                ))}
+              </div>
+            </div>
+
+            {/* Forex */}
+            <div>
+              <SectionLabel label="Forex" />
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                {forex.map(a => (
+                  <InstitutionalCard key={a.symbol} asset={a} />
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Right: Market Intelligence sidebar — 30% */}
+          <div className={`${isMobile ? 'w-full' : 'lg:w-[30%]'}`}>
+            {isMobile ? (
+              /* Mobile: horizontal scrolling stats strip */
+              <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-2 -mx-4 px-4">
+                <div className="flex-shrink-0 rounded-xl p-3" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', minWidth: 160 }}>
+                  <div style={{ fontSize: 10, letterSpacing: '0.12em', color: 'rgba(255,255,255,0.25)', marginBottom: 8, fontWeight: 500 }}>STRESS GAUGE</div>
+                  <StressGauge value={stressValue} />
+                </div>
+                <div className="flex-shrink-0 rounded-xl p-3" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', minWidth: 220 }}>
+                  <div style={{ fontSize: 10, letterSpacing: '0.12em', color: 'rgba(255,255,255,0.25)', marginBottom: 8, fontWeight: 500 }}>TOP MOVERS</div>
+                  <TopMovers assets={assets} />
+                </div>
+                <div className="flex-shrink-0 rounded-xl p-3" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', minWidth: 220 }}>
+                  <CorrelationPulse />
                 </div>
               </div>
-            );
-          })}
-        </div>
+            ) : (
+              /* Desktop: vertical sidebar */
+              <div className="space-y-5 sticky top-20">
+                <div style={{ fontSize: 10, letterSpacing: '0.12em', color: 'rgba(255,255,255,0.25)', fontWeight: 500 }}>
+                  MARKET INTELLIGENCE
+                </div>
 
-        <div className="mt-10 flex flex-wrap items-center gap-4 md:gap-8">
-          <div className="flex items-center gap-2 text-xs">
-            <span className="text-muted-foreground">Most Volatile:</span>
-            <span className="text-negative font-medium tabular-nums">{mostVolatile.symbol} {(mostVolatile.confidence * 100).toFixed(1)}%</span>
-          </div>
-          <div className="flex items-center gap-2 text-xs">
-            <span className="text-muted-foreground">Most Stable:</span>
-            <span className="text-positive font-medium tabular-nums">{mostStable.symbol} {(mostStable.confidence * 100).toFixed(1)}%</span>
-          </div>
-          <div className="flex items-center gap-2 text-xs">
-            <span className="text-muted-foreground">Market Stress:</span>
-            <span className="font-medium" style={{ color: stress.color }}>{stress.label}</span>
+                {/* Stress Gauge */}
+                <div className="rounded-xl p-4" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                  <div style={{ fontSize: 10, letterSpacing: '0.12em', color: 'rgba(255,255,255,0.25)', marginBottom: 12, fontWeight: 500 }}>STRESS GAUGE</div>
+                  <StressGauge value={stressValue} />
+                </div>
+
+                {/* Top Movers */}
+                <div className="rounded-xl p-4" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                  <div style={{ fontSize: 10, letterSpacing: '0.12em', color: 'rgba(255,255,255,0.25)', marginBottom: 12, fontWeight: 500 }}>TOP MOVERS</div>
+                  <TopMovers assets={assets} />
+                </div>
+
+                {/* Correlation Pulse */}
+                <div className="rounded-xl p-4" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                  <CorrelationPulse />
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
+
+      {/* Bottom bar */}
+      <div className="mt-8">
+        <MarketBottomBar assets={assets} />
+      </div>
+
       <RecordingBar />
     </div>
   );
