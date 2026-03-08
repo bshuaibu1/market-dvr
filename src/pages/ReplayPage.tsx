@@ -20,6 +20,8 @@ const speedMap: Record<string, number> = { '0.25x': 200, '0.5x': 100, '1x': 50, 
 const keyToSpeed: Record<string, string> = { '1': '0.25x', '2': '0.5x', '3': '1x', '4': '2x', '5': '4x' };
 
 export default function ReplayPage() {
+  const { theme } = useTheme();
+  const isLight = theme === 'light';
   const [selectedAsset, setSelectedAsset] = useState('BTC/USD');
   const [compareMode, setCompareMode] = useState(false);
   const [compareAsset, setCompareAsset] = useState('ETH/USD');
