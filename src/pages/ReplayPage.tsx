@@ -99,7 +99,7 @@ export default function ReplayPage() {
   const compareCurrent = useCompare ? compareData[frame] : null;
 
   const chartWidth = 800;
-  const chartHeight = isMobile ? 220 : 300;
+  const chartHeight = isMobile ? 160 : 300;
 
   const startPrice1 = data[0].price;
   const startPrice2 = useCompare ? compareData[0].price : 0;

@@ -4,6 +4,7 @@ import { Sun, Moon } from 'lucide-react';
 import { AlertBell } from '@/components/AlertSystem';
 import { useTheme } from '@/components/ThemeProvider';
 import LogoMark from '@/components/LogoMark';
+import MobileHamburgerMenu from '@/components/MobileBottomNav';
 
 const tabs = [
   { label: 'Live', path: '/live' },
@@ -16,9 +17,6 @@ export default function Navbar() {
   const location = useLocation();
   const { theme, toggleTheme } = useTheme();
   const isLight = theme === 'light';
-
-
-
 
   return (
     <nav
@@ -76,12 +74,9 @@ export default function Navbar() {
         </div>
       </div>
 
-      {/* Mobile: REC indicator only */}
+      {/* Mobile: hamburger only */}
       <div className="flex md:hidden items-center ml-auto flex-shrink-0">
-        <div className="flex items-center gap-1.5 rounded-full px-2.5 py-1.5 surface-1">
-          <div className="w-1.5 h-1.5 rounded-full bg-negative pulse-red" />
-          <span className="text-[10px] font-medium text-negative tracking-wide uppercase">REC</span>
-        </div>
+        <MobileHamburgerMenu />
       </div>
     </nav>
   );
