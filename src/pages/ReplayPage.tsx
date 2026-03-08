@@ -426,7 +426,7 @@ export default function ReplayPage() {
             }}
           >
             <div className="absolute top-3 left-4 z-10">
-              <span className="text-xl md:text-2xl tabular-nums text-foreground font-medium">${formatPrice(current.price)}</span>
+              <span className="text-[28px] md:text-2xl tabular-nums text-foreground font-medium">${formatPrice(current.price)}</span>
             </div>
             {!useCompare && timeframe !== '1s' ? (
               <TimeframeChart rawData={data} timeframe={timeframe} frame={frame} chartWidth={chartWidth} chartHeight={chartHeight} isLight={isLight} />
