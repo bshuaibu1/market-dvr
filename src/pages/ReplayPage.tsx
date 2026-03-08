@@ -1,9 +1,8 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import Navbar from '@/components/Navbar';
-
 import { generateReplayData, formatPrice, allAssetsList } from '@/lib/mockData';
 import { motion } from 'framer-motion';
-import { Play, Pause, SkipBack, SkipForward, Share2, Keyboard, GitCompareArrows } from 'lucide-react';
+import { Play, Pause, SkipBack, SkipForward, Share2, Keyboard, GitCompareArrows, ChevronRight } from 'lucide-react';
 import pythLogo from '@/assets/pyth-logo.png';
 import ShortcutsModal from '@/components/ShortcutsModal';
 import ShareModal from '@/components/ShareModal';
@@ -41,9 +40,10 @@ export default function ReplayPage() {
   const [frame, setFrame] = useState(250);
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState('1x');
-  const [showBid, setShowBid] = useState(true);
-  const [showAsk, setShowAsk] = useState(true);
-  const [showConfidence, setShowConfidence] = useState(true);
+  // #2: Default OFF for bid/ask/confidence
+  const [showBid, setShowBid] = useState(false);
+  const [showAsk, setShowAsk] = useState(false);
+  const [showConfidence, setShowConfidence] = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [showShare, setShowShare] = useState(false);
   const [timeframe, setTimeframe] = useState('1s');
@@ -145,7 +145,7 @@ export default function ReplayPage() {
 
   const spreads = data.map(d => d.spread);
   const maxSpread = Math.max(...spreads);
-  const spreadChartH = isMobile ? 36 : 60;
+  const spreadChartH = isMobile ? 48 : 80;
   const spreadLine = data.map((d, i) => `${toX(i)},${spreadChartH - (d.spread / maxSpread) * (spreadChartH - 5)}`).join(' ');
   const spreadFillPoly = `0,${spreadChartH} ${spreadLine} ${chartWidth},${spreadChartH}`;
 
@@ -163,6 +163,11 @@ export default function ReplayPage() {
 
   const pct1 = ((current.price - startPrice1) / startPrice1 * 100).toFixed(2);
   const pct2 = compareCurrent ? ((compareCurrent.price - startPrice2) / startPrice2 * 100).toFixed(2) : '0';
+
+  // #6 #7: Frame inspector with row dividers
+  const inspectorLabelColor = isLight ? 'rgba(0,0,0,0.35)' : 'rgba(255,255,255,0.35)';
+  const inspectorValueColor = isLight ? '#1d1d1f' : '#fff';
+  const inspectorDivider = isLight ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.06)';
 
   const inspectorPanel = (
     <>
@@ -195,10 +200,10 @@ export default function ReplayPage() {
                   { label: 'ASK', value: `$${formatPrice(current.ask)}` },
                   { label: 'SPREAD', value: `$${current.spread.toFixed(2)}` },
                   { label: 'CONF', value: `${(current.confidence * 100).toFixed(1)}%` },
-                ].map(row => (
-                  <div key={row.label} className="mb-2">
-                    <div className="text-[9px] uppercase tracking-[0.08em] text-muted-foreground">{row.label}</div>
-                    <div className="text-[13px] tabular-nums text-foreground font-medium">{row.value}</div>
+                ].map((row, idx, arr) => (
+                  <div key={row.label} style={{ borderBottom: idx < arr.length - 1 ? `1px solid ${inspectorDivider}` : 'none', padding: '12px 0' }}>
+                    <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.08em', color: inspectorLabelColor }}>{row.label}</div>
+                    <div className="tabular-nums" style={{ fontSize: 18, color: inspectorValueColor }}>{row.value}</div>
                   </div>
                 ))}
               </div>
@@ -210,16 +215,16 @@ export default function ReplayPage() {
                   { label: 'ASK', value: `$${formatPrice(compareCurrent.ask)}` },
                   { label: 'SPREAD', value: `$${compareCurrent.spread.toFixed(2)}` },
                   { label: 'CONF', value: `${(compareCurrent.confidence * 100).toFixed(1)}%` },
-                ].map(row => (
-                  <div key={row.label} className="mb-2">
-                    <div className="text-[9px] uppercase tracking-[0.08em] text-muted-foreground">{row.label}</div>
-                    <div className="text-[13px] tabular-nums text-foreground font-medium">{row.value}</div>
+                ].map((row, idx, arr) => (
+                  <div key={row.label} style={{ borderBottom: idx < arr.length - 1 ? `1px solid ${inspectorDivider}` : 'none', padding: '12px 0' }}>
+                    <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.08em', color: inspectorLabelColor }}>{row.label}</div>
+                    <div className="tabular-nums" style={{ fontSize: 18, color: inspectorValueColor }}>{row.value}</div>
                   </div>
                 ))}
               </div>
             </div>
           ) : (
-            <div className="space-y-1">
+            <div>
               {[
                 { label: 'PRICE', value: `$${formatPrice(current.price)}`, change: priceChange },
                 { label: 'BID', value: `$${formatPrice(current.bid)}` },
@@ -228,25 +233,17 @@ export default function ReplayPage() {
                 { label: 'CONFIDENCE', value: `${(current.confidence * 100).toFixed(1)}%` },
                 { label: 'FRAME', value: `${frame} / ${data.length}` },
                 { label: 'RESOLUTION', value: timeframe },
-              ].map(row => (
+              ].map((row, idx, arr) => (
                 <div
                   key={row.label}
-                  className="rounded-lg px-2 py-2 -mx-2"
-                  style={{ transition: 'all 0.15s ease', willChange: 'transform, box-shadow' }}
-                  onMouseEnter={e => {
-                    e.currentTarget.style.transform = 'translateY(-1px)';
-                    e.currentTarget.style.boxShadow = isLight ? '0 4px 12px rgba(0,0,0,0.1)' : '0 4px 12px rgba(0,0,0,0.3)';
-                    e.currentTarget.style.background = isLight ? 'rgba(0,0,0,0.02)' : 'rgba(255,255,255,0.04)';
-                  }}
-                  onMouseLeave={e => {
-                    e.currentTarget.style.transform = 'translateY(0)';
-                    e.currentTarget.style.boxShadow = 'none';
-                    e.currentTarget.style.background = 'transparent';
+                  style={{
+                    borderBottom: idx < arr.length - 1 ? `1px solid ${inspectorDivider}` : 'none',
+                    padding: '12px 0',
                   }}
                 >
-                  <div className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground mb-0.5">{row.label}</div>
+                  <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.08em', color: inspectorLabelColor, marginBottom: 2 }}>{row.label}</div>
                   <div className="flex items-center gap-2">
-                    <span className="text-[15px] tabular-nums text-foreground font-medium">{row.value}</span>
+                    <span className="tabular-nums" style={{ fontSize: 18, color: inspectorValueColor }}>{row.value}</span>
                     {'change' in row && row.change !== undefined && (
                       <span className={`text-xs tabular-nums ${row.change >= 0 ? 'text-positive' : 'text-negative'}`}>
                         {row.change >= 0 ? '+' : ''}{row.change.toFixed(2)}
@@ -269,9 +266,10 @@ export default function ReplayPage() {
             </div>
           </div>
 
+          {/* #8: AI Markers — clickable with hover arrow */}
           <div className="mt-6">
             <h3 className="label-caps mb-3">AI Markers</h3>
-            <div className="space-y-2">
+            <div className="space-y-0">
               {[
                 { color: '#f97316', label: 'Max Spread', frame: maxSpreadIdx },
                 { color: '#9333ea', label: 'Max Confidence Expansion', frame: minConfIdx },
@@ -280,11 +278,15 @@ export default function ReplayPage() {
                 <button
                   key={m.label}
                   onClick={() => setFrame(m.frame)}
-                  className="flex items-center gap-2 w-full text-left apple-transition hover:opacity-80 min-h-[44px] md:min-h-0"
+                  className="group/marker flex items-center gap-2 w-full text-left min-h-[44px] md:min-h-[36px] rounded-lg px-2 -mx-2"
+                  style={{ transition: 'background 0.15s ease' }}
+                  onMouseEnter={e => { e.currentTarget.style.background = isLight ? 'rgba(0,0,0,0.03)' : 'rgba(255,255,255,0.04)'; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
                 >
                   <div className="w-2 h-2 rotate-45 flex-shrink-0" style={{ background: m.color }} />
                   <span className="text-[11px] text-muted-foreground">{m.label}</span>
                   <span className="text-[10px] tabular-nums text-muted-foreground ml-auto">#{m.frame}</span>
+                  <ChevronRight size={12} className="text-muted-foreground opacity-0 group-hover/marker:opacity-100" style={{ transition: 'opacity 0.15s ease' }} />
                 </button>
               ))}
             </div>
@@ -296,15 +298,21 @@ export default function ReplayPage() {
     </>
   );
 
+  // Toggle pill colors
+  const togglePillInactiveBg = isLight ? 'rgba(0,0,0,0.04)' : 'rgba(255,255,255,0.04)';
+  const togglePillActiveBg = isLight ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.08)';
+  const togglePillInactiveText = isLight ? 'rgba(0,0,0,0.4)' : 'rgba(255,255,255,0.4)';
+  const togglePillActiveText = isLight ? '#1d1d1f' : '#fff';
+
   return (
     <div className="min-h-screen bg-background pt-14">
       <Navbar />
 
       <div className="flex flex-col lg:flex-row h-auto lg:h-[calc(100vh-56px)]">
-        <div className="flex-1 flex flex-col p-4 md:p-6 min-w-0 max-md:gap-1">
-          {/* Top bar */}
-          <div className="flex flex-wrap items-center gap-2 md:gap-3 mb-2 md:mb-4">
-<select
+        <div className="flex-1 flex flex-col p-4 md:p-6 min-w-0" style={{ gap: 8 }}>
+          {/* Top bar — 16px from nav (pt-4 = 16px) */}
+          <div className="flex flex-wrap items-center gap-2 md:gap-3">
+            <select
               value={selectedAsset}
               onChange={e => { setSelectedAsset(e.target.value); setFrame(250); setPlaying(false); }}
               className="h-11 md:h-9 rounded-xl bg-background text-foreground text-sm px-3 font-medium focus:outline-none min-w-[120px]"
@@ -350,9 +358,17 @@ export default function ReplayPage() {
               >
                 <Keyboard size={14} /> Shortcuts
               </button>
+              {/* #10: Share button prominent pink */}
               <button
                 onClick={() => setShowShare(true)}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl surface-1 text-xs font-medium text-foreground apple-transition hover:border-[rgba(255,255,255,0.15)] min-h-[44px] md:min-h-0"
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-medium apple-transition min-h-[44px] md:min-h-0 ${isMobile ? 'w-full justify-center' : ''}`}
+                style={{
+                  background: '#e6007a',
+                  color: '#fff',
+                  border: 'none',
+                }}
+                onMouseEnter={e => { e.currentTarget.style.background = '#cc0066'; }}
+                onMouseLeave={e => { e.currentTarget.style.background = '#e6007a'; }}
               >
                 <Share2 size={14} /> Share
               </button>
@@ -361,7 +377,7 @@ export default function ReplayPage() {
 
           {/* Toggle pills / Legend */}
           {useCompare ? (
-            <div className="flex items-center gap-4 mb-4">
+            <div className="flex items-center gap-4">
               <div className="flex items-center gap-2">
                 <div className="w-3 h-0.5 rounded" style={{ background: isLight ? '#0055d4' : '#f5f5f7' }} />
                 <span className="text-xs text-foreground font-medium">{selectedAsset}</span>
@@ -378,26 +394,39 @@ export default function ReplayPage() {
               </div>
             </div>
           ) : (
-            <div className="flex items-center gap-1 mb-1 md:mb-4 p-1 rounded-full surface-1 w-fit">
+            // #4: Redesigned toggle pills
+            <div className="flex items-center gap-1.5 w-fit">
               {[
-                { label: 'Bid', active: showBid, toggle: () => setShowBid(!showBid), color: '#0a84ff' },
-                { label: 'Ask', active: showAsk, toggle: () => setShowAsk(!showAsk), color: '#ff453a' },
+                { label: 'Bid', active: showBid, toggle: () => setShowBid(!showBid), color: isLight ? '#0055d4' : '#0a84ff' },
+                { label: 'Ask', active: showAsk, toggle: () => setShowAsk(!showAsk), color: isLight ? '#cc2200' : '#ff453a' },
                 { label: 'Confidence', active: showConfidence, toggle: () => setShowConfidence(!showConfidence), color: '#e6007a' },
               ].map(t => (
                 <button
                   key={t.label}
                   onClick={t.toggle}
-                  className={`px-3 py-1 rounded-full text-xs font-medium apple-transition min-h-[44px] md:min-h-0 ${t.active ? 'surface-2 inner-glow text-foreground' : 'text-muted-foreground'}`}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium min-h-[44px] md:min-h-0"
+                  style={{
+                    background: t.active ? togglePillActiveBg : togglePillInactiveBg,
+                    color: t.active ? togglePillActiveText : togglePillInactiveText,
+                    transition: 'all 0.15s ease',
+                  }}
                 >
-                  <span className="inline-block w-1.5 h-1.5 rounded-full mr-1.5" style={{ background: t.active ? t.color : (isLight ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.2)') }} />
+                  <span
+                    className="inline-block w-2 h-2 rounded-full flex-shrink-0"
+                    style={{
+                      background: t.color,
+                      opacity: t.active ? 1 : 0.3,
+                      transition: 'opacity 0.15s ease',
+                    }}
+                  />
                   {t.label}
                 </button>
               ))}
             </div>
-           )}
+          )}
 
           {/* Timeframe selector pills */}
-          <div className="flex items-center gap-1.5 mb-1 md:mb-4">
+          <div className="flex items-center gap-1.5">
             <div className="flex items-center gap-0.5 p-1 rounded-full surface-1 overflow-x-auto scrollbar-hide">
               {timeframes.map(tf => (
                 <button
@@ -417,19 +446,27 @@ export default function ReplayPage() {
             )}
           </div>
 
-          {/* Chart */}
+          {/* #1: Price row — dedicated, outside chart */}
+          <div className="flex items-baseline justify-between">
+            <span className="tabular-nums" style={{ fontSize: 32, fontWeight: 600, color: isLight ? '#1d1d1f' : '#fff' }}>
+              ${formatPrice(current.price)}
+            </span>
+            <span className="tabular-nums" style={{ fontSize: 14, color: priceChange >= 0 ? (isLight ? '#1a8f35' : '#32d74b') : (isLight ? '#cc2200' : '#ff453a') }}>
+              {priceChange >= 0 ? '+' : ''}{priceChange.toFixed(2)}
+            </span>
+          </div>
+
+          {/* #5: Chart container — clean, no overlapping text */}
           <div
-            className="relative rounded-xl"
+            className="relative rounded-xl overflow-hidden"
             style={{
               height: isMobile ? 160 : undefined,
               flex: isMobile ? 'none' : 1,
               minHeight: isMobile ? undefined : 200,
-              boxShadow: isLight ? 'inset 0 1px 0 rgba(230,0,122,0.12)' : 'inset 0 1px 0 rgba(230,0,122,0.2)',
+              background: isLight ? '#fff' : 'rgba(255,255,255,0.02)',
+              border: `1px solid ${isLight ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.06)'}`,
             }}
           >
-            <div className="absolute top-2 left-3 md:top-3 md:left-4 z-10">
-              <span className="text-[22px] md:text-2xl tabular-nums text-foreground font-medium">${formatPrice(current.price)}</span>
-            </div>
             {!useCompare && timeframe !== '1s' ? (
               <TimeframeChart rawData={data} timeframe={timeframe} frame={frame} chartWidth={chartWidth} chartHeight={chartHeight} isLight={isLight} />
             ) : (
@@ -437,15 +474,30 @@ export default function ReplayPage() {
                 {[0,1,2,3,4].map(i => (
                   <line key={i} x1="0" y1={i * chartHeight / 4} x2={chartWidth} y2={i * chartHeight / 4} stroke={isLight ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.03)'} />
                 ))}
+                {/* Confidence fill */}
                 {!useCompare && showConfidence && confFill && (
-                  <polygon points={confFill} fill={isLight ? 'rgba(230,0,122,0.12)' : 'rgba(230,0,122,0.06)'} stroke={isLight ? '#e6007a' : 'none'} strokeWidth={isLight ? '1.5' : '0'} />
+                  <polygon points={confFill} fill={isLight ? 'rgba(230,0,122,0.12)' : 'rgba(230,0,122,0.06)'} />
                 )}
-                {!useCompare && showBid && bidLine && <polyline points={bidLine} fill="none" stroke={isLight ? '#0055d4' : '#0a84ff'} strokeWidth={isLight ? '2.5' : '1'} opacity={isLight ? '1' : '0.6'} />}
-                {!useCompare && showAsk && askLine && <polyline points={askLine} fill="none" stroke={isLight ? '#cc0000' : '#ff453a'} strokeWidth={isLight ? '2.5' : '1'} opacity={isLight ? '1' : '0.6'} />}
-                <polyline points={priceLine} fill="none" stroke={useCompare ? (isLight ? '#0055d4' : '#f5f5f7') : (isLight ? '#1d1d1f' : '#f5f5f7')} strokeWidth={isLight ? '2.5' : '2'} />
-                {useCompare && compareLine && <polyline points={compareLine} fill="none" stroke={isLight ? '#e6007a' : '#0a84ff'} strokeWidth={isLight ? '2.5' : '2'} />}
-                <line x1={toX(frame)} y1="0" x2={toX(frame)} y2={chartHeight} stroke={isLight ? 'rgba(0,0,0,0.15)' : 'rgba(255,255,255,0.15)'} strokeWidth="1" strokeDasharray="4,4" />
-                <circle cx={toX(frame)} cy={useCompare ? toY(((current.price - startPrice1) / startPrice1) * 100) : toY(current.price)} r="4" fill={useCompare ? (isLight ? '#0055d4' : '#f5f5f7') : (isLight ? '#1d1d1f' : '#f5f5f7')} />
+                {/* Bid line — secondary */}
+                {!useCompare && showBid && bidLine && <polyline points={bidLine} fill="none" stroke={isLight ? '#0055d4' : '#0a84ff'} strokeWidth="1" opacity="0.5" />}
+                {/* Ask line — secondary */}
+                {!useCompare && showAsk && askLine && <polyline points={askLine} fill="none" stroke={isLight ? '#cc2200' : '#ff453a'} strokeWidth="1" opacity="0.5" />}
+                {/* Price line — primary */}
+                <polyline points={priceLine} fill="none" stroke={useCompare ? (isLight ? '#0055d4' : '#f5f5f7') : (isLight ? '#1d1d1f' : '#fff')} strokeWidth={isLight ? '2' : '1.5'} />
+                {useCompare && compareLine && <polyline points={compareLine} fill="none" stroke={isLight ? '#e6007a' : '#0a84ff'} strokeWidth="2" />}
+                {/* #3: Playhead — solid pink line with diamond marker */}
+                <line x1={toX(frame)} y1="0" x2={toX(frame)} y2={chartHeight} stroke="#e6007a" strokeWidth="1" opacity="0.5" />
+                {/* Diamond marker at top of playhead */}
+                <rect
+                  x={toX(frame) - 4}
+                  y={-1}
+                  width={8}
+                  height={8}
+                  fill="#e6007a"
+                  opacity="0.7"
+                  transform={`rotate(45, ${toX(frame)}, 3)`}
+                />
+                <circle cx={toX(frame)} cy={useCompare ? toY(((current.price - startPrice1) / startPrice1) * 100) : toY(current.price)} r="4" fill={useCompare ? (isLight ? '#0055d4' : '#f5f5f7') : (isLight ? '#1d1d1f' : '#fff')} />
                 {useCompare && compareCurrent && (
                   <circle cx={toX(frame)} cy={toY(((compareCurrent.price - startPrice2) / startPrice2) * 100)} r="4" fill={isLight ? '#e6007a' : '#0a84ff'} />
                 )}
@@ -453,27 +505,28 @@ export default function ReplayPage() {
             )}
           </div>
 
-          {/* Spread panel */}
+          {/* Spread panel — #9: fixed 80px */}
           {!useCompare && (
-            <div className="mt-2 md:mt-4" style={{ height: isMobile ? 48 : 64 }}>
-              <div className="flex items-center gap-3 mb-2">
+            <div style={{ height: spreadChartH }}>
+              <div className="flex items-center gap-3 mb-1">
                 <span className="label-caps">Spread Width</span>
                 <span className="text-sm tabular-nums text-foreground font-medium">${current.spread.toFixed(2)}</span>
               </div>
-              <svg viewBox={`0 0 ${chartWidth} ${spreadChartH}`} className="w-full h-full" preserveAspectRatio="none">
+              <svg viewBox={`0 0 ${chartWidth} ${spreadChartH}`} className="w-full" style={{ height: spreadChartH - 16 }} preserveAspectRatio="none">
                 <polygon points={spreadFillPoly} fill={isLight ? 'rgba(230,0,122,0.15)' : 'rgba(230,0,122,0.1)'} />
                 <polyline points={spreadLine} fill="none" stroke="#e6007a" strokeWidth={isLight ? '2' : '1.5'} />
-                <line x1={toX(frame)} y1="0" x2={toX(frame)} y2={spreadChartH} stroke={isLight ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.1)'} strokeWidth="1" strokeDasharray="3,3" />
+                <line x1={toX(frame)} y1="0" x2={toX(frame)} y2={spreadChartH} stroke="#e6007a" strokeWidth="1" opacity="0.3" />
               </svg>
             </div>
           )}
 
-          {/* Shock Propagation */}
+          {/* Shock Propagation — #9: 44px collapsed */}
           <ShockPropagation />
 
-          {/* Playback controls */}
-          <div className="mt-2 md:mt-6 flex flex-col items-center gap-1 md:gap-3">
-            <div className="w-full relative h-5 md:h-6 flex items-center">
+          {/* Playback controls — #9: scrubber 32px + controls 56px */}
+          <div className="flex flex-col items-center" style={{ gap: 4 }}>
+            {/* Scrubber — 32px */}
+            <div className="w-full relative flex items-center" style={{ height: 32 }}>
               {eventPositions.map((pos, i) => (
                 <div key={i} className="absolute -top-1 w-2 h-2 rotate-45" style={{ left: `${(pos / data.length) * 100}%`, background: '#e6007a', outline: isLight ? '1.5px solid #1d1d1f' : 'none' }} />
               ))}
@@ -496,9 +549,11 @@ export default function ReplayPage() {
               />
             </div>
 
+            {/* Playback controls — 56px */}
             <div
-              className="rounded-full px-3 md:px-4 py-2 flex items-center gap-2 md:gap-4"
+              className="rounded-full px-3 md:px-4 flex items-center gap-2 md:gap-4"
               style={{
+                height: 56,
                 background: isLight ? 'rgba(255,255,255,0.7)' : 'rgba(255,255,255,0.06)',
                 backdropFilter: 'blur(16px)',
                 WebkitBackdropFilter: 'blur(16px)',
@@ -536,9 +591,20 @@ export default function ReplayPage() {
             </div>
           </div>
 
+          {/* Mobile: Share button full width */}
+          {isMobile && (
+            <button
+              onClick={() => setShowShare(true)}
+              className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-medium"
+              style={{ background: '#e6007a', color: '#fff' }}
+            >
+              <Share2 size={16} /> Share This Replay
+            </button>
+          )}
+
           {/* Mobile: Inspector panel below controls */}
           {isMobile && (
-            <div className="mt-6 p-4 rounded-2xl" style={{
+            <div className="mt-4 p-4 rounded-2xl" style={{
               background: isLight ? 'rgba(255,255,255,0.7)' : 'rgba(255,255,255,0.04)',
               border: `1px solid ${isLight ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.08)'}`,
             }}>
