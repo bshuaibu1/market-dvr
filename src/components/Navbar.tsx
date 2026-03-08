@@ -1,9 +1,11 @@
 import { Link, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { AlertBell } from '@/components/AlertSystem';
 
 const tabs = [
   { label: 'Live', path: '/live' },
   { label: 'Replay', path: '/replay' },
+  { label: 'Heatmap', path: '/heatmap' },
   { label: 'Events', path: '/events' },
 ];
 
@@ -43,6 +45,7 @@ export default function Navbar() {
       </div>
 
       <div className="ml-auto flex items-center gap-2">
+        <AlertBell />
         <div className="flex items-center gap-2 rounded-full px-3 py-1.5 surface-1">
           <div className="w-1.5 h-1.5 rounded-full bg-negative pulse-red" />
           <span className="text-[11px] font-medium text-negative tracking-wide uppercase">Recording</span>

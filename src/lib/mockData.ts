@@ -24,7 +24,7 @@ export interface AssetWithClass extends Asset {
   assetClass: AssetClass;
 }
 
-const baseAssets: AssetWithClass[] = [
+export const baseAssets: AssetWithClass[] = [
   // Crypto
   { symbol: 'BTC/USD', name: 'Bitcoin', price: 83421.50, change: 1.24, spread: 5.21, confidence: 0.92, volatile: false, sparkline: [], assetClass: 'crypto' },
   { symbol: 'ETH/USD', name: 'Ethereum', price: 3287.80, change: -0.67, spread: 1.45, confidence: 0.88, volatile: false, sparkline: [], assetClass: 'crypto' },
@@ -110,15 +110,14 @@ export function formatPrice(price: number): string {
 }
 
 // Replay mock data
-export function generateReplayData(points: number = 500) {
+export function generateReplayData(points: number = 500, basePrice: number = 83421.50) {
   const data = [];
-  let price = 83421.50;
+  let price = basePrice;
   let bid = price - 2.5;
   let ask = price + 2.5;
   
   for (let i = 0; i < points; i++) {
     const t = i / points;
-    // Create a crash event around 30%
     let volatility = 0.0003;
     if (t > 0.28 && t < 0.32) volatility = 0.003;
     if (t > 0.6 && t < 0.65) volatility = 0.002;
@@ -143,3 +142,6 @@ export function generateReplayData(points: number = 500) {
   }
   return data;
 }
+
+// All assets lookup for selectors
+export const allAssetsList = baseAssets.map(a => ({ symbol: a.symbol, name: a.name, price: a.price, assetClass: a.assetClass }));
