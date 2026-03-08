@@ -170,7 +170,11 @@ export default function LivePage() {
 
   useEffect(() => {
     const interval = setInterval(() => {
-      setAssets(prev => prev.map(tickAsset));
+      setAssets(prev => {
+        const updated = prev.map(tickAsset);
+        checkAlerts(updated);
+        return updated;
+      });
     }, 200);
     return () => clearInterval(interval);
   }, []);
