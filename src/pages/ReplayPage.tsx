@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import Navbar from '@/components/Navbar';
+import MobileBottomNav from '@/components/MobileBottomNav';
 import { generateReplayData, formatPrice, allAssetsList } from '@/lib/mockData';
 import { motion } from 'framer-motion';
 import { Play, Pause, SkipBack, SkipForward, Share2, Keyboard, GitCompareArrows } from 'lucide-react';
