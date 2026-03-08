@@ -175,3 +175,8 @@
   60% { transform: rotate(-8deg); }
   75% { transform: rotate(4deg); }
 }
+
+@keyframes shimmerFade {
+  0% { opacity: 1; }
+  100% { opacity: 0; }
+}
