@@ -580,6 +580,7 @@ export default function ReplayPage() {
             : undefined
         }
       />
+      <MobileBottomNav />
     </div>
   );
 }
