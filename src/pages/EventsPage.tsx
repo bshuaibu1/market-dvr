@@ -295,7 +295,9 @@ function EventCard({ event, index, isLight }: { event: MarketEvent; index: numbe
       className="group relative flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 p-4 overflow-hidden"
       style={{
         background: L ? '#ffffff' : 'rgba(255,255,255,0.02)',
-        border: `1px solid ${L ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.06)'}`,
+        borderTop: `1px solid ${L ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.06)'}`,
+        borderRight: `1px solid ${L ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.06)'}`,
+        borderBottom: `1px solid ${L ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.06)'}`,
         borderLeft: `3px solid ${conf.borderColor}`,
         borderRadius: 12,
         boxShadow: L ? '0 1px 3px rgba(0,0,0,0.04)' : 'none',
@@ -303,14 +305,16 @@ function EventCard({ event, index, isLight }: { event: MarketEvent; index: numbe
       }}
       onMouseEnter={e => {
         e.currentTarget.style.background = L ? '#f9f9f9' : 'rgba(255,255,255,0.04)';
-        e.currentTarget.style.borderColor = L ? 'rgba(0,0,0,0.12)' : 'rgba(255,255,255,0.1)';
-        e.currentTarget.style.borderLeftColor = conf.borderColor;
+        e.currentTarget.style.borderTopColor = L ? 'rgba(0,0,0,0.12)' : 'rgba(255,255,255,0.1)';
+        e.currentTarget.style.borderRightColor = L ? 'rgba(0,0,0,0.12)' : 'rgba(255,255,255,0.1)';
+        e.currentTarget.style.borderBottomColor = L ? 'rgba(0,0,0,0.12)' : 'rgba(255,255,255,0.1)';
       }}
       onMouseLeave={e => {
         e.currentTarget.style.background = L ? '#ffffff' : 'rgba(255,255,255,0.02)';
-        e.currentTarget.style.borderColor = L ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.06)';
-        e.currentTarget.style.borderLeftColor = conf.borderColor;
-      }}
+        e.currentTarget.style.borderTopColor = L ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.06)';
+        e.currentTarget.style.borderRightColor = L ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.06)';
+        e.currentTarget.style.borderBottomColor = L ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.06)';
+      }
     >
       {/* Badge — fixed width */}
       <span
