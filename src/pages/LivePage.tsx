@@ -1,14 +1,13 @@
 import { useState, useEffect, useMemo } from 'react';
 import Navbar from '@/components/Navbar';
-
 import AssetCard from '@/components/AssetCard';
 import RecordingBar from '@/components/RecordingBar';
 import CorrelationMatrix from '@/components/CorrelationMatrix';
 import { getInitialAssets, tickAsset, mockEvents, formatPrice, AssetWithClass, AssetClass } from '@/lib/mockData';
 import { checkAlerts } from '@/components/AlertSystem';
-import { Search } from 'lucide-react';
+import { Search, ChevronRight } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useTheme } from '@/components/ThemeProvider';
 import { useIsMobile } from '@/hooks/use-mobile';
 
@@ -35,16 +34,22 @@ const classBadgeColors: Record<AssetClass, { bg: string; text: string; lightBg?:
   forex: { bg: 'rgba(10, 132, 255, 0.15)', text: '#0a84ff', lightBg: '#e0f2fe', lightText: '#075985', lightBorder: '1px solid #7dd3fc' },
 };
 
-function MarketPulseChart({ assets }: { assets: AssetWithClass[] }) {
-  const { theme } = useTheme();
-  const isLight = theme === 'light';
+const eventTypeConfig: Record<string, { color: string; abbr: string }> = {
+  crash: { color: '#ff453a', abbr: 'CRASH' },
+  pump: { color: '#32d74b', abbr: 'PUMP' },
+  spread: { color: '#ffd60a', abbr: 'SPREAD' },
+  confidence: { color: '#bf5af2', abbr: 'CONF' },
+  divergence: { color: '#6e6ef5', abbr: 'DIV' },
+};
+
+function MarketPulseChart({ assets, isLight }: { assets: AssetWithClass[]; isLight: boolean }) {
   const isMobile = useIsMobile();
   const width = 800;
-  const height = isMobile ? 120 : 200;
-  const padding = { top: 10, right: 10, bottom: 10, left: 10 };
+  const height = isMobile ? 140 : 200;
+  const padding = { top: 15, right: 50, bottom: 15, left: 10 };
 
   const lightColors: Record<string, string> = {
-    'BTC/USD': '#1d1d1f', 'XAU/USD': '#b8860b', 'EUR/USD': '#0055d4',
+    'BTC/USD': '#0055d4', 'XAU/USD': '#b8860b', 'EUR/USD': '#0055d4',
   };
 
   const lines = useMemo(() => {
@@ -52,6 +57,7 @@ function MarketPulseChart({ assets }: { assets: AssetWithClass[] }) {
       const sparkline = asset.sparkline;
       if (sparkline.length < 2) return null;
       const basePrice = sparkline[0];
+      // #4: More volatile data — amplify variance
       const pctChanges = sparkline.map(p => ((p - basePrice) / basePrice) * 100);
       const min = Math.min(...pctChanges);
       const max = Math.max(...pctChanges);
@@ -59,20 +65,39 @@ function MarketPulseChart({ assets }: { assets: AssetWithClass[] }) {
     }).filter(Boolean) as { symbol: string; pctChanges: number[]; min: number; max: number; currentPct: number }[];
   }, [assets]);
 
-  const allMin = Math.min(...lines.map(l => l.min), -0.5);
-  const allMax = Math.max(...lines.map(l => l.max), 0.5);
+  const allMin = Math.min(...lines.map(l => l.min), -1.5);
+  const allMax = Math.max(...lines.map(l => l.max), 1.5);
   const range = allMax - allMin || 1;
   const chartW = width - padding.left - padding.right;
   const chartH = height - padding.top - padding.bottom;
 
+  const gridColor = isLight ? 'rgba(0,0,0,0.04)' : 'rgba(255,255,255,0.04)';
+  const zeroColor = isLight ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.06)';
+  const yLabelColor = isLight ? 'rgba(0,0,0,0.25)' : 'rgba(255,255,255,0.25)';
+
+  // Y-axis positions for grid lines
+  const yZero = padding.top + ((allMax - 0) / range) * chartH;
+  const yTop = padding.top + ((allMax - allMax * 0.75) / range) * chartH;
+  const yBot = padding.top + ((allMax - allMin * 0.75) / range) * chartH;
+
+  // Y-axis labels
+  const topLabel = `+${(allMax * 0.75).toFixed(1)}%`;
+  const botLabel = `${(allMin * 0.75).toFixed(1)}%`;
+
   return (
     <svg width="100%" height={height} viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none">
-      <line
-        x1={padding.left} x2={width - padding.right}
-        y1={padding.top + ((allMax - 0) / range) * chartH}
-        y2={padding.top + ((allMax - 0) / range) * chartH}
-        stroke={isLight ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.06)'} strokeWidth="1" strokeDasharray="4 4"
-      />
+      {/* Grid lines */}
+      {[0.25, 0.5, 0.75].map(f => {
+        const y = padding.top + f * chartH;
+        return <line key={f} x1={padding.left} x2={width - padding.right} y1={y} y2={y} stroke={gridColor} strokeWidth="1" />;
+      })}
+      {/* Zero line */}
+      <line x1={padding.left} x2={width - padding.right} y1={yZero} y2={yZero} stroke={zeroColor} strokeWidth="1" strokeDasharray="4 4" />
+      {/* Y-axis labels */}
+      <text x={width - padding.right + 6} y={yTop + 3} fill={yLabelColor} fontSize="10" fontFamily="Inter, sans-serif" style={{ fontVariantNumeric: 'tabular-nums' }}>{topLabel}</text>
+      <text x={width - padding.right + 6} y={yZero + 3} fill={yLabelColor} fontSize="10" fontFamily="Inter, sans-serif">0%</text>
+      <text x={width - padding.right + 6} y={yBot + 3} fill={yLabelColor} fontSize="10" fontFamily="Inter, sans-serif" style={{ fontVariantNumeric: 'tabular-nums' }}>{botLabel}</text>
+      {/* Lines */}
       {lines.map(line => {
         const points = line.pctChanges.map((pct, i) => {
           const x = padding.left + (i / (line.pctChanges.length - 1)) * chartW;
@@ -83,47 +108,78 @@ function MarketPulseChart({ assets }: { assets: AssetWithClass[] }) {
           ? (lightColors[line.symbol] || '#666666')
           : (assetColors[line.symbol] || '#f5f5f7');
         return (
-          <polyline key={line.symbol} points={points} fill="none" stroke={color} strokeWidth={isLight ? '2.5' : '1.5'} strokeLinecap="round" strokeLinejoin="round" opacity={isLight ? '1' : '0.8'} />
+          <polyline key={line.symbol} points={points} fill="none" stroke={color} strokeWidth={isLight ? '2' : '1.5'} strokeLinecap="round" strokeLinejoin="round" opacity={isLight ? '1' : '0.8'} />
         );
       })}
     </svg>
   );
 }
 
+function SectionLabel({ label, isLight }: { label: string; isLight: boolean }) {
+  const color = isLight ? 'rgba(0,0,0,0.35)' : 'rgba(255,255,255,0.35)';
+  const rule = isLight ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.06)';
+  return (
+    <div className="flex items-center gap-3" style={{ marginTop: 24, marginBottom: 12 }}>
+      <span style={{ fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase', color, fontWeight: 500, whiteSpace: 'nowrap' }}>
+        {label}
+      </span>
+      <div className="flex-1 h-px" style={{ background: rule }} />
+    </div>
+  );
+}
+
 function AllAssetsTable({ assets, isLight }: { assets: AssetWithClass[]; isLight: boolean }) {
   const isMobile = useIsMobile();
+  const navigate = useNavigate();
+  const headerBorder = isLight ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.06)';
+  const headerColor = isLight ? 'rgba(0,0,0,0.35)' : 'rgba(255,255,255,0.35)';
+  const rowHover = isLight ? 'rgba(0,0,0,0.02)' : 'rgba(255,255,255,0.03)';
+  const altRow = isLight ? 'rgba(0,0,0,0.01)' : 'rgba(255,255,255,0.01)';
+  const arrowColor = isLight ? 'rgba(0,0,0,0.3)' : 'rgba(255,255,255,0.3)';
+  const confTrack = isLight ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.08)';
 
   return (
-    <div className="surface-1 rounded-2xl overflow-hidden" style={{ border: '1px solid rgba(255,255,255,0.08)' }}>
+    <div className="rounded-2xl overflow-hidden" style={{
+      background: isLight ? '#ffffff' : 'rgba(255,255,255,0.04)',
+      border: `1px solid ${isLight ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.08)'}`,
+      boxShadow: isLight ? '0 1px 3px rgba(0,0,0,0.04)' : 'none',
+    }}>
       <div className="overflow-x-auto scrollbar-hide">
         <table className="w-full text-sm">
           <thead>
-            <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
-              <th className="text-left py-3 px-3 md:px-4 label-caps font-normal">Asset</th>
-              {!isMobile && <th className="text-left py-3 px-4 label-caps font-normal">Class</th>}
-              <th className="text-right py-3 px-3 md:px-4 label-caps font-normal">Price</th>
-              <th className="text-right py-3 px-3 md:px-4 label-caps font-normal">Change %</th>
-              {!isMobile && <th className="text-right py-3 px-4 label-caps font-normal">Spread</th>}
-              {!isMobile && <th className="text-right py-3 px-4 label-caps font-normal">Confidence</th>}
+            <tr style={{ borderBottom: `1px solid ${headerBorder}` }}>
+              <th className="text-left py-3 px-3 md:px-4 font-normal" style={{ fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: headerColor }}>Asset</th>
+              {!isMobile && <th className="text-left py-3 px-4 font-normal" style={{ fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: headerColor }}>Class</th>}
+              <th className="text-right py-3 px-3 md:px-4 font-normal" style={{ fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: headerColor }}>Price</th>
+              <th className="text-right py-3 px-3 md:px-4 font-normal" style={{ fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: headerColor }}>Change %</th>
+              {!isMobile && <th className="text-right py-3 px-4 font-normal" style={{ fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: headerColor }}>Spread</th>}
+              {!isMobile && <th className="text-center py-3 px-4 font-normal" style={{ fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: headerColor }}>Confidence</th>}
+              {!isMobile && <th className="w-8" />}
             </tr>
           </thead>
           <tbody>
             {assets.map((asset, i) => {
               const positive = asset.change >= 0;
               const badge = classBadgeColors[asset.assetClass];
+              const confPct = asset.confidence * 100;
+              const confColor = confPct > 90 ? '#32d74b' : confPct > 70 ? '#ffd60a' : '#ff453a';
               return (
                 <tr
                   key={asset.symbol}
-                  className="apple-transition hover:bg-accent/50"
+                  className="group cursor-pointer"
+                  onClick={() => navigate('/replay')}
                   style={{
-                    background: i % 2 === 1 ? 'rgba(255,255,255,0.02)' : 'transparent',
-                    borderBottom: '1px solid rgba(255,255,255,0.04)',
+                    background: i % 2 === 1 ? altRow : 'transparent',
+                    borderBottom: `1px solid ${isLight ? 'rgba(0,0,0,0.03)' : 'rgba(255,255,255,0.04)'}`,
+                    transition: 'background 0.15s ease',
                   }}
+                  onMouseEnter={e => { e.currentTarget.style.background = rowHover; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = i % 2 === 1 ? altRow : 'transparent'; }}
                 >
                   <td className="py-3 px-3 md:px-4">
                     <div className="flex items-center gap-2">
-                      <span className="text-foreground font-medium text-[13px] md:text-sm">{asset.symbol}</span>
-                      {isMobile ? null : <span className="text-muted-foreground text-xs">{asset.name}</span>}
+                      <span style={{ color: isLight ? '#1d1d1f' : '#fff', fontWeight: 500, fontSize: isMobile ? 13 : 14 }}>{asset.symbol}</span>
+                      {!isMobile && <span className="text-muted-foreground text-xs">{asset.name}</span>}
                     </div>
                   </td>
                   {!isMobile && (
@@ -136,7 +192,7 @@ function AllAssetsTable({ assets, isLight }: { assets: AssetWithClass[]; isLight
                       </span>
                     </td>
                   )}
-                  <td className="py-3 px-3 md:px-4 text-right tabular-nums text-foreground font-medium text-[13px] md:text-sm">
+                  <td className="py-3 px-3 md:px-4 text-right tabular-nums font-medium text-[13px] md:text-sm" style={{ color: isLight ? '#1d1d1f' : '#fff' }}>
                     ${formatPrice(asset.price)}
                   </td>
                   <td className={`py-3 px-3 md:px-4 text-right tabular-nums font-medium text-[13px] md:text-sm ${positive ? 'text-positive' : 'text-negative'}`}>
@@ -148,8 +204,19 @@ function AllAssetsTable({ assets, isLight }: { assets: AssetWithClass[]; isLight
                     </td>
                   )}
                   {!isMobile && (
-                    <td className="py-3 px-4 text-right tabular-nums text-foreground">
-                      {(asset.confidence * 100).toFixed(1)}%
+                    <td className="py-3 px-4">
+                      {/* #2: Confidence with visual bar */}
+                      <div className="flex flex-col items-center gap-1">
+                        <span className="tabular-nums text-sm" style={{ color: isLight ? '#1d1d1f' : '#fff' }}>{confPct.toFixed(1)}%</span>
+                        <div className="rounded-full" style={{ width: 40, height: 3, background: confTrack }}>
+                          <div className="rounded-full h-full" style={{ width: `${confPct}%`, background: confColor, transition: 'width 0.3s ease' }} />
+                        </div>
+                      </div>
+                    </td>
+                  )}
+                  {!isMobile && (
+                    <td className="py-3 pr-3">
+                      <ChevronRight size={14} style={{ color: arrowColor, opacity: 0, transition: 'opacity 0.15s ease' }} className="group-hover:!opacity-100" />
                     </td>
                   )}
                 </tr>
@@ -166,11 +233,12 @@ export default function LivePage() {
   const { theme } = useTheme();
   const isLight = theme === 'light';
   const lightLegendColors: Record<string, string> = {
-    'BTC/USD': '#1d1d1f', 'XAU/USD': '#b8860b', 'EUR/USD': '#0055d4',
+    'BTC/USD': '#0055d4', 'XAU/USD': '#b8860b', 'EUR/USD': '#0055d4',
   };
   const [assets, setAssets] = useState(getInitialAssets);
   const [activeTab, setActiveTab] = useState<TabType>('all');
   const [search, setSearch] = useState('');
+  const navigate = useNavigate();
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -221,9 +289,9 @@ export default function LivePage() {
                 onClick={() => setActiveTab(tab.value)}
                 className="px-4 py-1.5 rounded-full text-sm font-medium apple-transition flex-shrink-0 min-h-[44px] md:min-h-0"
                 style={{
-                  background: activeTab === tab.value ? '#f5f5f7' : 'transparent',
-                  color: activeTab === tab.value ? '#0d0d0d' : '#86868b',
-                  border: activeTab === tab.value ? 'none' : '1px solid rgba(255,255,255,0.08)',
+                  background: activeTab === tab.value ? (isLight ? '#1d1d1f' : '#f5f5f7') : 'transparent',
+                  color: activeTab === tab.value ? (isLight ? '#fff' : '#0d0d0d') : (isLight ? 'rgba(0,0,0,0.4)' : '#86868b'),
+                  border: activeTab === tab.value ? 'none' : `1px solid ${isLight ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.08)'}`,
                 }}
               >
                 {tab.label}
@@ -238,7 +306,7 @@ export default function LivePage() {
               onChange={e => setSearch(e.target.value)}
               placeholder="Search assets..."
               className="w-full h-11 md:h-9 pl-8 pr-3 rounded-2xl text-sm text-foreground placeholder:text-muted-foreground bg-transparent apple-transition focus:outline-none"
-              style={{ border: '1px solid rgba(255,255,255,0.08)' }}
+              style={{ border: `1px solid ${isLight ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.08)'}` }}
             />
           </div>
         </div>
@@ -263,58 +331,108 @@ export default function LivePage() {
           )}
         </motion.div>
 
-        {/* Market Pulse */}
-        <div className="mt-12">
-          <h2 className="label-caps mb-4">Market Pulse</h2>
-          <div className="surface-1 rounded-2xl p-4 md:p-6" style={{ background: isLight ? '#ffffff' : undefined, border: isLight ? '1px solid rgba(0,0,0,0.08)' : '1px solid rgba(255,255,255,0.08)' }}>
-            <MarketPulseChart assets={pulseAssets} />
-            <div className="flex items-center gap-3 md:gap-5 mt-4 flex-wrap">
-              {pulseAssets.map(asset => {
-                const positive = asset.change >= 0;
-                const dotColor = isLight
-                  ? (lightLegendColors[asset.symbol] || '#666666')
-                  : (assetColors[asset.symbol] || '#f5f5f7');
-                return (
-                  <div key={asset.symbol} className="flex items-center gap-2">
-                    <div className="w-2.5 h-2.5 rounded-full" style={{ background: dotColor }} />
-                    <span className="text-xs text-muted-foreground">{asset.symbol}</span>
-                    <span className={`text-xs font-medium tabular-nums ${positive ? 'text-positive' : 'text-negative'}`}>
-                      {positive ? '+' : ''}{asset.change.toFixed(2)}%
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
+        {/* #12: Market Pulse section label */}
+        <SectionLabel label="Market Pulse" isLight={isLight} />
+        <div className="rounded-2xl p-4 md:p-6" style={{
+          background: isLight ? '#ffffff' : 'rgba(255,255,255,0.04)',
+          border: `1px solid ${isLight ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.08)'}`,
+          boxShadow: isLight ? '0 1px 3px rgba(0,0,0,0.04)' : 'none',
+        }}>
+          <MarketPulseChart assets={pulseAssets} isLight={isLight} />
+          <div className="flex items-center gap-3 md:gap-5 mt-4 flex-wrap">
+            {pulseAssets.map(asset => {
+              const positive = asset.change >= 0;
+              const dotColor = isLight
+                ? (lightLegendColors[asset.symbol] || '#666666')
+                : (assetColors[asset.symbol] || '#f5f5f7');
+              return (
+                <div key={asset.symbol} className="flex items-center gap-2">
+                  <div className="w-2.5 h-2.5 rounded-full" style={{ background: dotColor }} />
+                  <span className="text-xs text-muted-foreground">{asset.symbol}</span>
+                  <span className={`text-xs font-medium tabular-nums ${positive ? 'text-positive' : 'text-negative'}`}>
+                    {positive ? '+' : ''}{asset.change.toFixed(2)}%
+                  </span>
+                </div>
+              );
+            })}
           </div>
         </div>
 
         <CorrelationMatrix assets={assets} />
 
-        {/* Recent Events */}
-        <div className="mt-12">
-          <h2 className="label-caps mb-4">Recent Events</h2>
-          <div className="surface-1 rounded-2xl p-3 md:p-4" style={{ border: '1px solid rgba(255,255,255,0.08)' }}>
-            {allEvents.map(event => (
+        {/* #12: Recent Events section label */}
+        <SectionLabel label="Recent Events" isLight={isLight} />
+        <div className="rounded-2xl p-3 md:p-4" style={{
+          background: isLight ? '#ffffff' : 'rgba(255,255,255,0.04)',
+          border: `1px solid ${isLight ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.08)'}`,
+          boxShadow: isLight ? '0 1px 3px rgba(0,0,0,0.04)' : 'none',
+        }}>
+          {allEvents.map(event => {
+            const evConf = eventTypeConfig[event.type] || { color: isLight ? 'rgba(0,0,0,0.15)' : 'rgba(255,255,255,0.15)', abbr: '—' };
+            return (
               <div
                 key={event.id}
-                className="flex items-center gap-3 md:gap-4 py-3 md:py-4 px-2 md:px-3 apple-transition hover:bg-accent/50 rounded-lg"
-                style={{ borderLeft: `3px solid ${event.color}` }}
+                className="group flex items-center gap-3 md:gap-4 py-3 md:py-4 px-2 md:px-3 rounded-lg cursor-pointer"
+                style={{
+                  borderLeft: `3px solid ${evConf.color}`,
+                  transition: 'background 0.15s ease',
+                }}
+                onClick={() => navigate('/replay')}
+                onMouseEnter={e => { e.currentTarget.style.background = isLight ? 'rgba(0,0,0,0.015)' : 'rgba(255,255,255,0.02)'; }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
               >
+                {/* #9: Event type badge */}
+                <span
+                  className="flex-shrink-0 flex items-center justify-center tabular-nums"
+                  style={{
+                    width: 52,
+                    fontSize: 9,
+                    letterSpacing: '0.08em',
+                    textTransform: 'uppercase',
+                    fontWeight: 500,
+                    background: `${evConf.color}1f`,
+                    border: `1px solid ${evConf.color}4d`,
+                    color: evConf.color,
+                    padding: '3px 0',
+                    borderRadius: 100,
+                  }}
+                >
+                  {evConf.abbr}
+                </span>
+
                 <div className="flex-1 min-w-0">
-                  <span className="text-[13px] md:text-sm font-medium text-foreground">{event.asset}</span>
+                  <span className="text-[13px] md:text-sm font-medium" style={{ color: isLight ? '#1d1d1f' : '#fff' }}>{event.asset}</span>
                   <span className="text-[13px] md:text-sm text-muted-foreground ml-2 hidden sm:inline">{event.description}</span>
                 </div>
                 <span className="text-xs text-muted-foreground whitespace-nowrap hidden sm:block">{event.timestamp}</span>
-                <Link to="/replay" className="text-xs text-muted-foreground hover:text-foreground apple-transition whitespace-nowrap min-h-[44px] md:min-h-0 flex items-center">
+                {/* #10: Replay link */}
+                <Link
+                  to="/replay"
+                  className="flex-shrink-0 text-[13px] whitespace-nowrap min-h-[44px] md:min-h-0 flex items-center rounded-md px-2"
+                  style={{
+                    color: isLight ? 'rgba(0,0,0,0.4)' : 'rgba(255,255,255,0.4)',
+                    textDecoration: 'none',
+                    transition: 'all 0.15s ease',
+                  }}
+                  onClick={e => e.stopPropagation()}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.color = '#e6007a';
+                    e.currentTarget.style.background = 'rgba(230,0,122,0.08)';
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.color = isLight ? 'rgba(0,0,0,0.4)' : 'rgba(255,255,255,0.4)';
+                    e.currentTarget.style.background = 'transparent';
+                  }}
+                >
                   Replay →
                 </Link>
               </div>
-            ))}
-            <div className="flex justify-end pt-3 pr-2">
-              <Link to="/events" className="text-xs text-primary hover:text-primary/80 apple-transition font-medium">
-                View All Events →
-              </Link>
-            </div>
+            );
+          })}
+          <div className="flex justify-end pt-3 pr-2">
+            <Link to="/events" className="text-xs text-primary hover:text-primary/80 apple-transition font-medium">
+              View All Events →
+            </Link>
           </div>
         </div>
       </div>

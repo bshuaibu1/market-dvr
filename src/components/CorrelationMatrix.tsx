@@ -1,7 +1,8 @@
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Info } from 'lucide-react';
 import { AssetWithClass } from '@/lib/mockData';
+import { useTheme } from '@/components/ThemeProvider';
 
 const matrixAssets = ['BTC/USD', 'ETH/USD', 'SOL/USD', 'XAU/USD', 'WTI/USD', 'EUR/USD'];
 const matrixLabels: Record<string, string> = {
@@ -26,7 +27,14 @@ function computeCorrelation(a: number[], b: number[]): number {
   return den === 0 ? 0 : num / den;
 }
 
-function getCellColor(val: number): string {
+function getCellColor(val: number, isLight: boolean): string {
+  if (isLight) {
+    if (val > 0.7) return 'rgba(26,143,53,0.2)';
+    if (val > 0.3) return 'rgba(26,143,53,0.08)';
+    if (val > -0.3) return 'rgba(0,0,0,0.02)';
+    if (val > -0.7) return 'rgba(204,34,0,0.08)';
+    return 'rgba(204,34,0,0.2)';
+  }
   if (val > 0.7) return 'rgba(0,200,83,0.35)';
   if (val > 0.3) return 'rgba(50,215,75,0.15)';
   if (val > -0.3) return 'rgba(255,255,255,0.04)';
@@ -43,6 +51,9 @@ function getCorrelationLabel(val: number): string {
 }
 
 export default function CorrelationMatrix({ assets }: { assets: AssetWithClass[] }) {
+  const { theme } = useTheme();
+  const L = theme === 'light';
+
   const correlations = useMemo(() => {
     const selected = matrixAssets.map(s => assets.find(a => a.symbol === s)).filter(Boolean) as AssetWithClass[];
     const matrix: number[][] = [];
@@ -59,68 +70,93 @@ export default function CorrelationMatrix({ assets }: { assets: AssetWithClass[]
   }, [assets]);
 
   const labels = matrixAssets.map(s => matrixLabels[s]);
+  const divider = L ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.06)';
+  const labelColor = L ? 'rgba(0,0,0,0.35)' : 'rgba(255,255,255,0.35)';
 
   return (
-    <div className="mt-12">
-      <div className="flex items-center gap-3 mb-2">
-        <h2 className="label-caps">Correlation Matrix</h2>
+    <div style={{ marginTop: 24 }}>
+      {/* #12: Section label with rule */}
+      <div className="flex items-center gap-3 mb-3">
+        <span style={{ fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase', color: labelColor, fontWeight: 500, whiteSpace: 'nowrap' }}>
+          CORRELATION MATRIX
+        </span>
+        <div className="flex-1 h-px" style={{ background: divider }} />
         <Tooltip>
           <TooltipTrigger asChild>
             <button className="text-muted-foreground hover:text-foreground apple-transition">
               <Info size={14} />
             </button>
           </TooltipTrigger>
-          <TooltipContent side="top" className="max-w-[260px] text-xs">
-            Correlation measures how two assets move together. +1.0 means they move in perfect sync,
-            -1.0 means they move in opposite directions, and 0 means no relationship.
+          <TooltipContent side="bottom" className="max-w-[260px] text-xs z-[100]">
+            Correlation measures how two assets move together. +1.0 = perfect sync, -1.0 = opposite, 0 = no relationship.
           </TooltipContent>
         </Tooltip>
       </div>
-      <p className="text-xs text-muted-foreground mb-4">How assets are moving together right now — updated every 5 seconds</p>
+      <p className="text-xs text-muted-foreground mb-3">How assets move together — updated every 5 seconds</p>
 
       <div className="relative">
-        {/* Mobile scroll hint */}
-        <div className="md:hidden text-[11px] text-muted-foreground mb-2 flex items-center gap-1">
-          <span>scroll →</span>
-        </div>
-        <div className="surface-1 rounded-2xl p-4 overflow-x-auto scrollbar-hide" style={{ border: '1px solid rgba(255,255,255,0.08)' }}>
+        <div className="md:hidden text-[11px] text-muted-foreground mb-2">scroll →</div>
+        {/* #7: overflow-x auto, min-width per cell */}
+        <div
+          className="rounded-2xl p-4"
+          style={{
+            background: L ? '#ffffff' : 'rgba(255,255,255,0.04)',
+            border: `1px solid ${L ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.08)'}`,
+            boxShadow: L ? '0 1px 3px rgba(0,0,0,0.04)' : 'none',
+            overflowX: 'auto',
+          }}
+        >
           <table className="text-xs" style={{ minWidth: 420 }}>
             <thead>
               <tr>
-                <th className="p-2" />
+                <th className="p-2" style={{ minWidth: 52 }} />
                 {labels.map(l => (
-                  <th key={l} className="p-2 text-center label-caps font-normal">{l}</th>
+                  <th key={l} className="p-2 text-center font-normal" style={{ fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: labelColor, minWidth: 52 }}>{l}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {labels.map((rowLabel, i) => (
                 <tr key={rowLabel}>
-                  <td className="p-2 label-caps font-normal text-right pr-3">{rowLabel}</td>
+                  <td className="p-2 font-normal text-right pr-3" style={{ fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: labelColor, minWidth: 52 }}>{rowLabel}</td>
                   {labels.map((colLabel, j) => {
                     const val = correlations[i]?.[j] ?? 0;
                     const isDiag = i === j;
+                    // #5: Diagonal cells — neutral
+                    const cellBg = isDiag
+                      ? (L ? 'rgba(0,0,0,0.02)' : 'rgba(255,255,255,0.02)')
+                      : getCellColor(val, L);
+                    const cellColor = isDiag
+                      ? (L ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.2)')
+                      : (L ? '#1d1d1f' : '#fff');
+                    // #6: Tooltip positioning — bottom for top half, top for bottom half
+                    const tooltipSide = i < labels.length / 2 ? 'bottom' : 'top';
+
                     return (
                       <Tooltip key={colLabel}>
                         <TooltipTrigger asChild>
                           <td
-                            className="p-2 text-center tabular-nums font-medium text-foreground cursor-default apple-transition"
+                            className="p-2 text-center tabular-nums font-medium cursor-default apple-transition"
                             style={{
-                              background: isDiag ? 'rgba(255,255,255,0.06)' : getCellColor(val),
+                              background: cellBg,
+                              color: cellColor,
                               borderRadius: 8,
-                              border: Math.abs(val) > 0.7 && !isDiag ? '1px solid rgba(255,255,255,0.15)' : '1px solid transparent',
+                              border: Math.abs(val) > 0.7 && !isDiag
+                                ? `1px solid ${L ? 'rgba(0,0,0,0.12)' : 'rgba(255,255,255,0.15)'}`
+                                : '1px solid transparent',
+                              minWidth: 52,
                             }}
                           >
                             {val >= 0 ? '+' : ''}{val.toFixed(2)}
                           </td>
                         </TooltipTrigger>
                         {!isDiag && (
-                          <TooltipContent side="top" className="max-w-[240px] text-xs">
+                          <TooltipContent side={tooltipSide as any} className="max-w-[200px] text-xs z-[100]">
                             <div className="font-medium text-foreground mb-1">
-                              {matrixAssets[i]} and {matrixLabels[matrixAssets[j]]} correlation: {val >= 0 ? '+' : ''}{val.toFixed(2)}
+                              {matrixAssets[i]} ↔ {matrixLabels[matrixAssets[j]]}: {val >= 0 ? '+' : ''}{val.toFixed(2)}
                             </div>
                             <div className="text-muted-foreground">
-                              These assets are {getCorrelationLabel(val)} right now
+                              {getCorrelationLabel(val)}
                             </div>
                           </TooltipContent>
                         )}
