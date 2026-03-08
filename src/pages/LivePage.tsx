@@ -150,7 +150,8 @@ function AllAssetsTable({ assets }: { assets: AssetWithClass[] }) {
                 <td className="py-3 px-4">
                   <span
                     className="text-[10px] uppercase tracking-widest font-medium px-2 py-0.5 rounded-full"
-                    style={{ background: badge.bg, color: badge.text }}
+                    style={{ background: isLight && badge.lightBg ? badge.lightBg : badge.bg, color: isLight && badge.lightText ? badge.lightText : badge.text, border: isLight && badge.lightBorder ? badge.lightBorder : 'none' }}
+                  >
                   >
                     {asset.assetClass}
                   </span>
