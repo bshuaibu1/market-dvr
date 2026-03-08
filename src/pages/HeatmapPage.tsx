@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import Navbar from '@/components/Navbar';
-import MobileBottomNav from '@/components/MobileBottomNav';
+
 import RecordingBar from '@/components/RecordingBar';
 import { getInitialAssets, tickAsset, formatPrice, AssetWithClass, AssetClass } from '@/lib/mockData';
 import { Link } from 'react-router-dom';
