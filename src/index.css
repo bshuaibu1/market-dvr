@@ -137,6 +137,12 @@
     border: 1px solid hsl(var(--border));
   }
 
+  .light .surface-1 {
+    background: hsl(0 0% 100%);
+    border: 1px solid rgba(0, 0, 0, 0.06);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 4px 16px rgba(0, 0, 0, 0.04);
+  }
+
   .surface-2 {
     background: hsl(var(--surface-2));
     border: 1px solid hsl(var(--border));
