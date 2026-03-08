@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Copy, Download, Link as LinkIcon, Image as ImageIcon, Check, Film, Loader2 } from 'lucide-react';
 import { formatPrice } from '@/lib/mockData';
 import { toPng } from 'html-to-image';
+import LogoMark from '@/components/LogoMark';
 
 interface ShareModalProps {
   open: boolean;
