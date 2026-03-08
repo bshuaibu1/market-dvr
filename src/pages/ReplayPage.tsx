@@ -145,7 +145,7 @@ export default function ReplayPage() {
 
   const spreads = data.map(d => d.spread);
   const maxSpread = Math.max(...spreads);
-  const spreadChartH = isMobile ? 40 : 60;
+  const spreadChartH = isMobile ? 36 : 60;
   const spreadLine = data.map((d, i) => `${toX(i)},${spreadChartH - (d.spread / maxSpread) * (spreadChartH - 5)}`).join(' ');
   const spreadFillPoly = `0,${spreadChartH} ${spreadLine} ${chartWidth},${spreadChartH}`;
 
