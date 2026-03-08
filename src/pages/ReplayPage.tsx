@@ -378,7 +378,7 @@ export default function ReplayPage() {
               </div>
             </div>
           ) : (
-            <div className="flex items-center g1 md:mb-ap-11 md:mb- mb-4 p-1 rounded-full surface-1 w-fit">
+            <div className="flex items-center gap-1 mb-1 md:mb-4 p-1 rounded-full surface-1 w-fit">
               {[
                 { label: 'Bid', active: showBid, toggle: () => setShowBid(!showBid), color: '#0a84ff' },
                 { label: 'Ask', active: showAsk, toggle: () => setShowAsk(!showAsk), color: '#ff453a' },
