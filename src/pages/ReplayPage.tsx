@@ -470,7 +470,7 @@ export default function ReplayPage() {
           <ShockPropagation />
 
           {/* Playback controls */}
-          <div className="mt-6 flex flex-col items-center gap-3">
+          <div className="mt-2 md:mt-6 flex flex-col items-center gap-1 md:gap-3">
             <div className="w-full relative h-6 flex items-center">
               {eventPositions.map((pos, i) => (
                 <div key={i} className="absolute -top-1 w-2 h-2 rotate-45" style={{ left: `${(pos / data.length) * 100}%`, background: '#e6007a', outline: isLight ? '1.5px solid #1d1d1f' : 'none' }} />
