@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import Navbar from '@/components/Navbar';
-import MobileBottomNav from '@/components/MobileBottomNav';
+
 import { generateReplayData, formatPrice, allAssetsList } from '@/lib/mockData';
 import { motion } from 'framer-motion';
 import { Play, Pause, SkipBack, SkipForward, Share2, Keyboard, GitCompareArrows } from 'lucide-react';
@@ -99,7 +99,7 @@ export default function ReplayPage() {
   const compareCurrent = useCompare ? compareData[frame] : null;
 
   const chartWidth = 800;
-  const chartHeight = isMobile ? 220 : 300;
+  const chartHeight = isMobile ? 160 : 300;
 
   const startPrice1 = data[0].price;
   const startPrice2 = useCompare ? compareData[0].price : 0;
@@ -145,7 +145,7 @@ export default function ReplayPage() {
 
   const spreads = data.map(d => d.spread);
   const maxSpread = Math.max(...spreads);
-  const spreadChartH = isMobile ? 40 : 60;
+  const spreadChartH = isMobile ? 36 : 60;
   const spreadLine = data.map((d, i) => `${toX(i)},${spreadChartH - (d.spread / maxSpread) * (spreadChartH - 5)}`).join(' ');
   const spreadFillPoly = `0,${spreadChartH} ${spreadLine} ${chartWidth},${spreadChartH}`;
 
@@ -297,15 +297,14 @@ export default function ReplayPage() {
   );
 
   return (
-    <div className="min-h-screen bg-background pt-14 max-md:pb-[68px]">
+    <div className="min-h-screen bg-background pt-14">
       <Navbar />
 
       <div className="flex flex-col lg:flex-row h-auto lg:h-[calc(100vh-56px)]">
-        {/* Main chart area */}
-        <div className="flex-1 flex flex-col p-4 md:p-6 min-w-0">
+        <div className="flex-1 flex flex-col p-4 md:p-6 min-w-0 max-md:gap-1">
           {/* Top bar */}
-          <div className="flex flex-wrap items-center gap-2 md:gap-3 mb-4">
-            <select
+          <div className="flex flex-wrap items-center gap-2 md:gap-3 mb-2 md:mb-4">
+<select
               value={selectedAsset}
               onChange={e => { setSelectedAsset(e.target.value); setFrame(250); setPlaying(false); }}
               className="h-11 md:h-9 rounded-xl bg-background text-foreground text-sm px-3 font-medium focus:outline-none min-w-[120px]"
@@ -379,7 +378,7 @@ export default function ReplayPage() {
               </div>
             </div>
           ) : (
-            <div className="flex items-center gap-1 mb-4 p-1 rounded-full surface-1 w-fit">
+            <div className="flex items-center gap-1 mb-1 md:mb-4 p-1 rounded-full surface-1 w-fit">
               {[
                 { label: 'Bid', active: showBid, toggle: () => setShowBid(!showBid), color: '#0a84ff' },
                 { label: 'Ask', active: showAsk, toggle: () => setShowAsk(!showAsk), color: '#ff453a' },
@@ -398,7 +397,7 @@ export default function ReplayPage() {
            )}
 
           {/* Timeframe selector pills */}
-          <div className="flex items-center gap-1.5 mb-2 md:mb-4">
+          <div className="flex items-center gap-1.5 mb-1 md:mb-4">
             <div className="flex items-center gap-0.5 p-1 rounded-full surface-1 overflow-x-auto scrollbar-hide">
               {timeframes.map(tf => (
                 <button
@@ -420,13 +419,16 @@ export default function ReplayPage() {
 
           {/* Chart */}
           <div
-            className="flex-1 min-h-[200px] lg:min-h-0 relative rounded-xl"
+            className="relative rounded-xl"
             style={{
+              height: isMobile ? 160 : undefined,
+              flex: isMobile ? 'none' : 1,
+              minHeight: isMobile ? undefined : 200,
               boxShadow: isLight ? 'inset 0 1px 0 rgba(230,0,122,0.12)' : 'inset 0 1px 0 rgba(230,0,122,0.2)',
             }}
           >
-            <div className="absolute top-3 left-4 z-10">
-              <span className="text-[28px] md:text-2xl tabular-nums text-foreground font-medium">${formatPrice(current.price)}</span>
+            <div className="absolute top-2 left-3 md:top-3 md:left-4 z-10">
+              <span className="text-[22px] md:text-2xl tabular-nums text-foreground font-medium">${formatPrice(current.price)}</span>
             </div>
             {!useCompare && timeframe !== '1s' ? (
               <TimeframeChart rawData={data} timeframe={timeframe} frame={frame} chartWidth={chartWidth} chartHeight={chartHeight} isLight={isLight} />
@@ -453,7 +455,7 @@ export default function ReplayPage() {
 
           {/* Spread panel */}
           {!useCompare && (
-            <div className="mt-4" style={{ height: isMobile ? 56 : 64 }}>
+            <div className="mt-2 md:mt-4" style={{ height: isMobile ? 48 : 64 }}>
               <div className="flex items-center gap-3 mb-2">
                 <span className="label-caps">Spread Width</span>
                 <span className="text-sm tabular-nums text-foreground font-medium">${current.spread.toFixed(2)}</span>
@@ -470,8 +472,8 @@ export default function ReplayPage() {
           <ShockPropagation />
 
           {/* Playback controls */}
-          <div className="mt-6 flex flex-col items-center gap-3">
-            <div className="w-full relative h-6 flex items-center">
+          <div className="mt-2 md:mt-6 flex flex-col items-center gap-1 md:gap-3">
+            <div className="w-full relative h-5 md:h-6 flex items-center">
               {eventPositions.map((pos, i) => (
                 <div key={i} className="absolute -top-1 w-2 h-2 rotate-45" style={{ left: `${(pos / data.length) * 100}%`, background: '#e6007a', outline: isLight ? '1.5px solid #1d1d1f' : 'none' }} />
               ))}
@@ -580,7 +582,6 @@ export default function ReplayPage() {
             : undefined
         }
       />
-      <MobileBottomNav />
     </div>
   );
 }

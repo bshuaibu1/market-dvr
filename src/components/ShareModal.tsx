@@ -96,20 +96,28 @@ export default function ShareModal({ open, onOpenChange, asset, frame, frameData
 
   const modalContent = (
     <>
-      {/* Tab selector */}
+      {/* Drag handle on mobile */}
+      {isMobile && (
+        <div className="flex justify-center pt-2 pb-3">
+          <div className="w-10 h-1 rounded-full" style={{ background: 'rgba(255,255,255,0.2)' }} />
+        </div>
+      )}
+
+      {/* Tab selector — equal width pills */}
       <div className="flex gap-2 mt-2 mb-4">
         {tabs.map(t => (
           <button
             key={t.key}
             onClick={() => { setActiveTab(t.key); setExportDone(false); }}
-            className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-medium apple-transition"
+            className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-[13px] font-medium apple-transition text-center"
             style={{
               background: activeTab === t.key ? 'rgba(230,0,122,0.15)' : 'rgba(255,255,255,0.04)',
               border: activeTab === t.key ? '1px solid #e6007a' : '1px solid rgba(255,255,255,0.08)',
               color: activeTab === t.key ? '#e6007a' : '#86868b',
             }}
           >
-            <t.icon size={16} /> {t.label}
+            <t.icon size={14} />
+            <span className="truncate">{t.label}</span>
           </button>
         ))}
       </div>

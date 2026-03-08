@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import Navbar from '@/components/Navbar';
-import MobileBottomNav from '@/components/MobileBottomNav';
+
 import AssetCard from '@/components/AssetCard';
 import RecordingBar from '@/components/RecordingBar';
 import CorrelationMatrix from '@/components/CorrelationMatrix';
@@ -320,7 +320,6 @@ export default function LivePage() {
       </div>
 
       <RecordingBar />
-      <MobileBottomNav />
     </div>
   );
 }
