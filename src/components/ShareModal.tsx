@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Copy, Download, Link as LinkIcon, Image as ImageIcon, Check, Film, Loader2 } from 'lucide-react';
 import { formatPrice } from '@/lib/mockData';
 import { toPng } from 'html-to-image';
+import LogoMark from '@/components/LogoMark';
 
 interface ShareModalProps {
   open: boolean;
@@ -142,8 +143,9 @@ export default function ShareModal({ open, onOpenChange, asset, frame, frameData
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full" style={{ background: '#e6007a' }} />
-                  <span className="text-xs font-semibold text-foreground tracking-tight">Market DVR</span>
+                  <LogoMark size={20} variant="dark" />
+                  <span className="text-xs font-semibold text-white tracking-tight" style={{ fontFamily: 'Inter, sans-serif', fontWeight: 600 }}>Market DVR</span>
+                  <span className="text-[10px]" style={{ color: 'rgba(255,255,255,0.5)', fontFamily: 'Inter, sans-serif' }}>· Powered by Pyth Pro</span>
                 </div>
                 <span className="text-[10px] text-muted-foreground">Frame #{frame}</span>
               </div>
@@ -190,9 +192,6 @@ export default function ShareModal({ open, onOpenChange, asset, frame, frameData
                 ))}
               </div>
 
-              <div className="flex justify-end">
-                <span className="text-[9px] text-muted-foreground">Powered by Pyth Pro</span>
-              </div>
             </div>
 
             <div className="flex gap-2">
@@ -269,8 +268,19 @@ export default function ShareModal({ open, onOpenChange, asset, frame, frameData
               <div className="h-24 rounded-lg relative" style={{ background: 'rgba(0,0,0,0.4)' }}>
                 <div className="absolute top-2 right-2 text-[9px] text-muted-foreground tabular-nums">{asset} • Frame #{frame}</div>
                 <div className="absolute bottom-0 left-0 right-0 h-8" style={{ background: 'linear-gradient(transparent, rgba(0,0,0,0.6))' }} />
-                <div className="absolute bottom-2 left-2 text-[9px] text-foreground font-medium">Market DVR</div>
-                <div className="absolute bottom-2 right-2 text-[9px]" style={{ color: '#e6007a' }}>Powered by Pyth Pro</div>
+                <div
+                  className="absolute bottom-2 left-2 flex items-center gap-1.5"
+                  style={{
+                    background: 'rgba(0,0,0,0.6)',
+                    backdropFilter: 'blur(8px)',
+                    padding: '6px 12px',
+                    borderRadius: '100px',
+                  }}
+                >
+                  <LogoMark size={16} variant="dark" />
+                  <span className="text-[9px] text-white font-semibold" style={{ fontFamily: 'Inter, sans-serif' }}>Market DVR</span>
+                  <span className="text-[9px]" style={{ color: 'rgba(255,255,255,0.6)', fontFamily: 'Inter, sans-serif' }}>· Powered by Pyth Pro</span>
+                </div>
               </div>
             </div>
 
