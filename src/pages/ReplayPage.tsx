@@ -43,7 +43,8 @@ export default function ReplayPage() {
   const maxP = Math.max(...prices) + 50;
   const rangeP = maxP - minP;
 
-  const toX = (i: number) => (i / (data.length - 1)) * chartWidth;
+  const chartPadLeft = 20;
+  const toX = (i: number) => chartPadLeft + (i / (data.length - 1)) * (chartWidth - chartPadLeft);
   const toY = (v: number) => chartHeight - ((v - minP) / rangeP) * chartHeight;
 
   const priceLine = data.map((d, i) => `${toX(i)},${toY(d.price)}`).join(' ');
