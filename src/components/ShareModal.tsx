@@ -268,8 +268,19 @@ export default function ShareModal({ open, onOpenChange, asset, frame, frameData
               <div className="h-24 rounded-lg relative" style={{ background: 'rgba(0,0,0,0.4)' }}>
                 <div className="absolute top-2 right-2 text-[9px] text-muted-foreground tabular-nums">{asset} • Frame #{frame}</div>
                 <div className="absolute bottom-0 left-0 right-0 h-8" style={{ background: 'linear-gradient(transparent, rgba(0,0,0,0.6))' }} />
-                <div className="absolute bottom-2 left-2 text-[9px] text-foreground font-medium">Market DVR</div>
-                <div className="absolute bottom-2 right-2 text-[9px]" style={{ color: '#e6007a' }}>Powered by Pyth Pro</div>
+                <div
+                  className="absolute bottom-2 left-2 flex items-center gap-1.5"
+                  style={{
+                    background: 'rgba(0,0,0,0.6)',
+                    backdropFilter: 'blur(8px)',
+                    padding: '6px 12px',
+                    borderRadius: '100px',
+                  }}
+                >
+                  <LogoMark size={16} variant="dark" />
+                  <span className="text-[9px] text-white font-semibold" style={{ fontFamily: 'Inter, sans-serif' }}>Market DVR</span>
+                  <span className="text-[9px]" style={{ color: 'rgba(255,255,255,0.6)', fontFamily: 'Inter, sans-serif' }}>· Powered by Pyth Pro</span>
+                </div>
               </div>
             </div>
 
