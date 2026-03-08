@@ -208,7 +208,7 @@ export default function LivePage() {
   const allEvents = mockEvents;
 
   return (
-    <div className="min-h-screen bg-background pt-14 pb-16 md:pb-16 pb-[calc(64px+52px)] md:pb-16">
+    <div className="min-h-screen bg-background pt-14 pb-16 max-md:pb-[calc(64px+52px)]">
       <Navbar />
 
       <div className="max-w-6xl mx-auto px-4 md:px-6 py-8">
