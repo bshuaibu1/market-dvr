@@ -270,7 +270,7 @@ export default function LivePage() {
           {filteredAssets.length === 0 ? (
             <div className="py-16 text-center text-muted-foreground text-sm">No assets found</div>
           ) : activeTab === 'all' ? (
-            <AllAssetsTable assets={filteredAssets} />
+            <AllAssetsTable assets={filteredAssets} isLight={isLight} />
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {filteredAssets.map(asset => (
