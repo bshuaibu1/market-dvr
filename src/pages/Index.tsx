@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import DVRDevice from '@/components/DVRDevice';
 import Footer from '@/components/Footer';
 import HeroReplayCard from '@/components/HeroReplayCard';
+import FirstVisitCTA from '@/components/FirstVisitCTA';
 import { Activity, Search, Share2 } from 'lucide-react';
 
 const features = [
