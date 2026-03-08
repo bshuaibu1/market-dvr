@@ -417,13 +417,16 @@ export default function ReplayPage() {
 
           {/* Chart */}
           <div
-            className="flex-1 min-h-[200px] lg:min-h-0 relative rounded-xl"
+            className="relative rounded-xl"
             style={{
+              height: isMobile ? 160 : undefined,
+              flex: isMobile ? 'none' : 1,
+              minHeight: isMobile ? undefined : 200,
               boxShadow: isLight ? 'inset 0 1px 0 rgba(230,0,122,0.12)' : 'inset 0 1px 0 rgba(230,0,122,0.2)',
             }}
           >
-            <div className="absolute top-3 left-4 z-10">
-              <span className="text-[28px] md:text-2xl tabular-nums text-foreground font-medium">${formatPrice(current.price)}</span>
+            <div className="absolute top-2 left-3 md:top-3 md:left-4 z-10">
+              <span className="text-[22px] md:text-2xl tabular-nums text-foreground font-medium">${formatPrice(current.price)}</span>
             </div>
             {!useCompare && timeframe !== '1s' ? (
               <TimeframeChart rawData={data} timeframe={timeframe} frame={frame} chartWidth={chartWidth} chartHeight={chartHeight} isLight={isLight} />
