@@ -1,6 +1,8 @@
 import { Link, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { Sun, Moon } from 'lucide-react';
 import { AlertBell } from '@/components/AlertSystem';
+import { useTheme } from '@/components/ThemeProvider';
 
 const tabs = [
   { label: 'Live', path: '/live' },
@@ -11,6 +13,7 @@ const tabs = [
 
 export default function Navbar() {
   const location = useLocation();
+  const { theme, toggleTheme } = useTheme();
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 h-14 frosted-glass border-b border-border flex items-center px-6">
@@ -32,11 +35,11 @@ export default function Navbar() {
                 <motion.div
                   layoutId="tab-indicator"
                   className="absolute inset-0 rounded-full"
-                  style={{ background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.3)' }}
+                  style={{ background: theme === 'dark' ? '#fff' : '#1d1d1f', boxShadow: '0 1px 3px rgba(0,0,0,0.3)' }}
                   transition={{ type: 'spring', stiffness: 400, damping: 30 }}
                 />
               )}
-              <span className={`relative z-10 ${active ? 'text-black' : 'text-muted-foreground'}`}>
+              <span className={`relative z-10 ${active ? (theme === 'dark' ? 'text-black' : 'text-white') : 'text-muted-foreground'}`}>
                 {tab.label}
               </span>
             </Link>
@@ -45,6 +48,13 @@ export default function Navbar() {
       </div>
 
       <div className="ml-auto flex items-center gap-2">
+        <button
+          onClick={toggleTheme}
+          className="w-8 h-8 rounded-full flex items-center justify-center surface-1 apple-transition text-muted-foreground hover:text-foreground"
+          aria-label="Toggle theme"
+        >
+          {theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />}
+        </button>
         <AlertBell />
         <div className="flex items-center gap-2 rounded-full px-3 py-1.5 surface-1">
           <div className="w-1.5 h-1.5 rounded-full bg-negative pulse-red" />

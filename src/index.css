@@ -55,11 +55,58 @@
     --sidebar-border: 0 0% 100% / 0.08;
     --sidebar-ring: 330 100% 45%;
   }
+
+  .light {
+    --background: 0 0% 96.5%;
+    --foreground: 0 0% 11%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 11%;
+
+    --popover: 0 0% 98%;
+    --popover-foreground: 0 0% 11%;
+
+    --primary: 330 100% 45%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 0 0% 0% / 0.04;
+    --secondary-foreground: 0 0% 11%;
+
+    --muted: 0 0% 0% / 0.04;
+    --muted-foreground: 0 0% 43%;
+
+    --accent: 0 0% 0% / 0.07;
+    --accent-foreground: 0 0% 11%;
+
+    --destructive: 0 100% 62%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 0 0% 0% / 0.08;
+    --input: 0 0% 0% / 0.08;
+    --ring: 330 100% 45%;
+
+    --text-secondary: 0 0% 43%;
+    --text-tertiary: 0 0% 70%;
+
+    --surface-1: 0 0% 0% / 0.04;
+    --surface-2: 0 0% 0% / 0.07;
+    --border-hover: 0 0% 0% / 0.15;
+
+    --sidebar-background: 0 0% 96.5%;
+    --sidebar-foreground: 0 0% 11%;
+    --sidebar-primary: 330 100% 45%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 0 0% 0% / 0.07;
+    --sidebar-accent-foreground: 0 0% 11%;
+    --sidebar-border: 0 0% 0% / 0.08;
+    --sidebar-ring: 330 100% 45%;
+  }
 }
 
 @layer base {
   * {
     @apply border-border;
+    transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
   }
 
   body {
@@ -83,20 +130,20 @@
   }
 
   .surface-1 {
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: hsl(var(--surface-1));
+    border: 1px solid hsl(var(--border));
   }
 
   .surface-2 {
-    background: rgba(255, 255, 255, 0.07);
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: hsl(var(--surface-2));
+    border: 1px solid hsl(var(--border));
   }
 
   .frosted-glass {
-    background: rgba(255, 255, 255, 0.05);
+    background: hsl(var(--surface-1));
     backdrop-filter: blur(20px) saturate(180%);
     -webkit-backdrop-filter: blur(20px) saturate(180%);
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    border: 1px solid hsl(var(--border));
   }
 
   .inner-glow {
@@ -111,7 +158,7 @@
     @apply apple-transition;
   }
   .card-hover:hover {
-    border-color: rgba(255, 255, 255, 0.15);
+    border-color: hsl(var(--border-hover));
     transform: translateY(-1px);
   }
 

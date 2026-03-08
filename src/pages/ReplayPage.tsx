@@ -2,7 +2,8 @@ import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import Navbar from '@/components/Navbar';
 import { generateReplayData, formatPrice, allAssetsList } from '@/lib/mockData';
 import { motion } from 'framer-motion';
-import { Play, Pause, SkipBack, SkipForward, Share2, Keyboard, GitCompareArrows, Zap } from 'lucide-react';
+import { Play, Pause, SkipBack, SkipForward, Share2, Keyboard, GitCompareArrows } from 'lucide-react';
+import pythLogo from '@/assets/pyth-logo.png';
 import ShortcutsModal from '@/components/ShortcutsModal';
 import ShareModal from '@/components/ShareModal';
 import TimeframeChart, { isRawTimeframe, isVolumeTimeframe, getTicksPerCandle, getCandleCount } from '@/components/TimeframeChart';
@@ -266,8 +267,8 @@ export default function ReplayPage() {
               ))}
             </div>
             {isRaw && (
-              <span className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-semibold tracking-wide" style={{ color: '#e6007a', background: 'rgba(230,0,122,0.1)', border: '1px solid rgba(230,0,122,0.2)' }}>
-                <Zap size={10} /> Pyth Pro Only
+              <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold tracking-wide" style={{ color: '#e6007a', background: 'rgba(230,0,122,0.1)', border: '1px solid rgba(230,0,122,0.2)' }}>
+                <img src={pythLogo} alt="Pyth" width={14} height={14} className="inline-block" /> Pyth Pro Only
               </span>
             )}
           </div>
