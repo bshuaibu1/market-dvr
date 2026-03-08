@@ -1,17 +1,27 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import Navbar from '@/components/Navbar';
 import RecordingBar from '@/components/RecordingBar';
 import { getInitialAssets, tickAsset, formatPrice, AssetWithClass, AssetClass } from '@/lib/mockData';
 import { Link } from 'react-router-dom';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
-function getHeatColor(confidence: number, spread: number, normalSpread: number): string {
-  if (confidence < 0.7 || spread > normalSpread * 5) return '#ff1744';
-  if (confidence < 0.8) return '#ff453a';
-  if (confidence < 0.88) return '#ff9f0a';
-  if (confidence < 0.93) return '#ffd60a';
-  if (confidence < 0.97) return '#32d74b';
-  return '#00c853';
+interface HeatStyle {
+  bg: string;
+  border: string;
+  borderOpacity: number;
+}
+
+function getHeatStyle(confidence: number, spread: number, normalSpread: number): HeatStyle {
+  if (confidence < 0.8 || spread > normalSpread * 5) {
+    return { bg: 'rgba(255,69,58,0.35)', border: '#ff453a', borderOpacity: 1 };
+  }
+  if (confidence < 0.88) {
+    return { bg: 'rgba(255,159,10,0.25)', border: '#ff9f0a', borderOpacity: 1 };
+  }
+  if (confidence < 0.93) {
+    return { bg: 'rgba(50,215,75,0.15)', border: '#32d74b', borderOpacity: 1 };
+  }
+  return { bg: 'rgba(50,215,75,0.08)', border: '#32d74b', borderOpacity: 0.4 };
 }
 
 function getStressLabel(assets: AssetWithClass[]): { label: string; color: string } {
@@ -28,7 +38,83 @@ const normalSpreads: Record<string, number> = {
   'EUR/USD': 0.00015, 'GBP/USD': 0.00018, 'USD/JPY': 0.015, 'USD/CHF': 0.00012, 'AUD/USD': 0.00014, 'USD/CAD': 0.00016,
 };
 
-const largeTickers = ['BTC/USD', 'ETH/USD'];
+const wideAssets = new Set(['BTC/USD', 'ETH/USD']);
+
+function ShimmerSquare({ asset }: { asset: AssetWithClass }) {
+  const [shimmer, setShimmer] = useState(false);
+  const prevPrice = useRef(asset.price);
+
+  useEffect(() => {
+    if (asset.price !== prevPrice.current) {
+      prevPrice.current = asset.price;
+      setShimmer(true);
+      const t = setTimeout(() => setShimmer(false), 300);
+      return () => clearTimeout(t);
+    }
+  }, [asset.price]);
+
+  const isWide = wideAssets.has(asset.symbol);
+  const style = getHeatStyle(asset.confidence, asset.spread, normalSpreads[asset.symbol] || 1);
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Link
+          to="/replay"
+          className="relative flex flex-col justify-between overflow-hidden apple-transition hover:brightness-110 cursor-pointer"
+          style={{
+            gridColumn: isWide ? 'span 2' : 'span 1',
+            background: style.bg,
+            borderRadius: 12,
+            borderTop: `1px solid ${style.border}`,
+            borderLeft: `1px solid rgba(255,255,255,0.04)`,
+            borderRight: `1px solid rgba(255,255,255,0.04)`,
+            borderBottom: `1px solid rgba(255,255,255,0.04)`,
+            borderTopColor: style.borderOpacity < 1 ? `${style.border}66` : style.border,
+            height: 72,
+            padding: '8px 10px',
+            transition: 'background 0.6s ease, border-color 0.6s ease',
+          }}
+        >
+          {shimmer && (
+            <div
+              className="absolute inset-0 pointer-events-none"
+              style={{
+                background: 'rgba(255,255,255,0.05)',
+                animation: 'shimmerFade 0.3s ease-out forwards',
+              }}
+            />
+          )}
+          <div className="flex items-start justify-between">
+            <span className="text-foreground font-semibold" style={{ fontSize: isWide ? 13 : 11 }}>
+              {asset.symbol}
+            </span>
+          </div>
+          <div className="flex items-end justify-between">
+            <span
+              className={`tabular-nums font-medium ${asset.change >= 0 ? 'text-positive' : 'text-negative'}`}
+              style={{ fontSize: 11 }}
+            >
+              {asset.change >= 0 ? '+' : ''}{asset.change.toFixed(2)}%
+            </span>
+            <span className="text-muted-foreground tabular-nums" style={{ fontSize: 10 }}>
+              {(asset.confidence * 100).toFixed(1)}%
+            </span>
+          </div>
+        </Link>
+      </TooltipTrigger>
+      <TooltipContent side="top" className="bg-popover border border-border rounded-xl p-3 max-w-[200px]">
+        <div className="text-xs space-y-1">
+          <div className="font-medium text-foreground">{asset.name} ({asset.symbol})</div>
+          <div className="text-muted-foreground">Price: <span className="text-foreground tabular-nums">${formatPrice(asset.price)}</span></div>
+          <div className="text-muted-foreground">Confidence: <span className="text-foreground tabular-nums">{(asset.confidence * 100).toFixed(1)}%</span></div>
+          <div className="text-muted-foreground">Spread: <span className="text-foreground tabular-nums">${asset.spread < 0.01 ? asset.spread.toFixed(6) : asset.spread.toFixed(4)}</span></div>
+          <div className="text-muted-foreground">Volatility: <span className="text-foreground tabular-nums">{asset.volatile ? 'High' : 'Normal'}</span></div>
+        </div>
+      </TooltipContent>
+    </Tooltip>
+  );
+}
 
 export default function HeatmapPage() {
   const [assets, setAssets] = useState(getInitialAssets);
@@ -46,14 +132,8 @@ export default function HeatmapPage() {
     { label: 'FOREX', cls: 'forex' },
   ];
 
-  const mostVolatile = useMemo(() => {
-    return [...assets].sort((a, b) => a.confidence - b.confidence)[0];
-  }, [assets]);
-
-  const mostStable = useMemo(() => {
-    return [...assets].sort((a, b) => b.confidence - a.confidence)[0];
-  }, [assets]);
-
+  const mostVolatile = useMemo(() => [...assets].sort((a, b) => a.confidence - b.confidence)[0], [assets]);
+  const mostStable = useMemo(() => [...assets].sort((a, b) => b.confidence - a.confidence)[0], [assets]);
   const stress = useMemo(() => getStressLabel(assets), [assets]);
 
   return (
@@ -70,56 +150,21 @@ export default function HeatmapPage() {
             const groupAssets = assets.filter(a => a.assetClass === group.cls);
             return (
               <div key={group.cls}>
-                <div className="label-caps mb-3">{group.label}</div>
-                <div className="grid gap-2" style={{
+                <div className="label-caps mb-3 text-muted-foreground" style={{ fontSize: 10 }}>{group.label}</div>
+                <div className="grid gap-1.5" style={{
                   gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))',
                 }}>
-                  {groupAssets.map(asset => {
-                    const isLarge = largeTickers.includes(asset.symbol);
-                    const color = getHeatColor(asset.confidence, asset.spread, normalSpreads[asset.symbol] || 1);
-                    const ticker = asset.symbol.split('/')[0];
-                    return (
-                      <Tooltip key={asset.symbol}>
-                        <TooltipTrigger asChild>
-                          <Link
-                            to="/replay"
-                            className="rounded-2xl flex flex-col items-center justify-center apple-transition hover:scale-[1.03] cursor-pointer"
-                            style={{
-                              gridColumn: isLarge ? 'span 2' : 'span 1',
-                              gridRow: isLarge ? 'span 2' : 'span 1',
-                              background: color + '22',
-                              border: `1px solid ${color}44`,
-                              minHeight: isLarge ? 180 : 90,
-                              transition: 'background 0.6s ease, border-color 0.6s ease',
-                            }}
-                          >
-                            <span className="text-foreground font-semibold text-sm">{ticker}</span>
-                            <span className={`text-xs tabular-nums font-medium mt-1 ${asset.change >= 0 ? 'text-positive' : 'text-negative'}`}>
-                              {asset.change >= 0 ? '+' : ''}{asset.change.toFixed(2)}%
-                            </span>
-                            <div className="w-3 h-3 rounded-full mt-2" style={{ background: color, boxShadow: `0 0 12px ${color}66` }} />
-                          </Link>
-                        </TooltipTrigger>
-                        <TooltipContent side="top" className="bg-popover border border-border rounded-xl p-3 max-w-[200px]">
-                          <div className="text-xs space-y-1">
-                            <div className="font-medium text-foreground">{asset.name} ({asset.symbol})</div>
-                            <div className="text-muted-foreground">Price: <span className="text-foreground tabular-nums">${formatPrice(asset.price)}</span></div>
-                            <div className="text-muted-foreground">Confidence: <span className="text-foreground tabular-nums">{(asset.confidence * 100).toFixed(1)}%</span></div>
-                            <div className="text-muted-foreground">Spread: <span className="text-foreground tabular-nums">${asset.spread < 0.01 ? asset.spread.toFixed(6) : asset.spread.toFixed(4)}</span></div>
-                            <div className="text-muted-foreground">Volatility: <span className="text-foreground tabular-nums">{asset.volatile ? 'High' : 'Normal'}</span></div>
-                          </div>
-                        </TooltipContent>
-                      </Tooltip>
-                    );
-                  })}
+                  {groupAssets.map(asset => (
+                    <ShimmerSquare key={asset.symbol} asset={asset} />
+                  ))}
                 </div>
               </div>
             );
           })}
         </div>
 
-        {/* Bottom stats */}
-        <div className="mt-10 flex flex-wrap items-center gap-6 surface-1 rounded-2xl p-4" style={{ border: '1px solid rgba(255,255,255,0.08)' }}>
+        {/* Bottom stats — minimal text only */}
+        <div className="mt-10 flex flex-wrap items-center gap-8">
           <div className="flex items-center gap-2 text-xs">
             <span className="text-muted-foreground">Most Volatile:</span>
             <span className="text-negative font-medium tabular-nums">{mostVolatile.symbol} {(mostVolatile.confidence * 100).toFixed(1)}%</span>
@@ -129,8 +174,7 @@ export default function HeatmapPage() {
             <span className="text-positive font-medium tabular-nums">{mostStable.symbol} {(mostStable.confidence * 100).toFixed(1)}%</span>
           </div>
           <div className="flex items-center gap-2 text-xs">
-            <span className="text-muted-foreground">Market Stress Index:</span>
-            <div className="w-2 h-2 rounded-full" style={{ background: stress.color }} />
+            <span className="text-muted-foreground">Market Stress:</span>
             <span className="font-medium" style={{ color: stress.color }}>{stress.label}</span>
           </div>
         </div>
