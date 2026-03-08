@@ -178,9 +178,15 @@
   .text-positive {
     color: #32d74b;
   }
+  .light .text-positive {
+    color: #1a8f35;
+  }
 
   .text-negative {
     color: #ff453a;
+  }
+  .light .text-negative {
+    color: #cc2200;
   }
 
   .text-apple-blue {
