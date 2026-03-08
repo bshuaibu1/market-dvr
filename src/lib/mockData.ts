@@ -65,11 +65,20 @@ export function getInitialAssets(): AssetWithClass[] {
   }));
 }
 
-export function tickAsset(asset: Asset): Asset {
-  const volatility = asset.volatile ? 0.0008 : 0.0003;
+export function tickAsset(asset: Asset | AssetWithClass): typeof asset {
+  const assetClass = 'assetClass' in asset ? asset.assetClass : 'crypto';
+  let volatility: number;
+  if (assetClass === 'forex') {
+    volatility = asset.volatile ? 0.00008 : 0.00003;
+  } else if (assetClass === 'commodities') {
+    volatility = asset.volatile ? 0.0004 : 0.00015;
+  } else {
+    volatility = asset.volatile ? 0.0008 : 0.0003;
+  }
   const delta = (Math.random() - 0.5) * volatility * asset.price;
   const newPrice = asset.price + delta;
-  const newChange = asset.change + (Math.random() - 0.5) * 0.02;
+  const changeJitter = assetClass === 'forex' ? 0.005 : assetClass === 'commodities' ? 0.01 : 0.02;
+  const newChange = asset.change + (Math.random() - 0.5) * changeJitter;
   const newSparkline = [...asset.sparkline.slice(1), newPrice];
   const spreadJitter = asset.spread * (1 + (Math.random() - 0.5) * 0.1);
   const confJitter = Math.min(1, Math.max(0.5, asset.confidence + (Math.random() - 0.5) * 0.01));
