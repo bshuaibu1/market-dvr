@@ -192,9 +192,6 @@ export default function ShareModal({ open, onOpenChange, asset, frame, frameData
                 ))}
               </div>
 
-              <div className="flex justify-end">
-                <span className="text-[9px] text-muted-foreground">Powered by Pyth Pro</span>
-              </div>
             </div>
 
             <div className="flex gap-2">
