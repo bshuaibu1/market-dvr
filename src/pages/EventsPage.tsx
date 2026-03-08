@@ -1,7 +1,5 @@
 import { useState } from 'react';
 import Navbar from '@/components/Navbar';
-
-import { mockEvents, MarketEvent } from '@/lib/mockData';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 
@@ -165,7 +163,7 @@ export default function EventsPage() {
   );
 }
 
-function EventCard({ event, index }: { event: MarketEvent; index: number }) {
+function EventCard({event: MarketEvent; index: number }) {
   const icon = typeIcons[event.type] || typeIcons.confidence;
   const sparkline = generateEventSparkline(event.type);
   const isDivergence = event.type === ('divergence' as any);
