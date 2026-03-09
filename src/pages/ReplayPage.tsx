@@ -524,6 +524,9 @@ export default function ReplayPage() {
               <span className="w-1.5 h-1.5 rounded-full" style={{ background: isLive ? '#e6007a' : (isLight ? 'rgba(0,0,0,0.3)' : 'rgba(255,255,255,0.3)'), animation: isLive ? 'pulse 1.5s infinite' : 'none' }} />
               LIVE
             </button>
+
+            <button
+              onClick={() => setCompareMode(!compareMode)}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium apple-transition min-h-[44px] md:min-h-0 ${compareMode ? 'text-foreground' : 'text-muted-foreground'}`}
               style={{
                 background: compareMode ? 'rgba(10,132,255,0.15)' : (isLight ? 'rgba(0,0,0,0.03)' : 'rgba(255,255,255,0.04)'),
