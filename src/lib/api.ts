@@ -1,4 +1,6 @@
-const API_BASE = 'https://dvr.masterwattson.site';
+const API_BASE = window.location.hostname === 'localhost'
+  ? 'http://localhost:3000'
+  : 'https://dvr.masterwattson.site';
 
 export async function fetchLatest() {
   const res = await fetch(`${API_BASE}/latest`);
@@ -45,4 +47,3 @@ export function formatPriceDisplay(rawPrice: number, exponent: number): string {
   if (price >= 0.0001) return price.toFixed(6);
   return price.toFixed(10);
 }
-
