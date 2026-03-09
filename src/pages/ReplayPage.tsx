@@ -337,7 +337,7 @@ export default function ReplayPage() {
                   { label: 'BID', value: `$${formatPrice(current.bid)}` },
                   { label: 'ASK', value: `$${formatPrice(current.ask)}` },
                   { label: 'SPREAD', value: `$${current.spread.toFixed(2)}` },
-                  { label: 'CONF', value: `${(current.confidence * 100).toFixed(1)}%` },
+                  { label: 'CONF', value: `${Math.min(100, current.confidence * 100).toFixed(1)}%` },
                 ].map((row, idx, arr) => (
                   <div key={row.label} style={{ borderBottom: idx < arr.length - 1 ? `1px solid ${inspectorDivider}` : 'none', padding: '12px 0' }}>
                     <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.08em', color: inspectorLabelColor }}>{row.label}</div>
@@ -352,7 +352,7 @@ export default function ReplayPage() {
                   { label: 'BID', value: `$${formatPrice(compareCurrent.bid)}` },
                   { label: 'ASK', value: `$${formatPrice(compareCurrent.ask)}` },
                   { label: 'SPREAD', value: `$${compareCurrent.spread.toFixed(2)}` },
-                  { label: 'CONF', value: `${(compareCurrent.confidence * 100).toFixed(1)}%` },
+                  { label: 'CONF', value: `${Math.min(100, compareCurrent.confidence * 100).toFixed(1)}%` },
                 ].map((row, idx, arr) => (
                   <div key={row.label} style={{ borderBottom: idx < arr.length - 1 ? `1px solid ${inspectorDivider}` : 'none', padding: '12px 0' }}>
                     <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.08em', color: inspectorLabelColor }}>{row.label}</div>
@@ -368,7 +368,7 @@ export default function ReplayPage() {
                 { label: 'BID', value: `$${formatPrice(current.bid)}` },
                 { label: 'ASK', value: `$${formatPrice(current.ask)}` },
                 { label: 'SPREAD', value: `$${current.spread.toFixed(2)}` },
-                { label: 'CONFIDENCE', value: `${(current.confidence * 100).toFixed(1)}%` },
+                { label: 'CONFIDENCE', value: `${Math.min(100, current.confidence * 100).toFixed(1)}%` },
                 { label: 'FRAME', value: `${frame} / ${data.length}` },
                 { label: 'RESOLUTION', value: timeframe },
               ].map((row, idx, arr) => (
