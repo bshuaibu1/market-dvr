@@ -1,4 +1,3 @@
-import { useNavigate } from 'react-router-dom';
 import { AssetWithClass } from '@/lib/mockData';
 import SparklineChart from '@/components/SparklineChart';
 import { useTheme } from '@/components/ThemeProvider';
@@ -9,7 +8,6 @@ interface Props {
 
 export default function TopMovers({ assets }: Props) {
   const { theme } = useTheme();
-  const navigate = useNavigate();
   const light = theme === 'light';
   const sorted = [...assets]
     .sort((a, b) => Math.abs(b.change) - Math.abs(a.change))
@@ -31,12 +29,11 @@ export default function TopMovers({ assets }: Props) {
         return (
           <div
             key={asset.symbol}
-            className="flex items-center gap-2 py-2 cursor-pointer group"
-            onClick={() => navigate(`/replay?asset=${encodeURIComponent(asset.symbol)}`)}
+            className="flex items-center gap-2 py-2"
             style={{ borderBottom: i < sorted.length - 1 ? `1px solid ${dividerColor}` : 'none' }}
           >
             <span className="tabular-nums" style={{ fontSize: 10, color: rankColor, width: 14, textAlign: 'right' }}>{i + 1}</span>
-            <span style={{ fontSize: 11, fontWeight: 600, color: tickerColor, width: 64 }}>{asset.symbol.split('/').find(s => s !== 'USD') || asset.symbol}</span>
+            <span style={{ fontSize: 11, fontWeight: 600, color: tickerColor, width: 64 }}>{asset.symbol.split('/')[0]}</span>
             <div className="flex-shrink-0">
               <SparklineChart data={asset.sparkline} width={40} height={16} positive={positive} />
             </div>

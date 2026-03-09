@@ -8,8 +8,6 @@ interface Props {
 const stressSegments = ['CALM', 'LOW', 'MODERATE', 'HIGH', 'EXTREME'] as const;
 
 export default function MarketBottomBar({ assets }: Props) {
-  if (!assets || assets.length === 0) return null;
-
   const mostVolatile = useMemo(() => [...assets].sort((a, b) => a.confidence - b.confidence)[0], [assets]);
   const mostStable = useMemo(() => [...assets].sort((a, b) => b.confidence - a.confidence)[0], [assets]);
 

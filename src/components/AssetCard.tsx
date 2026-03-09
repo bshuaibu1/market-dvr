@@ -4,17 +4,13 @@ import { ArrowUp, ArrowDown } from 'lucide-react';
 
 interface Props {
   asset: Asset;
-  onClick?: () => void;
 }
 
-export default function AssetCard({ asset, onClick }: Props) {
+export default function AssetCard({ asset }: Props) {
   const positive = asset.change >= 0;
 
   return (
-    <div 
-      className="surface-1 rounded-2xl p-8 card-hover cursor-pointer flex flex-col gap-3"
-      onClick={onClick}
-    >
+    <div className="surface-1 rounded-2xl p-8 card-hover cursor-pointer flex flex-col gap-3">
       <div className="flex items-center justify-between">
         <span className="label-caps">{asset.symbol}</span>
         <div className={`w-2 h-2 rounded-full ${asset.volatile ? 'bg-negative' : 'bg-positive'}`} />

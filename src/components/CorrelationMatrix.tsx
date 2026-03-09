@@ -4,10 +4,10 @@ import { Info } from 'lucide-react';
 import { AssetWithClass } from '@/lib/mockData';
 import { useTheme } from '@/components/ThemeProvider';
 
-const matrixAssets = ['BTC/USD', 'ETH/USD', 'SOL/USD', 'XAU/USD', 'BNB/USD', 'DOGE/USD'];
+const matrixAssets = ['BTC/USD', 'ETH/USD', 'SOL/USD', 'XAU/USD', 'WTI/USD', 'EUR/USD'];
 const matrixLabels: Record<string, string> = {
   'BTC/USD': 'BTC', 'ETH/USD': 'ETH', 'SOL/USD': 'SOL',
-  'XAU/USD': 'Gold', 'BNB/USD': 'BNB', 'DOGE/USD': 'DOGE',
+  'XAU/USD': 'Gold', 'WTI/USD': 'Oil', 'EUR/USD': 'EUR',
 };
 
 function computeCorrelation(a: number[], b: number[]): number {

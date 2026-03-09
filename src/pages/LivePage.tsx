@@ -1,34 +1,15 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Navbar from '@/components/Navbar';
 import AssetCard from '@/components/AssetCard';
 import RecordingBar from '@/components/RecordingBar';
 import CorrelationMatrix from '@/components/CorrelationMatrix';
-import { baseAssets, formatPrice, AssetWithClass, AssetClass } from '@/lib/mockData';
+import { getInitialAssets, tickAsset, mockEvents, formatPrice, AssetWithClass, AssetClass } from '@/lib/mockData';
 import { checkAlerts } from '@/components/AlertSystem';
-import { fetchLatest, fetchEvents } from '@/lib/api';
 import { Search, ChevronRight } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTheme } from '@/components/ThemeProvider';
 import { useIsMobile } from '@/hooks/use-mobile';
-
-interface LatestApiAsset {
-  asset: string;
-  price: number;
-  best_bid: number;
-  best_ask: number;
-  confidence: number;
-  exponent: number;
-  timestamp_us: number;
-}
-
-interface ApiEvent {
-  id: string;
-  event_type: string;
-  asset: string;
-  description: string;
-  timestamp: string;
-}
 
 type TabType = 'all' | 'crypto' | 'commodities' | 'forex';
 
@@ -44,7 +25,7 @@ const assetColors: Record<string, string> = {
   'WIF/USD': '#ff453a', 'BONK/USD': '#e6007a', 'XAU/USD': '#ffd700', 'XAG/USD': '#c0c0c0',
   'WTI/USD': '#8b6914', 'BRENT/USD': '#a0522d', 'NATGAS/USD': '#87ceeb', 'COPPER/USD': '#b87333',
   'EUR/USD': '#0a84ff', 'GBP/USD': '#ff6b6b', 'USD/JPY': '#32d74b', 'USD/CHF': '#ff453a',
-  'AUD/USD': '#ffd60a', 'USD/CAD': '#e6007a', 'DOGE/USD': '#c2a633',
+  'AUD/USD': '#ffd60a', 'USD/CAD': '#e6007a',
 };
 
 const classBadgeColors: Record<AssetClass, { bg: string; text: string; lightBg?: string; lightText?: string; lightBorder?: string }> = {
@@ -54,25 +35,12 @@ const classBadgeColors: Record<AssetClass, { bg: string; text: string; lightBg?:
 };
 
 const eventTypeConfig: Record<string, { color: string; abbr: string }> = {
-  volatility_spike: { color: '#ff453a', abbr: 'VOLATILITY SPIKE' },
-  spread_spike: { color: '#ffd60a', abbr: 'SPREAD SPIKE' },
-  confidence_divergence: { color: '#bf5af2', abbr: 'CONF DIVERGENCE' },
+  crash: { color: '#ff453a', abbr: 'CRASH' },
+  pump: { color: '#32d74b', abbr: 'PUMP' },
+  spread: { color: '#ffd60a', abbr: 'SPREAD' },
+  confidence: { color: '#bf5af2', abbr: 'CONF' },
+  divergence: { color: '#6e6ef5', abbr: 'DIV' },
 };
-
-const eventTypeLabel = (type: string) => {
-  if (type === 'volatility_spike') return 'VOLATILITY SPIKE';
-  if (type === 'spread_spike') return 'SPREAD SPIKE';
-  if (type === 'confidence_divergence') return 'CONF DIVERGENCE';
-  return (type || 'UNKNOWN').toUpperCase().replace('_', ' ');
-};
-
-const assetMetaBySymbol: Record<string, { name: string; assetClass: AssetClass }> = baseAssets.reduce(
-  (acc, asset) => {
-    acc[asset.symbol] = { name: asset.name, assetClass: asset.assetClass };
-    return acc;
-  },
-  {} as Record<string, { name: string; assetClass: AssetClass }>
-);
 
 function MarketPulseChart({ assets, isLight }: { assets: AssetWithClass[]; isLight: boolean }) {
   const isMobile = useIsMobile();
@@ -81,7 +49,7 @@ function MarketPulseChart({ assets, isLight }: { assets: AssetWithClass[]; isLig
   const padding = { top: 15, right: 50, bottom: 15, left: 10 };
 
   const lightColors: Record<string, string> = {
-    'BTC/USD': '#0055d4', 'ETH/USD': '#0a84ff', 'SOL/USD': '#32d74b',
+    'BTC/USD': '#0055d4', 'XAU/USD': '#b8860b', 'EUR/USD': '#0055d4',
   };
 
   const lines = useMemo(() => {
@@ -199,7 +167,7 @@ function AllAssetsTable({ assets, isLight }: { assets: AssetWithClass[]; isLight
                 <tr
                   key={asset.symbol}
                   className="group cursor-pointer"
-                  onClick={() => navigate('/replay?asset=' + encodeURIComponent(asset.symbol))}
+                  onClick={() => navigate('/replay')}
                   style={{
                     background: i % 2 === 1 ? altRow : 'transparent',
                     borderBottom: `1px solid ${isLight ? 'rgba(0,0,0,0.03)' : 'rgba(255,255,255,0.04)'}`,
@@ -210,7 +178,7 @@ function AllAssetsTable({ assets, isLight }: { assets: AssetWithClass[]; isLight
                 >
                   <td className="py-3 px-3 md:px-4">
                     <div className="flex items-center gap-2">
-                       <span style={{ color: isLight ? '#1d1d1f' : '#fff', fontWeight: 500, fontSize: isMobile ? 13 : 14 }}>{asset.symbol}</span>
+                      <span style={{ color: isLight ? '#1d1d1f' : '#fff', fontWeight: 500, fontSize: isMobile ? 13 : 14 }}>{asset.symbol}</span>
                       {!isMobile && <span className="text-muted-foreground text-xs">{asset.name}</span>}
                     </div>
                   </td>
@@ -261,186 +229,26 @@ function AllAssetsTable({ assets, isLight }: { assets: AssetWithClass[]; isLight
   );
 }
 
-const SkeletonCard = ({ isLight }: { isLight: boolean }) => (
-  <div 
-    className="rounded-2xl p-4 md:p-5 h-[140px] md:h-[160px]" 
-    style={{ 
-      background: isLight ? 'rgba(0,0,0,0.03)' : 'rgba(255,255,255,0.03)',
-      border: `1px solid ${isLight ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.06)'}`
-    }}
-  >
-    <motion.div
-      animate={{ opacity: [0.3, 0.15, 0.3] }}
-      transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
-      className="w-full h-full flex flex-col gap-3"
-    >
-      <div className="h-4 w-24 rounded-full bg-current opacity-10" />
-      <div className="h-8 w-32 rounded-lg bg-current opacity-10" />
-      <div className="mt-auto h-3 w-full rounded-full bg-current opacity-10" />
-    </motion.div>
-  </div>
-);
-
-const SkeletonTable = ({ isLight }: { isLight: boolean }) => (
-  <div className="rounded-2xl overflow-hidden p-4 space-y-4" style={{
-    background: isLight ? '#ffffff' : 'rgba(255,255,255,0.04)',
-    border: `1px solid ${isLight ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.08)'}`,
-  }}>
-    {Array.from({ length: 12 }).map((_, i) => (
-      <motion.div
-        key={i}
-        animate={{ opacity: [0.3, 0.15, 0.3] }}
-        transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut", delay: i * 0.05 }}
-        className="flex items-center justify-between py-2 border-b border-border/50 last:border-0"
-      >
-        <div className="h-4 w-32 rounded bg-current opacity-10" />
-        <div className="h-4 w-16 rounded bg-current opacity-10" />
-      </motion.div>
-    ))}
-  </div>
-);
-
 export default function LivePage() {
   const { theme } = useTheme();
   const isLight = theme === 'light';
   const lightLegendColors: Record<string, string> = {
-    'BTC/USD': '#0055d4', 'ETH/USD': '#0a84ff', 'SOL/USD': '#32d74b',
+    'BTC/USD': '#0055d4', 'XAU/USD': '#b8860b', 'EUR/USD': '#0055d4',
   };
-  const [assets, setAssets] = useState<AssetWithClass[]>([]);
-  const [events, setEvents] = useState<ApiEvent[]>([]);
+  const [assets, setAssets] = useState(getInitialAssets);
   const [activeTab, setActiveTab] = useState<TabType>('all');
   const [search, setSearch] = useState('');
   const navigate = useNavigate();
 
-  // Price history for 5-minute change calculation
-  const priceHistoryRef = useRef<Record<string, { price: number; timestamp: number }[]>>({});
-
   useEffect(() => {
-    window.scrollTo(0, 0);
-  }, []);
-
-  useEffect(() => {
-    let isMounted = true;
-
-    async function loadLatest() {
-      try {
-        const data = await fetchLatest() as LatestApiAsset[];
-        if (!isMounted) return;
-        setAssets(prev => {
-          const prevBySymbol = new Map(prev.map(a => [a.symbol, a]));
-          const now = Date.now();
-          const isInitialFetch = Object.keys(priceHistoryRef.current).length === 0;
-
-          const next: AssetWithClass[] = data.map(item => {
-            const meta = assetMetaBySymbol[item.asset] ?? {
-              name: item.asset,
-              assetClass: 'crypto' as AssetClass,
-            };
-
-            const factor = Math.pow(10, item.exponent);
-            const priceValue = item.price * factor;
-            const spreadValue = Math.abs(item.best_ask - item.best_bid) * factor;
-
-            if (!priceHistoryRef.current[item.asset]) {
-              priceHistoryRef.current[item.asset] = [];
-            }
-            
-            // Seed 5-minute-old baseline on first fetch
-            if (isInitialFetch) {
-              priceHistoryRef.current[item.asset].push({ 
-                price: priceValue, 
-                timestamp: now - 300000 
-              });
-            }
-
-            priceHistoryRef.current[item.asset].push({ price: priceValue, timestamp: now });
-
-            // Keep only last 6 minutes of data (360,000ms) to be safe
-            priceHistoryRef.current[item.asset] = priceHistoryRef.current[item.asset].filter(
-              h => now - h.timestamp < 360000
-            );
-
-            const history = priceHistoryRef.current[item.asset];
-            const targetTime = now - 300000; // 5 minutes ago
-            
-            // Find the point closest to 5 minutes ago
-            let baselineEntry = history[0];
-            for (let i = history.length - 1; i >= 0; i--) {
-              if (history[i].timestamp <= targetTime) {
-                baselineEntry = history[i];
-                break;
-              }
-            }
-
-            const change = baselineEntry.price > 0 ? ((priceValue - baselineEntry.price) / baselineEntry.price) * 100 : 0;
-
-            const prevAsset = prevBySymbol.get(item.asset);
-            const confidencePct =
-              100 -
-              ((item.confidence * factor) / item.price) * 100;
-            const confidenceNorm = Math.max(0, Math.min(1, confidencePct / 100));
-
-            const baseSparkline =
-              prevAsset && prevAsset.sparkline.length > 0
-                ? prevAsset.sparkline
-                : [priceValue];
-            const sparkline = [...baseSparkline, priceValue].slice(-60);
-
-            const volatile =
-              Math.abs(change) > 1 || priceValue > 0
-                ? (spreadValue / priceValue) > 0.001
-                : false;
-
-            return {
-              symbol: item.asset,
-              name: meta.name,
-              price: priceValue,
-              change,
-              spread: spreadValue,
-              confidence: confidenceNorm,
-              volatile,
-              sparkline,
-              assetClass: meta.assetClass,
-            };
-          });
-
-          checkAlerts(next);
-          return next;
-        });
-      } catch (error) {
-        console.error('Failed to load latest assets', error);
-      }
-    }
-
-    loadLatest();
-    const interval = window.setInterval(loadLatest, 1000);
-
-    return () => {
-      isMounted = false;
-      window.clearInterval(interval);
-    };
-  }, []);
-
-  useEffect(() => {
-    let isMounted = true;
-
-    async function loadEvents() {
-      try {
-        const data = await fetchEvents(10) as ApiEvent[];
-        if (!isMounted) return;
-        setEvents(data);
-      } catch (error) {
-        console.error('Failed to load events', error);
-      }
-    }
-
-    loadEvents();
-    const interval = window.setInterval(loadEvents, 5000);
-
-    return () => {
-      isMounted = false;
-      window.clearInterval(interval);
-    };
+    const interval = setInterval(() => {
+      setAssets(prev => {
+        const updated = prev.map(tickAsset);
+        checkAlerts(updated);
+        return updated;
+      });
+    }, 200);
+    return () => clearInterval(interval);
   }, []);
 
   const filteredAssets = useMemo(() => {
@@ -459,13 +267,13 @@ export default function LivePage() {
   const pulseAssets = useMemo(() => {
     if (activeTab === 'all') {
       return assets.filter(a =>
-        a.symbol === 'BTC/USD' || a.symbol === 'ETH/USD' || a.symbol === 'SOL/USD'
+        a.symbol === 'BTC/USD' || a.symbol === 'XAU/USD' || a.symbol === 'EUR/USD'
       );
     }
     return filteredAssets;
   }, [assets, filteredAssets, activeTab]);
 
-  const allEvents = events;
+  const allEvents = mockEvents;
 
   return (
     <div className="min-h-screen bg-background pt-14 pb-16 max-md:pb-[calc(64px+52px)]">
@@ -510,28 +318,14 @@ export default function LivePage() {
           animate={{ opacity: 1 }}
           transition={{ duration: 0.15 }}
         >
-          {assets.length === 0 ? (
-            activeTab === 'all' ? (
-              <SkeletonTable isLight={isLight} />
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {Array.from({ length: 16 }).map((_, i) => (
-                  <SkeletonCard key={i} isLight={isLight} />
-                ))}
-              </div>
-            )
-          ) : filteredAssets.length === 0 ? (
+          {filteredAssets.length === 0 ? (
             <div className="py-16 text-center text-muted-foreground text-sm">No assets found</div>
           ) : activeTab === 'all' ? (
             <AllAssetsTable assets={filteredAssets} isLight={isLight} />
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {filteredAssets.map(asset => (
-                <AssetCard 
-                  key={asset.symbol} 
-                  asset={asset} 
-                  onClick={() => navigate('/replay?asset=' + encodeURIComponent(asset.symbol))}
-                />
+                <AssetCard key={asset.symbol} asset={asset} />
               ))}
             </div>
           )}
@@ -574,7 +368,7 @@ export default function LivePage() {
           boxShadow: isLight ? '0 1px 3px rgba(0,0,0,0.04)' : 'none',
         }}>
           {allEvents.map(event => {
-            const evConf = eventTypeConfig[event.event_type] || { color: isLight ? 'rgba(0,0,0,0.15)' : 'rgba(255,255,255,0.15)', abbr: '—' };
+            const evConf = eventTypeConfig[event.type] || { color: isLight ? 'rgba(0,0,0,0.15)' : 'rgba(255,255,255,0.15)', abbr: '—' };
             return (
               <div
                 key={event.id}
@@ -583,7 +377,7 @@ export default function LivePage() {
                   borderLeft: `3px solid ${evConf.color}`,
                   transition: 'background 0.15s ease',
                 }}
-                onClick={() => navigate(`/replay?asset=${encodeURIComponent(event.asset)}&eventId=${event.id}`)}
+                onClick={() => navigate('/replay')}
                 onMouseEnter={e => { e.currentTarget.style.background = isLight ? 'rgba(0,0,0,0.015)' : 'rgba(255,255,255,0.02)'; }}
                 onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
               >
@@ -591,9 +385,9 @@ export default function LivePage() {
                 <span
                   className="flex-shrink-0 flex items-center justify-center tabular-nums"
                   style={{
-                    width: 100,
-                    fontSize: 8,
-                    letterSpacing: '0.01em',
+                    width: 52,
+                    fontSize: 9,
+                    letterSpacing: '0.08em',
                     textTransform: 'uppercase',
                     fontWeight: 500,
                     background: `${evConf.color}1f`,
@@ -603,7 +397,7 @@ export default function LivePage() {
                     borderRadius: 100,
                   }}
                 >
-                  {eventTypeLabel(event.event_type)}
+                  {evConf.abbr}
                 </span>
 
                 <div className="flex-1 min-w-0">
@@ -613,7 +407,7 @@ export default function LivePage() {
                 <span className="text-xs text-muted-foreground whitespace-nowrap hidden sm:block">{event.timestamp}</span>
                 {/* #10: Replay link */}
                 <Link
-                  to={`/replay?asset=${encodeURIComponent(event.asset)}&eventId=${event.id}`}
+                  to="/replay"
                   className="flex-shrink-0 text-[13px] whitespace-nowrap min-h-[44px] md:min-h-0 flex items-center rounded-md px-2"
                   style={{
                     color: isLight ? 'rgba(0,0,0,0.4)' : 'rgba(255,255,255,0.4)',

@@ -1,8 +1,7 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Navbar from '@/components/Navbar';
 import RecordingBar from '@/components/RecordingBar';
-import { AssetWithClass, AssetClass, baseAssets } from '@/lib/mockData';
-import { fetchLatest } from '@/lib/api';
+import { getInitialAssets, tickAsset } from '@/lib/mockData';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useTheme } from '@/components/ThemeProvider';
 import InstitutionalCard from '@/components/heatmap/InstitutionalCard';
@@ -10,24 +9,6 @@ import StressGauge from '@/components/heatmap/StressGauge';
 import TopMovers from '@/components/heatmap/TopMovers';
 import CorrelationPulse from '@/components/heatmap/CorrelationPulse';
 import MarketBottomBar from '@/components/heatmap/MarketBottomBar';
-
-interface LatestApiAsset {
-  asset: string;
-  price: number;
-  best_bid: number;
-  best_ask: number;
-  confidence: number;
-  exponent: number;
-  timestamp_us: number;
-}
-
-const assetMetaBySymbol: Record<string, { name: string; assetClass: AssetClass }> = baseAssets.reduce(
-  (acc, asset) => {
-    acc[asset.symbol] = { name: asset.name, assetClass: asset.assetClass };
-    return acc;
-  },
-  {} as Record<string, { name: string; assetClass: AssetClass }>
-);
 
 function SectionLabel({ label }: { label: string }) {
   const { theme } = useTheme();
@@ -43,122 +24,23 @@ function SectionLabel({ label }: { label: string }) {
 }
 
 export default function HeatmapPage() {
-  const [assets, setAssets] = useState<AssetWithClass[]>([]);
+  const [assets, setAssets] = useState(getInitialAssets);
   const isMobile = useIsMobile();
   const { theme } = useTheme();
   const light = theme === 'light';
 
-  // Price history for 5-minute change calculation
-  const priceHistoryRef = useRef<Record<string, { price: number; timestamp: number }[]>>({});
-
   useEffect(() => {
-    let isMounted = true;
-
-    async function loadLatest() {
-      try {
-        const data = await fetchLatest() as LatestApiAsset[];
-        if (!isMounted) return;
-        setAssets(prev => {
-          const prevBySymbol = new Map(prev.map(a => [a.symbol, a]));
-          const now = Date.now();
-          const isInitialFetch = Object.keys(priceHistoryRef.current).length === 0;
-
-          const next: AssetWithClass[] = data.map(item => {
-            const meta = assetMetaBySymbol[item.asset] ?? {
-              name: item.asset,
-              assetClass: 'crypto' as AssetClass,
-            };
-
-            const factor = Math.pow(10, item.exponent);
-            const priceValue = item.price * factor;
-            const spreadValue = Math.abs(item.best_ask - item.best_bid) * factor;
-
-            if (!priceHistoryRef.current[item.asset]) {
-              priceHistoryRef.current[item.asset] = [];
-            }
-
-            // Seed 5-minute-old baseline on first fetch
-            if (isInitialFetch) {
-              priceHistoryRef.current[item.asset].push({ 
-                price: priceValue, 
-                timestamp: now - 300000 
-              });
-            }
-
-            priceHistoryRef.current[item.asset].push({ price: priceValue, timestamp: now });
-
-            // Keep only last 6 minutes of data (360,000ms) to be safe
-            priceHistoryRef.current[item.asset] = priceHistoryRef.current[item.asset].filter(
-              h => now - h.timestamp < 360000
-            );
-
-            const history = priceHistoryRef.current[item.asset];
-            const targetTime = now - 300000; // 5 minutes ago
-            
-            // Find the point closest to 5 minutes ago
-            let baselineEntry = history[0];
-            for (let i = history.length - 1; i >= 0; i--) {
-              if (history[i].timestamp <= targetTime) {
-                baselineEntry = history[i];
-                break;
-              }
-            }
-
-            const change = baselineEntry.price > 0 ? ((priceValue - baselineEntry.price) / baselineEntry.price) * 100 : 0;
-
-            const prevAsset = prevBySymbol.get(item.asset);
-            const confidencePct =
-              100 -
-              ((item.confidence * factor) / item.price) * 100;
-            const confidenceNorm = Math.max(0, Math.min(1, confidencePct / 100));
-
-            const baseSparkline =
-              prevAsset && prevAsset.sparkline.length > 0
-                ? prevAsset.sparkline
-                : [priceValue];
-            const sparkline = [...baseSparkline, priceValue].slice(-60);
-
-            const volatile = priceValue > 0 ? (spreadValue / priceValue) > 0.001 : false;
-
-            return {
-              symbol: item.asset,
-              name: meta.name,
-              price: priceValue,
-              change,
-              spread: spreadValue,
-              confidence: confidenceNorm,
-              volatile,
-              sparkline,
-              assetClass: meta.assetClass,
-            };
-          });
-
-          // Update is handled inside the mapping loop above
-
-          return next;
-        });
-      } catch (error) {
-        console.error('Failed to load latest assets', error);
-      }
-    }
-
-    loadLatest();
-    const interval = window.setInterval(loadLatest, 2000);
-
-    return () => {
-      isMounted = false;
-      window.clearInterval(interval);
-    };
+    const interval = setInterval(() => {
+      setAssets(prev => prev.map(tickAsset));
+    }, 200);
+    return () => clearInterval(interval);
   }, []);
 
   const crypto = useMemo(() => assets.filter(a => a.assetClass === 'crypto'), [assets]);
   const commodities = useMemo(() => assets.filter(a => a.assetClass === 'commodities'), [assets]);
   const forex = useMemo(() => assets.filter(a => a.assetClass === 'forex'), [assets]);
 
-  const avgConf = useMemo(
-    () => (assets.length > 0 ? assets.reduce((s, a) => s + a.confidence, 0) / assets.length : 0),
-    [assets]
-  );
+  const avgConf = useMemo(() => assets.reduce((s, a) => s + a.confidence, 0) / assets.length, [assets]);
   const stressValue = useMemo(() => Math.round((1 - avgConf) * 200), [avgConf]);
   const stressLabel = useMemo(() => {
     if (avgConf > 0.9) return 'LOW';
@@ -215,94 +97,81 @@ export default function HeatmapPage() {
         {/* Divider */}
         <div className="my-5" style={{ height: 1, background: divider }} />
 
-        {/* #2: Heatmap content or loading state */}
+        {/* Two column layout */}
         <div className="flex flex-col lg:flex-row gap-6">
-          {assets.length === 0 ? (
-            <div className="flex-1 flex items-center justify-center py-40">
-              <div className="flex flex-col items-center gap-4">
-                <div className="w-8 h-8 rounded-full border-2 border-[#e6007a] border-t-transparent animate-spin" />
-                <div style={{ fontSize: 13, color: light ? 'rgba(0,0,0,0.4)' : 'rgba(255,255,255,0.4)', fontWeight: 500 }}>
-                  Loading live data...
-                </div>
+          {/* Left: heatmap grid */}
+          <div className="flex-1 lg:w-[70%] space-y-6">
+            <div>
+              <SectionLabel label="Crypto" />
+              <div className="grid grid-cols-2 gap-2">
+                {cryptoLarge.map(a => (
+                  <InstitutionalCard key={a.symbol} asset={a} large />
+                ))}
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-2">
+                {cryptoSmall.map(a => (
+                  <InstitutionalCard key={a.symbol} asset={a} />
+                ))}
               </div>
             </div>
-          ) : (
-            <>
-              {/* Left: heatmap grid */}
-              <div className="flex-1 lg:w-[70%] space-y-6">
-                <div>
-                  <SectionLabel label="Crypto" />
-                  <div className="grid grid-cols-2 gap-2">
-                    {cryptoLarge.map(a => (
-                      <InstitutionalCard key={a.symbol} asset={a} large />
-                    ))}
-                  </div>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-2">
-                    {cryptoSmall.map(a => (
-                      <InstitutionalCard key={a.symbol} asset={a} />
-                    ))}
-                  </div>
-                </div>
 
-                <div>
-                  <SectionLabel label="Commodities" />
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                    {commodities.map(a => (
-                      <InstitutionalCard key={a.symbol} asset={a} />
-                    ))}
-                  </div>
-                </div>
+            <div>
+              <SectionLabel label="Commodities" />
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                {commodities.map(a => (
+                  <InstitutionalCard key={a.symbol} asset={a} />
+                ))}
+              </div>
+            </div>
 
-                <div>
-                  <SectionLabel label="Forex" />
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                    {forex.map(a => (
-                      <InstitutionalCard key={a.symbol} asset={a} />
-                    ))}
-                  </div>
+            <div>
+              <SectionLabel label="Forex" />
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                {forex.map(a => (
+                  <InstitutionalCard key={a.symbol} asset={a} />
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Right: Market Intelligence sidebar */}
+          <div className={`${isMobile ? 'w-full' : 'lg:w-[30%]'}`}>
+            {isMobile ? (
+              <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-2 -mx-4 px-4">
+                <div className="flex-shrink-0 rounded-xl p-3" style={{ background: sidebarBg, border: `1px solid ${sidebarBorder}`, boxShadow: sidebarShadow, minWidth: 160 }}>
+                  <div style={{ fontSize: 10, letterSpacing: '0.12em', color: sidebarLabelColor, marginBottom: 8, fontWeight: 500 }}>STRESS GAUGE</div>
+                  <StressGauge value={stressValue} />
+                </div>
+                <div className="flex-shrink-0 rounded-xl p-3" style={{ background: sidebarBg, border: `1px solid ${sidebarBorder}`, boxShadow: sidebarShadow, minWidth: 220 }}>
+                  <div style={{ fontSize: 10, letterSpacing: '0.12em', color: sidebarLabelColor, marginBottom: 8, fontWeight: 500 }}>TOP MOVERS</div>
+                  <TopMovers assets={assets} />
+                </div>
+                <div className="flex-shrink-0 rounded-xl p-3" style={{ background: sidebarBg, border: `1px solid ${sidebarBorder}`, boxShadow: sidebarShadow, minWidth: 220 }}>
+                  <CorrelationPulse />
                 </div>
               </div>
+            ) : (
+              <div className="space-y-5 sticky top-20">
+                <div style={{ fontSize: 10, letterSpacing: '0.12em', color: sidebarLabelColor, fontWeight: 500 }}>
+                  MARKET INTELLIGENCE
+                </div>
 
-              {/* Right: Market Intelligence sidebar */}
-              <div className={`${isMobile ? 'w-full' : 'lg:w-[30%]'}`}>
-                {isMobile ? (
-                  <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-2 -mx-4 px-4">
-                    <div className="flex-shrink-0 rounded-xl p-3" style={{ background: sidebarBg, border: `1px solid ${sidebarBorder}`, boxShadow: sidebarShadow, minWidth: 160 }}>
-                      <div style={{ fontSize: 10, letterSpacing: '0.12em', color: sidebarLabelColor, marginBottom: 8, fontWeight: 500 }}>STRESS GAUGE</div>
-                      <StressGauge value={stressValue} />
-                    </div>
-                    <div className="flex-shrink-0 rounded-xl p-3" style={{ background: sidebarBg, border: `1px solid ${sidebarBorder}`, boxShadow: sidebarShadow, minWidth: 220 }}>
-                      <div style={{ fontSize: 10, letterSpacing: '0.12em', color: sidebarLabelColor, marginBottom: 8, fontWeight: 500 }}>TOP MOVERS</div>
-                      <TopMovers assets={assets} />
-                    </div>
-                    <div className="flex-shrink-0 rounded-xl p-3" style={{ background: sidebarBg, border: `1px solid ${sidebarBorder}`, boxShadow: sidebarShadow, minWidth: 220 }}>
-                      <CorrelationPulse assets={assets} />
-                    </div>
-                  </div>
-                ) : (
-                  <div className="space-y-5 sticky top-20">
-                    <div style={{ fontSize: 10, letterSpacing: '0.12em', color: sidebarLabelColor, fontWeight: 500 }}>
-                      MARKET INTELLIGENCE
-                    </div>
+                <div className="rounded-xl p-4" style={{ background: sidebarBg, border: `1px solid ${sidebarBorder}`, boxShadow: sidebarShadow }}>
+                  <div style={{ fontSize: 10, letterSpacing: '0.12em', color: sidebarLabelColor, marginBottom: 12, fontWeight: 500 }}>STRESS GAUGE</div>
+                  <StressGauge value={stressValue} />
+                </div>
 
-                    <div className="rounded-xl p-4" style={{ background: sidebarBg, border: `1px solid ${sidebarBorder}`, boxShadow: sidebarShadow }}>
-                      <div style={{ fontSize: 10, letterSpacing: '0.12em', color: sidebarLabelColor, marginBottom: 12, fontWeight: 500 }}>STRESS GAUGE</div>
-                      <StressGauge value={stressValue} />
-                    </div>
+                <div className="rounded-xl p-4" style={{ background: sidebarBg, border: `1px solid ${sidebarBorder}`, boxShadow: sidebarShadow }}>
+                  <div style={{ fontSize: 10, letterSpacing: '0.12em', color: sidebarLabelColor, marginBottom: 12, fontWeight: 500 }}>TOP MOVERS</div>
+                  <TopMovers assets={assets} />
+                </div>
 
-                    <div className="rounded-xl p-4" style={{ background: sidebarBg, border: `1px solid ${sidebarBorder}`, boxShadow: sidebarShadow }}>
-                      <div style={{ fontSize: 10, letterSpacing: '0.12em', color: sidebarLabelColor, marginBottom: 12, fontWeight: 500 }}>TOP MOVERS</div>
-                      <TopMovers assets={assets} />
-                    </div>
-
-                    <div className="rounded-xl p-4" style={{ background: sidebarBg, border: `1px solid ${sidebarBorder}`, boxShadow: sidebarShadow }}>
-                      <CorrelationPulse assets={assets} />
-                    </div>
-                  </div>
-                )}
+                <div className="rounded-xl p-4" style={{ background: sidebarBg, border: `1px solid ${sidebarBorder}`, boxShadow: sidebarShadow }}>
+                  <CorrelationPulse />
+                </div>
               </div>
-            </>
-          )}
+            )}
+          </div>
         </div>
       </div>
 

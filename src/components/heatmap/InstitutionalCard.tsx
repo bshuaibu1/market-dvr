@@ -52,7 +52,7 @@ export default function InstitutionalCard({ asset, large = false }: Props) {
 
   return (
     <Link
-      to={`/replay?asset=${encodeURIComponent(asset.symbol)}`}
+      to="/replay"
       className="group relative flex flex-col overflow-hidden cursor-pointer"
       style={{
         background: cardBg,
