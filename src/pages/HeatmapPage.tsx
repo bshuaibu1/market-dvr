@@ -80,8 +80,8 @@ export default function HeatmapPage() {
             }
 
             const change = baselineEntry.price > 0 ? ((priceValue - baselineEntry.price) / baselineEntry.price) * 100 : 0;
-            const confidencePct = 100 - ((item.confidence * factor) / item.price) * 100;
-            const confidenceNorm = Math.max(0, Math.min(1, confidencePct / 100));
+            const spreadRatio = (item.best_ask - item.best_bid) / item.price;
+            const confidenceNorm = Math.max(0, Math.min(1, 1 - spreadRatio * 500));
 
             const prevAsset = prevBySymbol.get(item.asset);
             const baseSparkline = prevAsset && prevAsset.sparkline.length > 0 ? prevAsset.sparkline : [priceValue];
