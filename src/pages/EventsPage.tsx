@@ -224,7 +224,7 @@ export default function EventsPage() {
   const featConf = featuredEvent ? (typeConfig[featuredEvent.type] || typeConfig.crash) : typeConfig.crash;
 
   const totalEvents = totalCount;
-  const crashesDetected = events.filter(e => e.type === 'crash').length;
+  const crashesDetected = rawEvents.filter(e => e.event_type === 'volatility_spike' && Number(e.last_price) < Number(e.first_price)).length;
   const avgDurationSeconds =
     rawEvents.length > 0
       ? rawEvents.reduce((sum, ev) => sum + Number(ev.duration_ms || 0), 0) / rawEvents.length / 1000
