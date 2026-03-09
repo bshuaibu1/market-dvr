@@ -1,8 +1,11 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import Navbar from '@/components/Navbar';
 import { generateReplayData, formatPrice, allAssetsList } from '@/lib/mockData';
+import { fetchTicks, fetchLatest, fetchAssetEvents } from '@/lib/api';
 import { motion } from 'framer-motion';
 import { Play, Pause, SkipBack, SkipForward, Share2, Keyboard, GitCompareArrows, ChevronRight } from 'lucide-react';
+import { LineChart, Line, YAxis, ResponsiveContainer, ReferenceLine, CartesianGrid } from 'recharts';
 import pythLogo from '@/assets/pyth-logo.png';
 import ShortcutsModal from '@/components/ShortcutsModal';
 import ShareModal from '@/components/ShareModal';
@@ -22,31 +25,128 @@ const speeds = ['0.25x', '0.5x', '1x', '2x', '4x'];
 const speedMap: Record<string, number> = { '0.25x': 200, '0.5x': 100, '1x': 50, '2x': 25, '4x': 12 };
 const keyToSpeed: Record<string, string> = { '1': '0.25x', '2': '0.5x', '3': '1x', '4': '2x', '5': '4x' };
 
+const assetExponents: Record<string, number> = {
+  'BTC/USD': -8, 'ETH/USD': -8, 'SOL/USD': -8, 'BNB/USD': -8,
+  'BONK/USD': -10, 'WIF/USD': -8, 'DOGE/USD': -8, 'PYTH/USD': -8,
+  'XAU/USD': -3, 'XAG/USD': -5, 'EUR/USD': -5, 'GBP/USD': -5,
+  'USD/JPY': -3, 'USD/CHF': -5, 'AUD/USD': -5, 'USD/CAD': -5,
+};
+
 export default function ReplayPage() {
   const { theme } = useTheme();
   const isLight = theme === 'light';
   const isMobile = useIsMobile();
-  const [selectedAsset, setSelectedAsset] = useState('BTC/USD');
+  const [searchParams] = useSearchParams();
+  const initAsset = searchParams.get('asset');
+  const initEventId = searchParams.get('eventId');
+  const [selectedAsset, setSelectedAsset] = useState(initAsset || 'BTC/USD');
   const [compareMode, setCompareMode] = useState(false);
   const [compareAsset, setCompareAsset] = useState('ETH/USD');
   const [inspectorTab, setInspectorTab] = useState<'inspector' | 'autopsy'>('inspector');
+  const [autopsyData, setAutopsyData] = useState<any>(null);
+  const [timelineEvents, setTimelineEvents] = useState<any[]>([]);
 
-  const assetInfo = allAssetsList.find(a => a.symbol === selectedAsset);
-  const compareInfo = allAssetsList.find(a => a.symbol === compareAsset);
+  const assetParam = searchParams.get('asset');
+  const eventIdParam = searchParams.get('eventId');
 
-  const data = useMemo(() => generateReplayData(500, assetInfo?.price || 83421.50), [selectedAsset]);
-  const compareData = useMemo(() => compareMode ? generateReplayData(500, compareInfo?.price || 3287.80) : [], [compareMode, compareAsset]);
+  useEffect(() => {
+    if (assetParam) {
+      setSelectedAsset(assetParam);
+    }
+  }, [assetParam]);
+
+  const [apiAssets, setApiAssets] = useState<{symbol: string}[]>([]);
+  const [data, setData] = useState<{time: number, timestamp_us: number, price: number, bid: number, ask: number, spread: number, confidence: number}[]>(() => generateReplayData(500, 83421.50) as any);
 
   const [frame, setFrame] = useState(250);
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState('1x');
-  // #2: Default OFF for bid/ask/confidence
   const [showBid, setShowBid] = useState(false);
   const [showAsk, setShowAsk] = useState(false);
   const [showConfidence, setShowConfidence] = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [showShare, setShowShare] = useState(false);
   const [timeframe, setTimeframe] = useState('1s');
+
+  useEffect(() => {
+    fetchLatest().then((res: any[]) => {
+      if (res && res.length) {
+        setApiAssets(res.map(r => ({ symbol: r.asset })));
+      }
+    }).catch(console.error);
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadData() {
+      try {
+        const events = await fetchAssetEvents(selectedAsset);
+        if (!active) return;
+        
+        let targetEvent = null;
+        if (events && events.length) {
+          targetEvent = initEventId ? (events.find((e: any) => e.id === initEventId) || events[0]) : events[0];
+          const exp = assetExponents[selectedAsset] || -8;
+          const mult = Math.pow(10, exp);
+          
+          setAutopsyData({
+            ...targetEvent,
+            first_price: targetEvent.first_price * mult,
+            last_price: targetEvent.last_price * mult,
+            max_spread: targetEvent.max_spread * mult,
+            baseline_spread: targetEvent.baseline_spread * mult,
+          });
+          setTimelineEvents(events);
+        } else {
+          setAutopsyData(null);
+          setTimelineEvents([]);
+        }
+
+        const fetchLimit = ['5m', '15m', '1h'].includes(timeframe) ? 1000 : 500;
+        const ticks = await fetchTicks(selectedAsset, fetchLimit);
+        if (!active || !ticks || !ticks.length) return;
+
+        const mapped = ticks.map((t: any, i: number) => {
+          const p = t.price * Math.pow(10, t.exponent);
+          const b = t.best_bid * Math.pow(10, t.exponent);
+          const a = t.best_ask * Math.pow(10, t.exponent);
+          const conf = t.confidence * Math.pow(10, t.exponent);
+          return {
+            time: i,
+            timestamp_us: Number(t.timestamp_us || t.start_time || 0),
+            price: p,
+            bid: b,
+            ask: a,
+            spread: a - b,
+            confidence: conf,
+          };
+        });
+        setData(mapped);
+
+        let targetIdx = -1;
+        if (initEventId && targetEvent) {
+          const tgtTime = Number(targetEvent.start_time);
+          targetIdx = ticks.findIndex((t: any) => t.timestamp_us >= tgtTime);
+        }
+
+        if (targetIdx !== -1) {
+          setFrame(targetIdx);
+        } else {
+          setFrame(f => Math.min(f, mapped.length - 1));
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    loadData();
+
+    return () => { active = false; };
+  }, [selectedAsset, timeframe, initEventId]);
+
+  const compareInfo = allAssetsList.find(a => a.symbol === compareAsset);
+  const compareData = useMemo(() => compareMode ? generateReplayData(500, compareInfo?.price || 3287.80) : [], [compareMode, compareAsset]);
 
   const isRaw = isRawTimeframe(timeframe);
   const showVol = isVolumeTimeframe(timeframe);
@@ -117,11 +217,29 @@ export default function ReplayPage() {
     toY = (pct: number) => chartHeight - ((pct - minP) / rangeP) * chartHeight;
   } else {
     const prices = data.map(d => d.price);
-    minP = Math.min(...prices) - 50;
-    maxP = Math.max(...prices) + 50;
-    rangeP = maxP - minP;
+    minP = Math.min(...prices) * 0.999;
+    maxP = Math.max(...prices) * 1.001;
+    rangeP = maxP - minP || 1;
     toY = (v: number) => chartHeight - ((v - minP) / rangeP) * chartHeight;
   }
+
+  const rechartsData = useMemo(() => {
+    return data.map((d, i) => {
+      let pct1 = 0, pct2 = 0;
+      if (useCompare) {
+        pct1 = ((d.price - startPrice1) / startPrice1) * 100;
+        if (compareData[i]) {
+          pct2 = ((compareData[i].price - startPrice2) / startPrice2) * 100;
+        }
+      }
+      return {
+        ...d,
+        index: i,
+        pct1,
+        pct2
+      };
+    });
+  }, [data, compareData, useCompare, startPrice1, startPrice2]);
 
   const chartPadLeft = 20;
   const toX = (i: number) => chartPadLeft + (i / (data.length - 1)) * (chartWidth - chartPadLeft);
@@ -160,6 +278,26 @@ export default function ReplayPage() {
     const d = Math.abs(data[i].price - data[i - 1].price);
     if (d > peakVolDelta) { peakVolDelta = d; peakVolIdx = i; }
   }
+
+  const timelineMarkers = useMemo(() => {
+    if (!data.length || !timelineEvents.length) return [];
+    const firstTickTime = data[0].timestamp_us || 0;
+    const lastTickTime = data[data.length - 1].timestamp_us || 0;
+    
+    return timelineEvents.map(ev => {
+      const start = Number(ev.start_time);
+      if (start < firstTickTime || start > lastTickTime) return null;
+      let frameIdx = data.findIndex(d => (d.timestamp_us || 0) >= start);
+      if (frameIdx === -1) frameIdx = data.length - 1;
+      
+      let label = ev.event_type;
+      if (label === 'volatility_spike') label = 'Volatility Spike';
+      else if (label === 'spread_spike') label = 'Spread Spike';
+      else if (label === 'confidence_divergence') label = 'Confidence Drop';
+
+      return { ...ev, frame: frameIdx, label };
+    }).filter(Boolean);
+  }, [timelineEvents, data]);
 
   const pct1 = ((current.price - startPrice1) / startPrice1 * 100).toFixed(2);
   const pct2 = compareCurrent ? ((compareCurrent.price - startPrice2) / startPrice2 * 100).toFixed(2) : '0';
@@ -258,11 +396,17 @@ export default function ReplayPage() {
           <div className="mt-8">
             <h3 className="label-caps mb-3">Timeline Events</h3>
             <div className="flex flex-wrap gap-2">
-              {['Flash Crash', 'Spread Spike', 'Recovery', 'Confidence Drop'].map(tag => (
-                <span key={tag} className="px-3 py-1 rounded-full surface-1 text-[11px] text-muted-foreground font-medium">
-                  {tag}
-                </span>
-              ))}
+              {timelineMarkers.length > 0 ? timelineMarkers.map((m: any, idx) => (
+                <button
+                  key={`${m.id}-${idx}`}
+                  onClick={() => setFrame(m.frame)}
+                  className="px-3 py-1 rounded-full surface-1 text-[11px] text-muted-foreground font-medium apple-transition hover:bg-slate-200 dark:hover:bg-slate-800"
+                >
+                  {m.label}
+                </button>
+              )) : (
+                <span className="text-[11px] text-muted-foreground">No events in this range</span>
+              )}
             </div>
           </div>
 
@@ -293,7 +437,7 @@ export default function ReplayPage() {
           </div>
         </>
       ) : (
-        <MarketAutopsy />
+        <MarketAutopsy data={autopsyData} />
       )}
     </>
   );
@@ -318,7 +462,7 @@ export default function ReplayPage() {
               className="h-11 md:h-9 rounded-xl bg-background text-foreground text-sm px-3 font-medium focus:outline-none min-w-[120px]"
               style={{ border: `1px solid ${isLight ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.08)'}` }}
             >
-              {allAssetsList.map(a => (
+              {(apiAssets.length > 0 ? apiAssets : allAssetsList).map(a => (
                 <option key={a.symbol} value={a.symbol}>{a.symbol}</option>
               ))}
             </select>
@@ -344,7 +488,7 @@ export default function ReplayPage() {
                   className="h-11 md:h-9 rounded-xl bg-background text-foreground text-sm px-3 focus:outline-none"
                   style={{ border: `1px solid ${isLight ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.08)'}` }}
                 >
-                  {allAssetsList.filter(a => a.symbol !== selectedAsset).map(a => (
+                  {(apiAssets.length > 0 ? apiAssets : allAssetsList).filter(a => a.symbol !== selectedAsset).map(a => (
                     <option key={a.symbol} value={a.symbol}>{a.symbol}</option>
                   ))}
                 </select>
@@ -468,55 +612,50 @@ export default function ReplayPage() {
             }}
           >
             {!useCompare && timeframe !== '1s' ? (
-              <TimeframeChart rawData={data} timeframe={timeframe} frame={frame} chartWidth={chartWidth} chartHeight={chartHeight} isLight={isLight} />
+              <TimeframeChart 
+                rawData={data} 
+                timeframe={timeframe} 
+                frame={frame} 
+                chartWidth={chartWidth} 
+                chartHeight={chartHeight} 
+                isLight={isLight} 
+                showBid={showBid}
+                showAsk={showAsk}
+                showConfidence={showConfidence}
+              />
             ) : (
-              <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} className="w-full h-full" preserveAspectRatio="none">
-                {[0,1,2,3,4].map(i => (
-                  <line key={i} x1="0" y1={i * chartHeight / 4} x2={chartWidth} y2={i * chartHeight / 4} stroke={isLight ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.03)'} />
-                ))}
-                {/* Confidence fill */}
-                {!useCompare && showConfidence && confFill && (
-                  <polygon points={confFill} fill={isLight ? 'rgba(230,0,122,0.12)' : 'rgba(230,0,122,0.06)'} />
-                )}
-                {/* Bid line — secondary */}
-                {!useCompare && showBid && bidLine && <polyline points={bidLine} fill="none" stroke={isLight ? '#0055d4' : '#0a84ff'} strokeWidth="1" opacity="0.5" />}
-                {/* Ask line — secondary */}
-                {!useCompare && showAsk && askLine && <polyline points={askLine} fill="none" stroke={isLight ? '#cc2200' : '#ff453a'} strokeWidth="1" opacity="0.5" />}
-                {/* Price line — primary */}
-                <polyline points={priceLine} fill="none" stroke={useCompare ? (isLight ? '#0055d4' : '#f5f5f7') : (isLight ? '#1d1d1f' : '#fff')} strokeWidth={isLight ? '2' : '1.5'} />
-                {useCompare && compareLine && <polyline points={compareLine} fill="none" stroke={isLight ? '#e6007a' : '#0a84ff'} strokeWidth="2" />}
-                {/* #3: Playhead — solid pink line with diamond marker */}
-                <line x1={toX(frame)} y1="0" x2={toX(frame)} y2={chartHeight} stroke="#e6007a" strokeWidth="1" opacity="0.5" />
-                {/* Diamond marker at top of playhead */}
-                <rect
-                  x={toX(frame) - 4}
-                  y={-1}
-                  width={8}
-                  height={8}
-                  fill="#e6007a"
-                  opacity="0.7"
-                  transform={`rotate(45, ${toX(frame)}, 3)`}
-                />
-                <circle cx={toX(frame)} cy={useCompare ? toY(((current.price - startPrice1) / startPrice1) * 100) : toY(current.price)} r="4" fill={useCompare ? (isLight ? '#0055d4' : '#f5f5f7') : (isLight ? '#1d1d1f' : '#fff')} />
-                {useCompare && compareCurrent && (
-                  <circle cx={toX(frame)} cy={toY(((compareCurrent.price - startPrice2) / startPrice2) * 100)} r="4" fill={isLight ? '#e6007a' : '#0a84ff'} />
-                )}
-              </svg>
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={rechartsData} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
+                  <CartesianGrid vertical={false} stroke={isLight ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.03)'} />
+                  <YAxis domain={[minP, maxP]} hide />
+                  {!useCompare && showConfidence && <Line type="monotone" dataKey={(d: any) => d.price + d.confidence} stroke={isLight ? 'rgba(230,0,122,0.4)' : 'rgba(230,0,122,0.4)'} strokeWidth={1} dot={false} isAnimationActive={false} />}
+                  {!useCompare && showConfidence && <Line type="monotone" dataKey={(d: any) => d.price - d.confidence} stroke={isLight ? 'rgba(230,0,122,0.4)' : 'rgba(230,0,122,0.4)'} strokeWidth={1} dot={false} isAnimationActive={false} />}
+                  {!useCompare && showBid && <Line type="monotone" dataKey="bid" stroke={isLight ? '#0055d4' : '#0a84ff'} strokeWidth={1} dot={false} isAnimationActive={false} opacity={0.5} />}
+                  {!useCompare && showAsk && <Line type="monotone" dataKey="ask" stroke={isLight ? '#cc2200' : '#ff453a'} strokeWidth={1} dot={false} isAnimationActive={false} opacity={0.5} />}
+                  <Line type="monotone" dataKey={useCompare ? "pct1" : "price"} stroke={useCompare ? (isLight ? '#0055d4' : '#f5f5f7') : (isLight ? '#1d1d1f' : '#fff')} strokeWidth={isLight ? 2 : 1.5} dot={false} isAnimationActive={false} />
+                  {useCompare && <Line type="monotone" dataKey="pct2" stroke={isLight ? '#e6007a' : '#0a84ff'} strokeWidth={2} dot={false} isAnimationActive={false} />}
+                  <ReferenceLine x={frame} stroke="#e6007a" strokeOpacity={0.5} />
+                </LineChart>
+              </ResponsiveContainer>
             )}
           </div>
 
-          {/* Spread panel — #9: fixed 80px */}
+          {/* Spread panel — React LineChart replaced */}
           {!useCompare && (
             <div style={{ height: spreadChartH }}>
               <div className="flex items-center gap-3 mb-1">
                 <span className="label-caps">Spread Width</span>
                 <span className="text-sm tabular-nums text-foreground font-medium">${current.spread.toFixed(2)}</span>
               </div>
-              <svg viewBox={`0 0 ${chartWidth} ${spreadChartH}`} className="w-full" style={{ height: spreadChartH - 16 }} preserveAspectRatio="none">
-                <polygon points={spreadFillPoly} fill={isLight ? 'rgba(230,0,122,0.15)' : 'rgba(230,0,122,0.1)'} />
-                <polyline points={spreadLine} fill="none" stroke="#e6007a" strokeWidth={isLight ? '2' : '1.5'} />
-                <line x1={toX(frame)} y1="0" x2={toX(frame)} y2={spreadChartH} stroke="#e6007a" strokeWidth="1" opacity="0.3" />
-              </svg>
+              <div style={{ width: '100%', height: spreadChartH - 16 }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={rechartsData} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
+                    <YAxis domain={['dataMin', 'dataMax * 1.1']} hide />
+                    <Line type="monotone" dataKey="spread" stroke="#e6007a" strokeWidth={isLight ? 2 : 1.5} dot={false} isAnimationActive={false} />
+                    <ReferenceLine x={frame} stroke="#e6007a" strokeOpacity={0.3} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
             </div>
           )}
 
@@ -527,8 +666,8 @@ export default function ReplayPage() {
           <div className="flex flex-col items-center" style={{ gap: 4 }}>
             {/* Scrubber — 32px */}
             <div className="w-full relative flex items-center" style={{ height: 32 }}>
-              {eventPositions.map((pos, i) => (
-                <div key={i} className="absolute -top-1 w-2 h-2 rotate-45" style={{ left: `${(pos / data.length) * 100}%`, background: '#e6007a', outline: isLight ? '1.5px solid #1d1d1f' : 'none' }} />
+              {timelineMarkers.map((m: any, i) => (
+                <div key={`tm-${i}`} className="absolute -top-1 w-2 h-2 rotate-45 cursor-pointer" style={{ left: `${(m.frame / data.length) * 100}%`, background: '#e6007a', outline: isLight ? '1.5px solid #1d1d1f' : 'none', zIndex: 10 }} title={m.label} onClick={() => setFrame(m.frame)} />
               ))}
               <div className="absolute -top-1 w-2 h-2 rotate-45" style={{ left: `${(maxSpreadIdx / data.length) * 100}%`, background: '#f97316', outline: isLight ? '1.5px solid #1d1d1f' : '1px solid rgba(249,115,22,0.5)' }} title="Max Spread" />
               <div className="absolute -top-1 w-2 h-2 rotate-45" style={{ left: `${(minConfIdx / data.length) * 100}%`, background: '#9333ea', outline: isLight ? '1.5px solid #1d1d1f' : '1px solid rgba(147,51,234,0.5)' }} title="Max Confidence Expansion" />

@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Navbar from '@/components/Navbar';
-import { mockEvents, MarketEvent } from '@/lib/mockData';
-import { Link } from 'react-router-dom';
+import { MarketEvent } from '@/lib/mockData';
+import { fetchEvents, fetchEventCount } from '@/lib/api';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useTheme } from '@/components/ThemeProvider';
 import { Clock } from 'lucide-react';
@@ -22,6 +23,91 @@ const typeConfig: Record<string, { color: string; label: string; borderColor: st
   confidence: { color: '#bf5af2', label: 'CONFIDENCE DROP', borderColor: '#bf5af2' },
   divergence: { color: '#6e6ef5', label: 'DIVERGENCE', borderColor: '#6e6ef5' },
 };
+
+interface ApiEvent {
+  id: string;
+  asset: string;
+  event_type: string;
+  start_time: string;
+  end_time: string;
+  first_price: number | string;
+  last_price: number | string;
+  max_spread: number | string;
+  baseline_spread: number | string;
+  duration_ms: number | string;
+  created_at: string;
+}
+
+function mapApiEventType(event: ApiEvent): keyof typeof typeConfig {
+  if (event.event_type === 'volatility_spike') {
+    return event.last_price > event.first_price ? 'pump' : 'crash';
+  }
+  if (event.event_type === 'spread_spike') {
+    return 'spread';
+  }
+  if (event.event_type === 'confidence_divergence') {
+    return 'confidence';
+  }
+  return 'confidence';
+}
+
+const assetExponents: Record<string, number> = {
+  'BTC/USD': -8, 'ETH/USD': -8, 'SOL/USD': -8, 'BNB/USD': -8,
+  'BONK/USD': -10, 'WIF/USD': -8, 'DOGE/USD': -8, 'PYTH/USD': -8,
+  'XAU/USD': -3, 'XAG/USD': -5, 'EUR/USD': -5, 'GBP/USD': -5,
+  'USD/JPY': -3, 'USD/CHF': -5, 'AUD/USD': -5, 'USD/CAD': -5,
+};
+
+function formatTimestamp(createdAt: string): string {
+  const date = new Date(createdAt);
+  if (Number.isNaN(date.getTime())) return createdAt;
+  return date.toLocaleString();
+}
+
+function mapApiEvent(event: ApiEvent): MarketEvent {
+  const type = mapApiEventType(event);
+  const conf = typeConfig[type] ?? typeConfig.confidence;
+
+  let description: string;
+  switch (event.event_type) {
+    case 'volatility_spike': {
+      const first = Number(event.first_price);
+      const last = Number(event.last_price);
+      const durationMs = Number(event.duration_ms);
+      const pct =
+        first > 0
+          ? ((last - first) / first) * 100
+          : 0;
+      const dir = last > first ? 'surged' : 'dropped';
+      description = `Volatility spike — price ${dir} ${pct.toFixed(2)}% over ${(durationMs / 1000).toFixed(1)}s`;
+      break;
+    }
+    case 'spread_spike': {
+      const exp = assetExponents[event.asset] || -8;
+      const mult = Math.pow(10, exp);
+      let baseline = Number(event.baseline_spread) * mult;
+      let max = Number(event.max_spread) * mult;
+      
+      const ratio = baseline > 0 ? max / baseline : 0;
+      description = `Spread spike — bid/ask spread widened to ${max.toFixed(2)} (≈${ratio.toFixed(1)}x baseline)`;
+      break;
+    }
+    case 'confidence_divergence':
+    default: {
+      description = 'Confidence divergence — data sources disagreed materially during this window';
+      break;
+    }
+  }
+
+  return {
+    id: event.id,
+    type: type as any,
+    asset: event.asset,
+    description,
+    timestamp: formatTimestamp(event.created_at),
+    color: conf.color,
+  };
+}
 
 function generateEventSparkline(type: string): number[] {
   const points: number[] = [];
@@ -68,34 +154,98 @@ function MiniSparkline({ data, color, width = 80, height = 40, fill = false }: {
   );
 }
 
-const divergenceEvents: MarketEvent[] = [
-  { id: 'd1', type: 'confidence' as any, asset: 'ETH/USD', description: 'Confidence divergence — price sources disagreed by 2.8% for 12 seconds', timestamp: '18 min ago', color: '#9333ea' },
-  { id: 'd2', type: 'confidence' as any, asset: 'SOL/USD', description: 'Confidence divergence — exchange prices diverged sharply during liquidation cascade', timestamp: '52 min ago', color: '#9333ea' },
-];
-
-const allEventsRaw = [
-  ...mockEvents,
-  { ...divergenceEvents[0], type: 'divergence' as any },
-  { ...divergenceEvents[1], type: 'divergence' as any },
-].sort(() => Math.random() - 0.5);
-
-const featuredEvent = mockEvents[0];
-const featuredSparkline = generateEventSparkline(featuredEvent.type);
-
-const stats = [
-  { label: 'Total Events', value: '847', accent: 'rgba(255,255,255,0.15)' },
-  { label: 'Crashes Detected', value: '12', accent: '#ff453a' },
-  { label: 'Avg Duration', value: '4.2s', accent: '#0a84ff' },
-  { label: 'Most Active', value: 'BTC/USD', accent: '#e6007a' },
-];
-
 export default function EventsPage() {
+  const navigate = useNavigate();
   const { theme } = useTheme();
   const L = theme === 'light';
   const [activeFilter, setActiveFilter] = useState<string | null>(null);
-  const filtered = activeFilter ? allEventsRaw.filter(e => e.type === activeFilter) : allEventsRaw;
+  const [events, setEvents] = useState<MarketEvent[]>([]);
+  const [rawEvents, setRawEvents] = useState<ApiEvent[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
 
-  const featConf = typeConfig[featuredEvent.type] || typeConfig.crash;
+  useEffect(() => {
+    let isMounted = true;
+    async function loadCount() {
+      try {
+        const count = await fetchEventCount();
+        if (isMounted) setTotalCount(count);
+      } catch (error) {
+        console.error('Failed to load event count', error);
+      }
+    }
+    loadCount();
+    const interval = window.setInterval(loadCount, 10000);
+    return () => {
+      isMounted = false;
+      window.clearInterval(interval);
+    };
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadEvents() {
+      try {
+        let apiType: string | undefined = undefined;
+        if (activeFilter === 'crash' || activeFilter === 'pump') apiType = 'volatility_spike';
+        else if (activeFilter === 'spread') apiType = 'spread_spike';
+        else if (activeFilter === 'confidence' || activeFilter === 'divergence') apiType = 'confidence_divergence';
+
+        const limit = activeFilter ? 100 : 200;
+        let data = await fetchEvents(limit, apiType) as ApiEvent[];
+        if (!isMounted) return;
+        
+        if (activeFilter === 'crash') {
+          data = data.filter(e => Number(e.last_price) < Number(e.first_price));
+        } else if (activeFilter === 'pump') {
+          data = data.filter(e => Number(e.last_price) > Number(e.first_price));
+        }
+
+        setRawEvents(data);
+        setEvents(data.map(mapApiEvent));
+      } catch (error) {
+        console.error('Failed to load events', error);
+      }
+    }
+
+    loadEvents();
+    const interval = window.setInterval(loadEvents, 5000);
+
+    return () => {
+      isMounted = false;
+      window.clearInterval(interval);
+    };
+  }, [activeFilter]);
+
+  const filtered = events;
+
+  const featuredEvent: MarketEvent | null = events[0] ?? null;
+  const featuredSparkline = featuredEvent ? generateEventSparkline(featuredEvent.type) : [];
+  const featConf = featuredEvent ? (typeConfig[featuredEvent.type] || typeConfig.crash) : typeConfig.crash;
+
+  const totalEvents = totalCount;
+  const crashesDetected = events.filter(e => e.type === 'crash').length;
+  const avgDurationSeconds =
+    rawEvents.length > 0
+      ? rawEvents.reduce((sum, ev) => sum + Number(ev.duration_ms || 0), 0) / rawEvents.length / 1000
+      : 0;
+  const mostActive =
+    rawEvents.length > 0
+      ? (() => {
+          const counts: Record<string, number> = {};
+          rawEvents.forEach(ev => {
+            counts[ev.asset] = (counts[ev.asset] || 0) + 1;
+          });
+          return Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0] ?? '—';
+        })()
+      : '—';
+
+  const stats = [
+    { label: 'Total Events', value: totalEvents.toLocaleString(), accent: 'rgba(255,255,255,0.15)' },
+    { label: 'Crashes Detected', value: crashesDetected.toString(), accent: '#ff453a' },
+    { label: 'Avg Duration', value: `${avgDurationSeconds.toFixed(1)}s`, accent: '#0a84ff' },
+    { label: 'Most Active', value: mostActive, accent: '#e6007a' },
+  ];
 
   return (
     <div className="min-h-screen bg-background pt-14" style={{ paddingBottom: 80 }}>
@@ -115,7 +265,9 @@ export default function EventsPage() {
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg tabular-nums"
               style={{ background: L ? 'rgba(0,0,0,0.03)' : 'rgba(255,255,255,0.04)', border: `1px solid ${L ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.08)'}`, fontSize: 12 }}
             >
-              <span style={{ color: L ? 'rgba(0,0,0,0.4)' : 'rgba(255,255,255,0.4)' }}>847 EVENTS RECORDED</span>
+              <span style={{ color: L ? 'rgba(0,0,0,0.4)' : 'rgba(255,255,255,0.4)' }}>
+                {totalEvents.toLocaleString()} EVENTS RECORDED
+              </span>
             </div>
             <div
               className="flex items-center gap-2 px-3 py-1.5 rounded-lg"
@@ -151,7 +303,7 @@ export default function EventsPage() {
                 MOST DRAMATIC EVENT
               </div>
               <div className="flex items-center gap-3 mb-2">
-                <span style={{ fontSize: 28, fontWeight: 600, color: L ? '#1d1d1f' : '#fff' }}>{featuredEvent.asset}</span>
+                <span style={{ fontSize: 28, fontWeight: 600, color: L ? '#1d1d1f' : '#fff' }}>{featuredEvent?.asset ?? 'Waiting for first event'}</span>
                 <span
                   className="tabular-nums"
                   style={{
@@ -170,20 +322,24 @@ export default function EventsPage() {
                 </span>
               </div>
               <div style={{ fontSize: 14, color: L ? 'rgba(0,0,0,0.5)' : 'rgba(255,255,255,0.6)', lineHeight: 1.5, marginBottom: 8 }}>
-                {featuredEvent.description}
+                {featuredEvent?.description ?? 'As soon as Market DVR detects a significant event, it will appear here.'}
               </div>
               <div style={{ fontSize: 12, color: L ? 'rgba(0,0,0,0.3)' : 'rgba(255,255,255,0.3)', marginBottom: 20 }}>
-                {featuredEvent.timestamp}
+                {featuredEvent?.timestamp ?? ''}
               </div>
-              <Link
-                to="/replay"
+              <button
+                onClick={() => {
+                  if (featuredEvent) {
+                    navigate(`/replay?asset=${encodeURIComponent(featuredEvent.asset)}&eventId=${featuredEvent.id}`);
+                  }
+                }}
                 className="inline-flex items-center justify-center text-sm font-medium apple-transition min-h-[44px]"
                 style={{ background: '#e6007a', color: '#fff', borderRadius: 12, padding: '12px 24px', fontWeight: 500, transition: 'all 0.2s ease' }}
                 onMouseEnter={e => { e.currentTarget.style.background = '#cc0066'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
                 onMouseLeave={e => { e.currentTarget.style.background = '#e6007a'; e.currentTarget.style.transform = 'translateY(0)'; }}
               >
                 Replay this moment →
-              </Link>
+              </button>
             </div>
             {/* Chart 40% */}
             <div className="flex items-center justify-center p-5 md:p-6" style={{ flex: '0 0 40%' }}>
@@ -262,7 +418,7 @@ export default function EventsPage() {
         <div className="space-y-2">
           {filtered.length > 0 ? (
             filtered.map((event, i) => (
-              <EventCard key={event.id + i} event={event} index={i} isLight={L} />
+              <EventCard key={event.id + i} event={event} index={i} isLight={L} navigate={navigate} />
             ))
           ) : (
             /* #6: Empty state */
@@ -282,7 +438,7 @@ export default function EventsPage() {
   );
 }
 
-function EventCard({ event, index, isLight }: { event: MarketEvent; index: number; isLight: boolean }) {
+function EventCard({ event, index, isLight, navigate }: { event: MarketEvent; index: number; isLight: boolean; navigate: ReturnType<typeof useNavigate> }) {
   const L = isLight;
   const conf = typeConfig[event.type] || typeConfig.confidence;
   const sparkline = generateEventSparkline(event.type);
@@ -348,8 +504,10 @@ function EventCard({ event, index, isLight }: { event: MarketEvent; index: numbe
       </div>
 
       {/* Replay button */}
-      <Link
-        to="/replay"
+      <button
+        onClick={() => {
+          navigate(`/replay?asset=${encodeURIComponent(event.asset)}&eventId=${event.id}`);
+        }}
         className="flex-shrink-0 flex items-center justify-center text-xs font-medium apple-transition min-h-[44px] sm:min-h-0 w-full sm:w-auto"
         style={{
           padding: '8px 16px',
@@ -370,7 +528,7 @@ function EventCard({ event, index, isLight }: { event: MarketEvent; index: numbe
         }}
       >
         Replay →
-      </Link>
+      </button>
     </motion.div>
   );
 }

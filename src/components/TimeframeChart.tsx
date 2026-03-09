@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { LineChart, Line, YAxis, ResponsiveContainer, ReferenceLine } from 'recharts';
 
 interface OHLCCandle {
   open: number;
@@ -6,6 +7,9 @@ interface OHLCCandle {
   low: number;
   close: number;
   volume: number;
+  bid: number;
+  ask: number;
+  confidence: number;
 }
 
 interface TimeframeChartProps {
@@ -15,6 +19,9 @@ interface TimeframeChartProps {
   chartWidth: number;
   chartHeight: number;
   isLight?: boolean;
+  showBid?: boolean;
+  showAsk?: boolean;
+  showConfidence?: boolean;
 }
 
 const ticksPerCandle: Record<string, number> = {
@@ -22,7 +29,7 @@ const ticksPerCandle: Record<string, number> = {
   '1m': 100, '5m': 250, '15m': 500, '1h': 500,
 };
 
-export function isRawTimeframe(tf: string) { return tf === '50ms' || tf === '200ms'; }
+export function isRawTimeframe(tf: string) { return ['50ms', '200ms', '1s', '5s', '30s', '1m'].includes(tf); }
 export function isVolumeTimeframe(tf: string) { return ['1m', '5m', '15m', '1h'].includes(tf); }
 export function getTicksPerCandle(tf: string) { return ticksPerCandle[tf] || 5; }
 
@@ -32,7 +39,7 @@ export function getCandleCount(rawLength: number, tf: string) {
   return Math.ceil(rawLength / tpc);
 }
 
-export default function TimeframeChart({ rawData, timeframe, frame, chartWidth, chartHeight, isLight = false }: TimeframeChartProps) {
+export default function TimeframeChart({ rawData, timeframe, frame, chartWidth, chartHeight, isLight = false, showBid = false, showAsk = false, showConfidence = false }: TimeframeChartProps) {
   const tpc = ticksPerCandle[timeframe] || 5;
   const isRaw = isRawTimeframe(timeframe);
   const showVolume = isVolumeTimeframe(timeframe);
@@ -49,12 +56,20 @@ export default function TimeframeChart({ rawData, timeframe, frame, chartWidth, 
     for (let i = 0; i < rawData.length; i += tpc) {
       const slice = rawData.slice(i, i + tpc);
       if (slice.length === 0) continue;
+      const avgPrice = slice.reduce((sum, s) => sum + s.price, 0) / slice.length;
+      const avgBid = slice.reduce((sum, s) => sum + s.bid, 0) / slice.length;
+      const avgAsk = slice.reduce((sum, s) => sum + s.ask, 0) / slice.length;
+      const avgConf = slice.reduce((sum, s) => sum + s.confidence, 0) / slice.length;
+
       result.push({
         open: slice[0].price,
         high: Math.max(...slice.map(s => s.price)),
         low: Math.min(...slice.map(s => s.price)),
-        close: slice[slice.length - 1].price,
+        close: avgPrice,
         volume: Math.floor(Math.random() * 1000 + 100 + Math.sin(i * 0.1) * 500),
+        bid: avgBid,
+        ask: avgAsk,
+        confidence: avgConf,
       });
     }
     return result;
@@ -69,105 +84,113 @@ export default function TimeframeChart({ rawData, timeframe, frame, chartWidth, 
     const minP = Math.min(...prices);
     const maxP = Math.max(...prices);
     const pad = (maxP - minP) * 0.08 || 50;
-    const rangeP = (maxP + pad) - (minP - pad);
-    const toY = (v: number) => mainChartHeight - ((v - (minP - pad)) / rangeP) * mainChartHeight;
-    const toX = (i: number) => 20 + (i / (rawData.length - 1)) * (chartWidth - 20);
-
-    const line = rawData.map((d, i) => `${toX(i)},${toY(d.price)}`).join(' ');
+    
+    const chartData = rawData.map((d, i) => ({ ...d, index: i }));
+    const label = `Raw Ticks · ${timeframe}`;
     const clampedFrame = Math.min(frame, rawData.length - 1);
-    const frameX = toX(clampedFrame);
-    const frameY = toY(rawData[clampedFrame].price);
-
-    const label = timeframe === '50ms' ? 'Raw Ticks · 50ms' : 'Raw Ticks · 200ms';
 
     return (
-      <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} className="w-full h-full" preserveAspectRatio="none">
-        {[0, 1, 2, 3, 4].map(i => (
-          <line key={i} x1="0" y1={i * mainChartHeight / 4} x2={chartWidth} y2={i * mainChartHeight / 4} stroke={gridColor} />
-        ))}
-        <text x={chartWidth - 10} y="16" textAnchor="end" fill={labelColor} fontSize="11" fontFamily="Inter, sans-serif">
-          {label}
-        </text>
-        <polyline points={line} fill="none" stroke={isLight ? '#1d1d1f' : 'rgba(245,245,247,0.3)'} strokeWidth={isLight ? '2.5' : '0.8'} opacity={isLight ? '0.7' : '1'} />
-        {rawData.filter((_, i) => i % Math.max(1, Math.floor(rawData.length / 200)) === 0).map((d, _, __, idx = rawData.indexOf(d)) => (
-          <circle key={idx} cx={toX(rawData.indexOf(d))} cy={toY(d.price)} r="1.8" fill={isLight ? '#1d1d1f' : '#f5f5f7'} opacity={isLight ? '0.8' : '0.6'} />
-        ))}
-        <line x1={frameX} y1="0" x2={frameX} y2={chartHeight} stroke={cursorColor} strokeWidth="1" strokeDasharray="4,4" />
-        <circle cx={frameX} cy={frameY} r="5" fill="#e6007a" />
-        <circle cx={frameX} cy={frameY} r="8" fill="none" stroke="#e6007a" strokeWidth="1" opacity="0.3" />
-      </svg>
+      <div style={{ width: '100%', height: '100%', position: 'relative' }}>
+        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, pointerEvents: 'none' }}>
+          <svg viewBox={`0 0 ${chartWidth} ${mainChartHeight}`} className="w-full h-full" preserveAspectRatio="none">
+            {[0, 1, 2, 3, 4].map(i => (
+              <line key={i} x1="0" y1={i * mainChartHeight / 4} x2={chartWidth} y2={i * mainChartHeight / 4} stroke={gridColor} />
+            ))}
+            <text x={chartWidth - 10} y="16" textAnchor="end" fill={labelColor} fontSize="11" fontFamily="Inter, sans-serif">
+              {label}
+            </text>
+          </svg>
+        </div>
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart data={chartData} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
+            <YAxis domain={[minP - pad, maxP + pad]} hide />
+            {showConfidence && <Line type="monotone" dataKey={(d: any) => d.price + d.confidence} stroke={isLight ? 'rgba(230,0,122,0.4)' : 'rgba(230,0,122,0.4)'} strokeWidth={1} dot={false} isAnimationActive={false} />}
+            {showConfidence && <Line type="monotone" dataKey={(d: any) => d.price - d.confidence} stroke={isLight ? 'rgba(230,0,122,0.4)' : 'rgba(230,0,122,0.4)'} strokeWidth={1} dot={false} isAnimationActive={false} />}
+            {showBid && <Line type="monotone" dataKey="bid" stroke={isLight ? '#0055d4' : '#0a84ff'} strokeWidth={1} dot={false} isAnimationActive={false} opacity={0.5} />}
+            {showAsk && <Line type="monotone" dataKey="ask" stroke={isLight ? '#cc2200' : '#ff453a'} strokeWidth={1} dot={false} isAnimationActive={false} opacity={0.5} />}
+            <Line type="monotone" dataKey="price" stroke={isLight ? '#1d1d1f' : '#fff'} strokeWidth={isLight ? 2.5 : 2} dot={false} isAnimationActive={false} opacity={isLight ? 0.8 : 1} />
+            <ReferenceLine x={clampedFrame} stroke={cursorColor} strokeDasharray="4 4" />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
     );
   }
 
-  // OHLC candlestick mode
-  if (candles.length === 0) return null;
+  // Candlestick replaced with generalized Line mode
+  if (candles.length < 10) {
+    return (
+      <div style={{ width: '100%', height: '100%', minHeight: chartHeight, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+        <span style={{ color: isLight ? '#1d1d1f' : '#fff', fontSize: 14, fontWeight: 500, marginBottom: 8 }}>Building history... check back soon</span>
+        <span style={{ color: '#86868b', fontSize: 12, textAlign: 'center', maxWidth: 300, lineHeight: 1.5 }}>
+          Market DVR has been recording since Mar 9, 2026. Longer timeframes need more data.
+        </span>
+      </div>
+    );
+  }
 
   const allPrices = candles.flatMap(c => [c.high, c.low]);
   const minP = Math.min(...allPrices);
   const maxP = Math.max(...allPrices);
   const rangeP = maxP - minP || 1;
   const padding = rangeP * 0.08;
-  const toY = (v: number) => mainChartHeight - ((v - (minP - padding)) / (rangeP + padding * 2)) * mainChartHeight;
-
-  const candleWidth = Math.max(2, Math.min(12, (chartWidth - 40) / candles.length * 0.65));
-  const gap = (chartWidth - 40) / candles.length;
-  const toX = (i: number) => 20 + i * gap + gap / 2;
 
   const currentCandleIdx = Math.min(Math.floor(frame / tpc), candles.length - 1);
   const maxVolume = showVolume ? Math.max(...candles.map(c => c.volume)) : 1;
+  const tfLabel = showVolume ? `Line + Volume · ${timeframe}` : `Line · ${timeframe}`;
 
-  const tfLabel = showVolume ? `OHLC + Volume · ${timeframe}` : `OHLC · ${timeframe}`;
+  const chartData = candles.map((c, i) => ({
+    ...c,
+    index: i,
+    price: c.close,
+    volume: c.volume
+  }));
+
+  const mainTopOffset = 0;
+  const candleGapOffset = 20;
 
   return (
-    <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} className="w-full h-full" preserveAspectRatio="none">
-      {[0, 1, 2, 3, 4].map(i => (
-        <line key={i} x1="0" y1={i * mainChartHeight / 4} x2={chartWidth} y2={i * mainChartHeight / 4} stroke={gridColor} />
-      ))}
-      <text x={chartWidth - 10} y="16" textAnchor="end" fill={labelColor} fontSize="11" fontFamily="Inter, sans-serif">
-        {tfLabel}
-      </text>
-      {candles.map((c, i) => {
-        const x = toX(i);
-        const isUp = c.close >= c.open;
-        const color = isUp ? '#32d74b' : '#ff453a';
-        const bodyTop = toY(Math.max(c.open, c.close));
-        const bodyBottom = toY(Math.min(c.open, c.close));
-        const bodyHeight = Math.max(1, bodyBottom - bodyTop);
-        const isCurrent = i === currentCandleIdx;
+    <div style={{ width: '100%', height: '100%', position: 'relative' }}>
+      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, pointerEvents: 'none' }}>
+        <svg viewBox={`0 0 ${chartWidth} ${chartHeight}`} className="w-full h-full" preserveAspectRatio="none">
+          {[0, 1, 2, 3, 4].map(i => (
+            <line key={i} x1="0" y1={i * mainChartHeight / 4} x2={chartWidth} y2={i * mainChartHeight / 4} stroke={gridColor} />
+          ))}
+          <text x={chartWidth - 10} y="16" textAnchor="end" fill={labelColor} fontSize="11" fontFamily="Inter, sans-serif">
+            {tfLabel}
+          </text>
+        </svg>
+      </div>
+      
+      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: mainChartHeight }}>
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart data={chartData} margin={{ top: mainTopOffset, right: candleGapOffset, left: candleGapOffset, bottom: 0 }}>
+            <YAxis domain={[minP - padding, maxP + padding]} hide />
+            {showConfidence && <Line type="monotone" dataKey={(d: any) => d.price + d.confidence} stroke={isLight ? 'rgba(230,0,122,0.4)' : 'rgba(230,0,122,0.4)'} strokeWidth={1} dot={false} isAnimationActive={false} />}
+            {showConfidence && <Line type="monotone" dataKey={(d: any) => d.price - d.confidence} stroke={isLight ? 'rgba(230,0,122,0.4)' : 'rgba(230,0,122,0.4)'} strokeWidth={1} dot={false} isAnimationActive={false} />}
+            {showBid && <Line type="monotone" dataKey="bid" stroke={isLight ? '#0055d4' : '#0a84ff'} strokeWidth={1} dot={false} isAnimationActive={false} opacity={0.5} />}
+            {showAsk && <Line type="monotone" dataKey="ask" stroke={isLight ? '#cc2200' : '#ff453a'} strokeWidth={1} dot={false} isAnimationActive={false} opacity={0.5} />}
+            <Line type="monotone" dataKey="price" stroke={isLight ? '#1d1d1f' : '#fff'} strokeWidth={isLight ? 2 : 1.5} dot={false} isAnimationActive={false} />
+            <ReferenceLine x={currentCandleIdx} stroke={cursorColor} strokeDasharray="4 4" />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
 
-        return (
-          <g key={i} opacity={isCurrent ? 1 : 0.85}>
-            <line x1={x} y1={toY(c.high)} x2={x} y2={toY(c.low)} stroke={color} strokeWidth={isLight ? '1.5' : '1'} opacity={isLight ? '0.8' : '0.6'} />
-            <rect x={x - candleWidth / 2} y={bodyTop} width={candleWidth} height={bodyHeight} fill={color} rx="1" />
-            {isCurrent && (
-              <rect x={x - candleWidth / 2 - 1} y={bodyTop - 1} width={candleWidth + 2} height={bodyHeight + 2} fill="none" stroke={isLight ? '#1d1d1f' : '#f5f5f7'} strokeWidth="1" rx="2" opacity="0.5" />
-            )}
-          </g>
-        );
-      })}
       {showVolume && (
-        <>
-          <line x1="0" y1={volumeTop} x2={chartWidth} y2={volumeTop} stroke={volLineColor} />
-          <text x="4" y={volumeTop + 12} fill={volLabelColor} fontSize="9" fontFamily="Inter, sans-serif">VOL</text>
-          {candles.map((c, i) => {
-            const x = toX(i);
-            const barHeight = (c.volume / maxVolume) * volumeHeight;
-            const isUp = c.close >= c.open;
-            return (
-              <rect
-                key={`v${i}`}
-                x={x - candleWidth / 2}
-                y={volumeTop + volumeHeight - barHeight}
-                width={candleWidth}
-                height={barHeight}
-                fill={isUp ? (isLight ? 'rgba(50,215,75,0.25)' : 'rgba(50,215,75,0.15)') : (isLight ? 'rgba(255,69,58,0.25)' : 'rgba(255,69,58,0.15)')}
-                rx="1"
-              />
-            );
-          })}
-        </>
+        <div style={{ position: 'absolute', top: volumeTop, left: 0, right: 0, height: volumeHeight }}>
+          <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, pointerEvents: 'none' }}>
+            <svg viewBox={`0 0 ${chartWidth} ${volumeHeight}`} className="w-full h-full" preserveAspectRatio="none">
+              <line x1="0" y1="0" x2={chartWidth} y2="0" stroke={volLineColor} />
+              <text x="4" y="12" fill={volLabelColor} fontSize="9" fontFamily="Inter, sans-serif">VOL</text>
+            </svg>
+          </div>
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={chartData} margin={{ top: 0, right: candleGapOffset, left: candleGapOffset, bottom: 0 }}>
+              <YAxis domain={[0, maxVolume]} hide />
+              <Line type="monotone" dataKey="volume" stroke="#e6007a" strokeWidth={1.5} dot={false} isAnimationActive={false} opacity={0.6} />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
       )}
-      <line x1={toX(currentCandleIdx)} y1="0" x2={toX(currentCandleIdx)} y2={chartHeight} stroke={cursorColor} strokeWidth="1" strokeDasharray="4,4" />
-    </svg>
+    </div>
   );
 }
