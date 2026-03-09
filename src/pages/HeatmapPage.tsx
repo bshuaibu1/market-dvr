@@ -65,7 +65,10 @@ export default function HeatmapPage() {
             const meta = assetMetaBySymbol[item.asset] ?? { name: item.asset, assetClass: 'crypto' as AssetClass };
             const factor = Math.pow(10, item.exponent);
             const priceValue = item.price * factor;
-            const spreadValue = Math.abs(item.best_ask - item.best_bid) * factor;
+            const spreadValue = (isFinite(item.best_ask) && isFinite(item.best_bid))
+              ? Math.abs(item.best_ask - item.best_bid) * factor
+              : 0;
+            const safePrice = isFinite(priceValue) && priceValue > 0 ? priceValue : 1;
 
             if (!priceHistoryRef.current[item.asset]) priceHistoryRef.current[item.asset] = [];
             if (isInitialFetch) priceHistoryRef.current[item.asset].push({ price: priceValue, timestamp: now - 300000 });
@@ -79,15 +82,21 @@ export default function HeatmapPage() {
               if (history[i].timestamp <= targetTime) { baselineEntry = history[i]; break; }
             }
 
-            const change = baselineEntry.price > 0 ? ((priceValue - baselineEntry.price) / baselineEntry.price) * 100 : 0;
+            const change = (baselineEntry.price > 0 && isFinite(priceValue) && isFinite(baselineEntry.price))
+              ? ((priceValue - baselineEntry.price) / baselineEntry.price) * 100
+              : 0;
             const confValue = item.confidence * factor;
-            const confRatio = confValue / priceValue;
-            const confidenceNorm = Math.max(0.6, Math.min(0.99, 1 - confRatio * 2000));
+            const confRatio = (priceValue > 0 && isFinite(confValue) && isFinite(priceValue))
+              ? confValue / priceValue
+              : 0;
+            const confidenceNorm = isFinite(confRatio) && confRatio > 0
+              ? Math.max(0.6, Math.min(0.99, 1 - confRatio * 2000))
+              : 0.75;
 
             const prevAsset = prevBySymbol.get(item.asset);
             const baseSparkline = prevAsset && prevAsset.sparkline.length > 0 ? prevAsset.sparkline : [priceValue];
             const sparkline = [...baseSparkline, priceValue].slice(-60);
-            const volatile = Math.abs(change) > 1 || (spreadValue / priceValue) > 0.001;
+            const volatile = Math.abs(change) > 0.5 || (spreadValue / safePrice) > 0.0005;
 
             return {
               symbol: item.asset,
@@ -118,8 +127,16 @@ export default function HeatmapPage() {
   const commodities = useMemo(() => assets.filter(a => a.assetClass === 'commodities'), [assets]);
   const forex = useMemo(() => assets.filter(a => a.assetClass === 'forex'), [assets]);
 
-  const avgConf = useMemo(() => assets.length > 0 ? assets.reduce((s, a) => s + a.confidence, 0) / assets.length : 0, [assets]);
-  const stressValue = useMemo(() => Math.round((1 - avgConf) * 100), [avgConf]);
+  const avgConf = useMemo(() => {
+    if (assets.length === 0) return 0.75;
+    const sum = assets.reduce((s, a) => s + (isFinite(a.confidence) ? a.confidence : 0.75), 0);
+    const avg = sum / assets.length;
+    return isFinite(avg) ? avg : 0.75;
+  }, [assets]);
+  const stressValue = useMemo(() => {
+    const v = Math.round((1 - avgConf) * 100);
+    return isFinite(v) ? v : 25;
+  }, [avgConf]);
   const stressLabel = useMemo(() => {
     if (avgConf > 0.9) return 'LOW';
     if (avgConf > 0.82) return 'MODERATE';

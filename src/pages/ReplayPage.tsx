@@ -640,7 +640,7 @@ export default function ReplayPage() {
                 </button>
               ))}
             </div>
-            {isRaw && (
+            {(timeframe === '50ms' || timeframe === '200ms') && (
               <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold tracking-wide flex-shrink-0" style={{ color: '#e6007a', background: 'rgba(230,0,122,0.1)', border: '1px solid rgba(230,0,122,0.2)' }}>
                 <img src={pythLogo} alt="Pyth" width={14} height={14} className="inline-block" /> Pyth Pro Only
               </span>
@@ -717,7 +717,7 @@ export default function ReplayPage() {
           )}
 
           {/* Shock Propagation — #9: 44px collapsed */}
-          <ShockPropagation />
+          <ShockPropagation sourceAsset={selectedAsset} currentFrame={frame} />
 
           {/* Playback controls — #9: scrubber 32px + controls 56px */}
           <div className="flex flex-col items-center" style={{ gap: 4 }}>
