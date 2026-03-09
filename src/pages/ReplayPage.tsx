@@ -67,6 +67,8 @@ export default function ReplayPage() {
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [showShare, setShowShare] = useState(false);
   const [timeframe, setTimeframe] = useState('1s');
+  const [isLive, setIsLive] = useState(false);
+  const liveIntervalRef = useRef<ReturnType<typeof setInterval>>();
 
   useEffect(() => {
     fetchLatest().then((res: any[]) => {
@@ -145,7 +147,48 @@ export default function ReplayPage() {
     return () => { active = false; };
   }, [selectedAsset, timeframe, initEventId]);
 
-  const compareInfo = allAssetsList.find(a => a.symbol === compareAsset);
+  // Live tail mode — polls for new ticks and advances frame to end
+  useEffect(() => {
+    if (!isLive) {
+      clearInterval(liveIntervalRef.current);
+      return;
+    }
+    setPlaying(false);
+
+    async function pollLive() {
+      try {
+        const ticks = await fetchTicks(selectedAsset, 500);
+        if (!ticks || !ticks.length) return;
+        const mapped = ticks.map((t: any, i: number) => {
+          const exp = assetExponents[selectedAsset] || -8;
+          const factor = Math.pow(10, exp);
+          return {
+            time: i,
+            timestamp_us: Number(t.timestamp_us || 0),
+            price: t.price * factor,
+            bid: t.best_bid * factor,
+            ask: t.best_ask * factor,
+            spread: (t.best_ask - t.best_bid) * factor,
+            confidence: t.confidence * factor,
+          };
+        });
+        setData(mapped);
+        setFrame(mapped.length - 1);
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    pollLive();
+    liveIntervalRef.current = setInterval(pollLive, 1000);
+    return () => clearInterval(liveIntervalRef.current);
+  }, [isLive, selectedAsset]);
+
+  // Detach from live when user scrubs
+  const handleScrub = (val: number) => {
+    if (isLive && val < data.length - 5) setIsLive(false);
+    setFrame(val);
+  };
   const compareData = useMemo(() => compareMode ? generateReplayData(500, compareInfo?.price || 3287.80) : [], [compareMode, compareAsset]);
 
   const isRaw = isRawTimeframe(timeframe);
@@ -468,8 +511,19 @@ export default function ReplayPage() {
             </select>
             <span className="label-caps">Replay</span>
 
+            {/* LIVE button */}
             <button
-              onClick={() => setCompareMode(!compareMode)}
+              onClick={() => setIsLive(l => !l)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium apple-transition min-h-[44px] md:min-h-0"
+              style={{
+                background: isLive ? 'rgba(230,0,122,0.15)' : (isLight ? 'rgba(0,0,0,0.03)' : 'rgba(255,255,255,0.04)'),
+                border: isLive ? '1px solid #e6007a' : `1px solid ${isLight ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.08)'}`,
+                color: isLive ? '#e6007a' : undefined,
+              }}
+            >
+              <span className="w-1.5 h-1.5 rounded-full" style={{ background: isLive ? '#e6007a' : (isLight ? 'rgba(0,0,0,0.3)' : 'rgba(255,255,255,0.3)'), animation: isLive ? 'pulse 1.5s infinite' : 'none' }} />
+              LIVE
+            </button>
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium apple-transition min-h-[44px] md:min-h-0 ${compareMode ? 'text-foreground' : 'text-muted-foreground'}`}
               style={{
                 background: compareMode ? 'rgba(10,132,255,0.15)' : (isLight ? 'rgba(0,0,0,0.03)' : 'rgba(255,255,255,0.04)'),
@@ -680,7 +734,7 @@ export default function ReplayPage() {
                 min={0}
                 max={data.length - 1}
                 value={frame}
-                onChange={e => setFrame(Number(e.target.value))}
+                onChange={e => handleScrub(Number(e.target.value))}
                 className="w-full h-1 rounded-full appearance-none cursor-pointer"
                 style={{
                   background: `linear-gradient(to right, #e6007a 0%, #e6007a ${(frame / (data.length - 1)) * 100}%, ${isLight ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.1)'} ${(frame / (data.length - 1)) * 100}%, ${isLight ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.1)'} 100%)`,
