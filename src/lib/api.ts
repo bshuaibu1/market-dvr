@@ -47,3 +47,8 @@ export function formatPriceDisplay(rawPrice: number, exponent: number): string {
   if (price >= 0.0001) return price.toFixed(6);
   return price.toFixed(10);
 }
+
+export async function fetchEventStats() {
+  const res = await fetch(`${API_BASE}/events/stats`);
+  return res.json();
+}

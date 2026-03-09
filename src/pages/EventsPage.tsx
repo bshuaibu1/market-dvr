@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import Navbar from '@/components/Navbar';
 import { MarketEvent } from '@/lib/mockData';
-import { fetchEvents, fetchEventCount } from '@/lib/api';
+import { fetchEvents, fetchEventCount, fetchEventStats } from '@/lib/api';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useTheme } from '@/components/ThemeProvider';
@@ -74,10 +74,7 @@ function mapApiEvent(event: ApiEvent): MarketEvent {
       const first = Number(event.first_price);
       const last = Number(event.last_price);
       const durationMs = Number(event.duration_ms);
-      const pct =
-        first > 0
-          ? ((last - first) / first) * 100
-          : 0;
+      const pct = first > 0 ? ((last - first) / first) * 100 : 0;
       const dir = last > first ? 'surged' : 'dropped';
       description = `Volatility spike — price ${dir} ${pct.toFixed(2)}% over ${(durationMs / 1000).toFixed(1)}s`;
       break;
@@ -85,9 +82,8 @@ function mapApiEvent(event: ApiEvent): MarketEvent {
     case 'spread_spike': {
       const exp = assetExponents[event.asset] || -8;
       const mult = Math.pow(10, exp);
-      let baseline = Number(event.baseline_spread) * mult;
-      let max = Number(event.max_spread) * mult;
-      
+      const baseline = Number(event.baseline_spread) * mult;
+      const max = Number(event.max_spread) * mult;
       const ratio = baseline > 0 ? max / baseline : 0;
       description = `Spread spike — bid/ask spread widened to ${max.toFixed(2)} (≈${ratio.toFixed(1)}x baseline)`;
       break;
@@ -162,15 +158,23 @@ export default function EventsPage() {
   const [events, setEvents] = useState<MarketEvent[]>([]);
   const [rawEvents, setRawEvents] = useState<ApiEvent[]>([]);
   const [totalCount, setTotalCount] = useState(0);
+  const [crashCount, setCrashCount] = useState(0);
+  const [avgDuration, setAvgDuration] = useState(0);
+  const [mostActive, setMostActive] = useState('—');
 
   useEffect(() => {
     let isMounted = true;
     async function loadCount() {
       try {
-        const count = await fetchEventCount();
-        if (isMounted) setTotalCount(count);
+        const stats = await fetchEventStats();
+        if (isMounted) {
+          setTotalCount(stats.total);
+          setCrashCount(stats.crashes);
+          setAvgDuration(stats.avg_duration_ms / 1000);
+          setMostActive(stats.most_active);
+        }
       } catch (error) {
-        console.error('Failed to load event count', error);
+        console.error('Failed to load event stats', error);
       }
     }
     loadCount();
@@ -194,7 +198,7 @@ export default function EventsPage() {
         const limit = activeFilter ? 100 : 200;
         let data = await fetchEvents(limit, apiType) as ApiEvent[];
         if (!isMounted) return;
-        
+
         if (activeFilter === 'crash') {
           data = data.filter(e => Number(e.last_price) < Number(e.first_price));
         } else if (activeFilter === 'pump') {
@@ -223,27 +227,10 @@ export default function EventsPage() {
   const featuredSparkline = featuredEvent ? generateEventSparkline(featuredEvent.type) : [];
   const featConf = featuredEvent ? (typeConfig[featuredEvent.type] || typeConfig.crash) : typeConfig.crash;
 
-  const totalEvents = totalCount;
-  const crashesDetected = rawEvents.filter(e => e.event_type === 'volatility_spike' && Number(e.last_price) < Number(e.first_price)).length;
-  const avgDurationSeconds =
-    rawEvents.length > 0
-      ? rawEvents.reduce((sum, ev) => sum + Number(ev.duration_ms || 0), 0) / rawEvents.length / 1000
-      : 0;
-  const mostActive =
-    rawEvents.length > 0
-      ? (() => {
-          const counts: Record<string, number> = {};
-          rawEvents.forEach(ev => {
-            counts[ev.asset] = (counts[ev.asset] || 0) + 1;
-          });
-          return Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0] ?? '—';
-        })()
-      : '—';
-
   const stats = [
-    { label: 'Total Events', value: totalEvents.toLocaleString(), accent: 'rgba(255,255,255,0.15)' },
-    { label: 'Crashes Detected', value: crashesDetected.toString(), accent: '#ff453a' },
-    { label: 'Avg Duration', value: `${avgDurationSeconds.toFixed(1)}s`, accent: '#0a84ff' },
+    { label: 'Total Events', value: totalCount.toLocaleString(), accent: 'rgba(255,255,255,0.15)' },
+    { label: 'Crashes Detected', value: crashCount.toLocaleString(), accent: '#ff453a' },
+    { label: 'Avg Duration', value: `${avgDuration.toFixed(1)}s`, accent: '#0a84ff' },
     { label: 'Most Active', value: mostActive, accent: '#e6007a' },
   ];
 
@@ -266,7 +253,7 @@ export default function EventsPage() {
               style={{ background: L ? 'rgba(0,0,0,0.03)' : 'rgba(255,255,255,0.04)', border: `1px solid ${L ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.08)'}`, fontSize: 12 }}
             >
               <span style={{ color: L ? 'rgba(0,0,0,0.4)' : 'rgba(255,255,255,0.4)' }}>
-                {totalEvents.toLocaleString()} EVENTS RECORDED
+                {totalCount.toLocaleString()} EVENTS RECORDED
               </span>
             </div>
             <div
@@ -402,7 +389,6 @@ export default function EventsPage() {
                 e.currentTarget.style.borderColor = L ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.06)';
               }}
             >
-              {/* Accent top border */}
               <div className="absolute top-0 left-0 right-0 h-[2px]" style={{ background: stat.accent }} />
               <div style={{ fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase' as const, color: L ? 'rgba(0,0,0,0.35)' : 'rgba(255,255,255,0.35)', fontWeight: 500, marginBottom: 8 }}>
                 {stat.label}
@@ -421,7 +407,6 @@ export default function EventsPage() {
               <EventCard key={event.id + i} event={event} index={i} isLight={L} navigate={navigate} />
             ))
           ) : (
-            /* #6: Empty state */
             <div className="flex flex-col items-center justify-center py-20 text-center">
               <Clock size={48} style={{ color: L ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.15)' }} />
               <div className="mt-4" style={{ color: L ? 'rgba(0,0,0,0.4)' : 'rgba(255,255,255,0.4)', fontSize: 15 }}>
@@ -472,7 +457,6 @@ function EventCard({ event, index, isLight, navigate }: { event: MarketEvent; in
         e.currentTarget.style.borderBottomColor = L ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.06)';
       }}
     >
-      {/* Badge — fixed width */}
       <span
         className="flex-shrink-0 flex items-center justify-center"
         style={{
@@ -491,19 +475,16 @@ function EventCard({ event, index, isLight, navigate }: { event: MarketEvent; in
         {conf.label}
       </span>
 
-      {/* Content */}
       <div className="flex-1 min-w-0">
         <div style={{ fontSize: 15, fontWeight: 600, color: L ? '#1d1d1f' : '#fff' }}>{event.asset}</div>
         <div className="truncate" style={{ fontSize: 13, color: L ? 'rgba(0,0,0,0.45)' : 'rgba(255,255,255,0.5)' }}>{event.description}</div>
         <div style={{ fontSize: 11, color: L ? 'rgba(0,0,0,0.25)' : 'rgba(255,255,255,0.25)', marginTop: 2 }}>{event.timestamp}</div>
       </div>
 
-      {/* Sparkline */}
       <div className="flex-shrink-0 hidden sm:block">
         <MiniSparkline data={sparkline} color={conf.color} width={80} height={40} />
       </div>
 
-      {/* Replay button */}
       <button
         onClick={() => {
           navigate(`/replay?asset=${encodeURIComponent(event.asset)}&eventId=${event.id}`);
