@@ -56,7 +56,8 @@ export default function ReplayPage() {
   }, [assetParam]);
 
   const [apiAssets, setApiAssets] = useState<{symbol: string}[]>([]);
-  const [data, setData] = useState<{time: number, timestamp_us: number, price: number, bid: number, ask: number, spread: number, confidence: number}[]>(() => generateReplayData(500, 83421.50) as any);
+  const [dataLoading, setDataLoading] = useState(true);
+  const [data, setData] = useState<{time: number, timestamp_us: number, price: number, bid: number, ask: number, spread: number, confidence: number}[]>([]);
 
   const [frame, setFrame] = useState(250);
   const [playing, setPlaying] = useState(false);
@@ -82,6 +83,7 @@ export default function ReplayPage() {
     let active = true;
 
     async function loadData() {
+      setDataLoading(true);
       try {
         const events = await fetchAssetEvents(selectedAsset);
         if (!active) return;
@@ -123,8 +125,9 @@ export default function ReplayPage() {
             spread: a - b,
             confidence: conf,
           };
-        });
+        }).filter((d: any) => isFinite(d.price) && d.price > 0);
         setData(mapped);
+        setDataLoading(false);
 
         let targetIdx = -1;
         if (initEventId && targetEvent) {
@@ -649,12 +652,18 @@ export default function ReplayPage() {
 
           {/* #1: Price row — dedicated, outside chart */}
           <div className="flex items-baseline justify-between">
-            <span className="tabular-nums" style={{ fontSize: 32, fontWeight: 600, color: isLight ? '#1d1d1f' : '#fff' }}>
-              ${formatPrice(current.price)}
-            </span>
-            <span className="tabular-nums" style={{ fontSize: 14, color: priceChange >= 0 ? (isLight ? '#1a8f35' : '#32d74b') : (isLight ? '#cc2200' : '#ff453a') }}>
-              {priceChange >= 0 ? '+' : ''}{priceChange.toFixed(2)}
-            </span>
+            {dataLoading ? (
+              <div className="h-8 w-40 rounded-lg animate-pulse" style={{ background: isLight ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.08)' }} />
+            ) : (
+              <span className="tabular-nums" style={{ fontSize: 32, fontWeight: 600, color: isLight ? '#1d1d1f' : '#fff' }}>
+                ${formatPrice(current.price)}
+              </span>
+            )}
+            {!dataLoading && (
+              <span className="tabular-nums" style={{ fontSize: 14, color: priceChange >= 0 ? (isLight ? '#1a8f35' : '#32d74b') : (isLight ? '#cc2200' : '#ff453a') }}>
+                {priceChange >= 0 ? '+' : ''}{priceChange.toFixed(2)}
+              </span>
+            )}
           </div>
 
           {/* #5: Chart container — clean, no overlapping text */}
