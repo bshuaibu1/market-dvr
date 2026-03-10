@@ -128,20 +128,33 @@ export default function HeatmapPage() {
   const forex = useMemo(() => assets.filter(a => a.assetClass === 'forex'), [assets]);
 
   const avgConf = useMemo(() => {
-    if (assets.length === 0) return 0.75;
-    const sum = assets.reduce((s, a) => s + (isFinite(a.confidence) ? a.confidence : 0.75), 0);
+    if (assets.length === 0) return 0.999;
+    const sum = assets.reduce((s, a) => s + (isFinite(a.confidence) ? a.confidence : 0.999), 0);
     const avg = sum / assets.length;
-    return isFinite(avg) ? avg : 0.75;
+    return isFinite(avg) ? avg : 0.999;
   }, [assets]);
+
+  // Composite stress: 40% volatility, 40% spread ratio, 20% confidence drop
   const stressValue = useMemo(() => {
-    const v = Math.round((1 - avgConf) * 100);
-    return isFinite(v) ? v : 25;
-  }, [avgConf]);
+    if (assets.length === 0) return 20;
+    // Volatility score: avg absolute % change, scaled 0-100 (0.5% change = 50 stress)
+    const avgAbsChange = assets.reduce((s, a) => s + Math.abs(isFinite(a.change) ? a.change : 0), 0) / assets.length;
+    const volatilityScore = Math.min(100, avgAbsChange * 40);
+    // Spread score: number of volatile assets as % of total
+    const volatileCount = assets.filter(a => a.volatile).length;
+    const spreadScore = Math.min(100, (volatileCount / Math.max(assets.length, 1)) * 100);
+    // Confidence deviation: how far below perfect (0.999) the avg conf is, amplified
+    const confDrop = Math.max(0, 0.999 - avgConf);
+    const confScore = Math.min(100, confDrop * 5000);
+    const composite = volatilityScore * 0.4 + spreadScore * 0.4 + confScore * 0.2;
+    return Math.round(Math.max(0, Math.min(100, composite)));
+  }, [assets, avgConf]);
+
   const stressLabel = useMemo(() => {
-    if (avgConf > 0.9) return 'LOW';
-    if (avgConf > 0.82) return 'MODERATE';
+    if (stressValue < 30) return 'LOW';
+    if (stressValue < 60) return 'MODERATE';
     return 'HIGH';
-  }, [avgConf]);
+  }, [stressValue]);
 
   const cryptoLarge = crypto.filter(a => a.symbol === 'BTC/USD' || a.symbol === 'ETH/USD');
   const cryptoSmall = crypto.filter(a => a.symbol !== 'BTC/USD' && a.symbol !== 'ETH/USD');

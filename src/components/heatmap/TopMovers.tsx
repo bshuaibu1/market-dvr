@@ -52,7 +52,7 @@ export default function TopMovers({ assets }: Props) {
                 color: badgeText,
               }}
             >
-              {(asset.confidence * 100).toFixed(0)}%
+              {Math.min(99.9, asset.confidence * 100).toFixed(1)}%
             </span>
           </div>
         );
