@@ -315,9 +315,9 @@ export default function ShareModal({ open, onOpenChange, asset, frame, frameData
       </div>
 
       {activeTab === 'link' ? (
-        <div className="space-y-3">
+        <div className="space-y-3" style={{ minWidth: 0, overflow: 'hidden' }}>
           <div className="flex items-center gap-2 rounded-xl p-3" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', minWidth: 0, overflow: 'hidden' }}>
-            <span className="text-xs text-muted-foreground tabular-nums" style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block' }}>{shareUrl}</span>
+            <span style={{ flex: '1 1 0%', width: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 11, color: 'rgba(255,255,255,0.5)', fontFamily: 'monospace', display: 'block' }}>{shareUrl}</span>
             <button
               onClick={handleCopyLink}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-primary-foreground apple-transition flex-shrink-0"
@@ -334,7 +334,7 @@ export default function ShareModal({ open, onOpenChange, asset, frame, frameData
           <div
             ref={cardRef}
             className="rounded-2xl p-6 space-y-3 mx-auto"
-            style={{ background: '#0d0d0d', border: '1px solid rgba(255,255,255,0.12)', width: 600, maxWidth: '100%' }}
+            style={{ background: '#0d0d0d', border: '1px solid rgba(255,255,255,0.12)', width: '100%' }}
           >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
