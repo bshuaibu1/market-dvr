@@ -204,6 +204,15 @@ export default function ShockPropagation({ sourceAsset = 'BTC/USD', currentFrame
                       </div>
                     </div>
                   ))}
+                  {!loading && display.reactingAssets.length > 0 && display.reactingAssets.every(a => !a.reacted) && (
+                    <div className="flex flex-col items-center justify-center py-4 px-3 rounded-xl text-center"
+                      style={{ background: isLight ? 'rgba(0,0,0,0.02)' : 'rgba(255,255,255,0.02)', border: `1px dashed ${isLight ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.08)'}` }}>
+                      <span className="text-[12px] font-medium text-muted-foreground">No shock detected</span>
+                      <span className="text-[10px] mt-1" style={{ color: isLight ? 'rgba(0,0,0,0.3)' : 'rgba(255,255,255,0.25)' }}>
+                        Market is calm · correlations activate during high volatility
+                      </span>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="flex items-center gap-3 overflow-x-auto">
@@ -253,6 +262,17 @@ export default function ShockPropagation({ sourceAsset = 'BTC/USD', currentFrame
                       </div>
                     </motion.div>
                   ))}
+                  {/* Empty state: all assets show no reaction */}
+                  {!loading && display.reactingAssets.length > 0 && display.reactingAssets.every(a => !a.reacted) && (
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }}
+                      className="flex flex-col items-center justify-center px-8 py-3 rounded-xl ml-2"
+                      style={{ background: isLight ? 'rgba(0,0,0,0.02)' : 'rgba(255,255,255,0.02)', border: `1px dashed ${isLight ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.08)'}` }}>
+                      <span className="text-[12px] font-medium text-muted-foreground">No shock detected</span>
+                      <span className="text-[10px] mt-0.5 text-center" style={{ color: isLight ? 'rgba(0,0,0,0.3)' : 'rgba(255,255,255,0.25)' }}>
+                        Market is calm · correlations activate during high volatility
+                      </span>
+                    </motion.div>
+                  )}
                 </div>
               )}
             </div>

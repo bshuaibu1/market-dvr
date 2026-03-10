@@ -259,7 +259,7 @@ function AllAssetsTable({ assets, isLight }: { assets: AssetWithClass[]; isLight
                   </td>
                   {!isMobile && (
                     <td className="py-3 px-4 text-right tabular-nums text-muted-foreground">
-                      ${asset.spread < 0.01 ? asset.spread.toFixed(6) : asset.spread.toFixed(4)}
+                      {asset.spread === 0 ? '—' : `$${asset.spread < 0.01 ? asset.spread.toFixed(6) : asset.spread.toFixed(4)}`}
                     </td>
                   )}
                   {!isMobile && (

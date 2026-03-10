@@ -103,7 +103,7 @@ export default function InstitutionalCard({ asset, large = false }: Props) {
         {large && (
           <div className="flex items-center gap-0">
             <span className="tabular-nums" style={{ fontSize: 10, color: microColor }}>
-              BID-ASK ${asset.spread < 0.01 ? asset.spread.toFixed(6) : asset.spread.toFixed(2)}
+              BID-ASK {asset.spread === 0 ? '—' : `$${asset.spread < 0.01 ? asset.spread.toFixed(6) : asset.spread.toFixed(2)}`}
             </span>
             <span style={{ fontSize: 10, color: dividerColor, margin: '0 6px' }}>|</span>
             <span className="tabular-nums" style={{ fontSize: 10, color: microColor }}>
@@ -111,7 +111,7 @@ export default function InstitutionalCard({ asset, large = false }: Props) {
             </span>
             <span style={{ fontSize: 10, color: dividerColor, margin: '0 6px' }}>|</span>
             <span className="tabular-nums" style={{ fontSize: 10, color: microColor }}>
-              SPREAD {spreadPct.toFixed(3)}%
+              SPREAD {asset.spread === 0 ? '—' : `${spreadPct.toFixed(3)}%`}
             </span>
           </div>
         )}

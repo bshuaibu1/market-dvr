@@ -409,6 +409,10 @@ export default function ShareModal({ open, onOpenChange, asset, frame, frameData
           <p className="text-sm text-muted-foreground">
             Export a {clipDuration} animated replay clip with watermark — perfect for sharing on Twitter
           </p>
+          <div className="flex items-center gap-1.5 px-3 py-2 rounded-lg" style={{ background: 'rgba(255,159,10,0.08)', border: '1px solid rgba(255,159,10,0.2)' }}>
+            <span style={{ fontSize: 12 }}>⚠️</span>
+            <span className="text-[11px]" style={{ color: 'rgba(255,159,10,0.9)' }}>Exports as <strong>.webm</strong> — plays in Chrome &amp; Firefox. Safari users: open in VLC or convert to MP4.</span>
+          </div>
 
           <div>
             <div className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground mb-2">Duration</div>
