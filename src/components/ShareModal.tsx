@@ -14,9 +14,10 @@ interface ShareModalProps {
   frameData: { price: number; bid: number; ask: number; spread: number; confidence: number };
   recentPrices?: number[];
   eventName?: string;
+  allFrames?: { price: number; bid: number; ask: number; spread: number; confidence: number; timestamp_us: number }[];
 }
 
-export default function ShareModal({ open, onOpenChange, asset, frame, frameData, recentPrices = [], eventName }: ShareModalProps) {
+export default function ShareModal({ open, onOpenChange, asset, frame, frameData, recentPrices = [], eventName, allFrames = [] }: ShareModalProps) {
   const [activeTab, setActiveTab] = useState<'link' | 'image' | 'clip'>('link');
   const [copied, setCopied] = useState(false);
   const [clipDuration, setClipDuration] = useState<'5s' | '10s' | '30s'>('10s');
@@ -61,14 +62,119 @@ export default function ShareModal({ open, onOpenChange, asset, frame, frameData
     }
   }, []);
 
-  const handleExportClip = () => {
+  const handleExportClip = useCallback(async () => {
+    if (allFrames.length < 2) return;
     setExporting(true);
     setExportDone(false);
-    setTimeout(() => {
+
+    try {
+      const durationSeconds = parseInt(clipDuration);
+      const speedMultiplier = parseFloat(clipSpeed);
+      const W = 600, H = 300;
+      const fps = 20;
+      const totalFrames = fps * durationSeconds;
+      const startIdx = Math.max(0, frame - Math.floor(totalFrames * speedMultiplier / 2));
+      const endIdx = Math.min(allFrames.length - 1, startIdx + Math.floor(totalFrames * speedMultiplier));
+      const frameSlice = allFrames.slice(startIdx, endIdx + 1);
+      const step = Math.max(1, Math.floor(frameSlice.length / totalFrames));
+      const sampledFrames = frameSlice.filter((_, i) => i % step === 0).slice(0, totalFrames);
+
+      const prices = sampledFrames.map(f => f.price).filter(p => isFinite(p) && p > 0);
+      if (prices.length < 2) { setExporting(false); return; }
+      const minP = Math.min(...prices);
+      const maxP = Math.max(...prices);
+      const rangeP = maxP - minP || 1;
+
+      const canvas = document.createElement('canvas');
+      canvas.width = W; canvas.height = H;
+      const ctx = canvas.getContext('2d')!;
+
+      // Encode as APNG-like webm via MediaRecorder
+      const stream = canvas.captureStream(fps);
+      const recorder = new MediaRecorder(stream, { mimeType: 'video/webm;codecs=vp8', videoBitsPerSecond: 2500000 });
+      const chunks: Blob[] = [];
+      recorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
+
+      recorder.onstop = () => {
+        const blob = new Blob(chunks, { type: 'video/webm' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `market-dvr-${asset.replace('/', '-')}-clip.webm`;
+        a.click();
+        URL.revokeObjectURL(url);
+        setExporting(false);
+        setExportDone(true);
+      };
+
+      recorder.start();
+
+      const drawFrame = (i: number) => {
+        if (i >= sampledFrames.length) { recorder.stop(); return; }
+        const f = sampledFrames[i];
+        const visiblePrices = sampledFrames.slice(0, i + 1).map(d => d.price).filter(p => isFinite(p) && p > 0);
+
+        ctx.fillStyle = '#0d0d0d';
+        ctx.fillRect(0, 0, W, H);
+
+        // Grid lines
+        ctx.strokeStyle = 'rgba(255,255,255,0.04)';
+        ctx.lineWidth = 1;
+        for (let g = 0; g <= 4; g++) {
+          const y = (g / 4) * (H - 80) + 20;
+          ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+        }
+
+        // Price line
+        if (visiblePrices.length >= 2) {
+          ctx.beginPath();
+          visiblePrices.forEach((p, idx) => {
+            const x = (idx / (sampledFrames.length - 1)) * (W - 40) + 20;
+            const y = H - 80 - ((p - minP) / rangeP) * (H - 100);
+            idx === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+          });
+          ctx.strokeStyle = f.price >= sampledFrames[0].price ? '#32d74b' : '#ff453a';
+          ctx.lineWidth = 2;
+          ctx.stroke();
+
+          // Dot at current position
+          const cx = ((visiblePrices.length - 1) / (sampledFrames.length - 1)) * (W - 40) + 20;
+          const cy = H - 80 - ((f.price - minP) / rangeP) * (H - 100);
+          ctx.beginPath();
+          ctx.arc(cx, cy, 4, 0, Math.PI * 2);
+          ctx.fillStyle = f.price >= sampledFrames[0].price ? '#32d74b' : '#ff453a';
+          ctx.fill();
+        }
+
+        // Price label
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 22px Inter, sans-serif';
+        ctx.fillText(`$${f.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 16, H - 50);
+
+        // Asset label
+        ctx.fillStyle = 'rgba(255,255,255,0.5)';
+        ctx.font = '12px Inter, sans-serif';
+        ctx.fillText(asset, 16, H - 32);
+
+        // Spread
+        ctx.fillStyle = 'rgba(255,255,255,0.35)';
+        ctx.font = '11px Inter, sans-serif';
+        ctx.fillText(`Spread $${isFinite(f.spread) ? f.spread.toFixed(4) : '—'}`, 16, H - 16);
+
+        // Watermark
+        ctx.fillStyle = 'rgba(230,0,122,0.9)';
+        ctx.font = 'bold 11px Inter, sans-serif';
+        ctx.fillText('Market DVR · Pyth Pro', W - 150, H - 16);
+
+        setTimeout(() => drawFrame(i + 1), 1000 / fps);
+      };
+
+      drawFrame(0);
+    } catch (err) {
+      console.error('Clip export failed:', err);
       setExporting(false);
-      setExportDone(true);
-    }, 2500);
-  };
+    }
+  }, [allFrames, frame, clipDuration, clipSpeed, asset]);
 
   // Build sparkline for export card
   const sparkData = recentPrices.length >= 2 ? recentPrices : [];

@@ -848,6 +848,7 @@ export default function ReplayPage() {
         frame={frame}
         frameData={current}
         recentPrices={data.slice(Math.max(0, frame - 59), frame + 1).map(d => d.price)}
+        allFrames={data}
         eventName={
           eventPositions.some(p => Math.abs(frame - p) < 15)
             ? ['Flash Crash', 'Spread Spike', 'Recovery', 'Confidence Drop'][eventPositions.findIndex(p => Math.abs(frame - p) < 15)] + ` — Frame ${frame}`
