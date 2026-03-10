@@ -90,7 +90,7 @@ export default function HeatmapPage() {
               ? confValue / priceValue
               : 0;
             const confidenceNorm = isFinite(confRatio) && confRatio > 0
-              ? Math.max(0.6, Math.min(0.99, 1 - confRatio * 2000))
+              ? Math.max(0, Math.min(0.999, 1 - confRatio))
               : 0.75;
 
             const prevAsset = prevBySymbol.get(item.asset);

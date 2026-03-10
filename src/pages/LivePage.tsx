@@ -384,7 +384,7 @@ export default function LivePage() {
             const confValue = item.confidence * factor;
             const confRatio = (isFinite(confValue) && safePrice > 0) ? confValue / safePrice : 0;
             const confidenceNorm = isFinite(confRatio)
-              ? Math.max(0.6, Math.min(0.99, 1 - confRatio * 2000))
+              ? Math.max(0, Math.min(0.999, 1 - confRatio))
               : 0.75;
 
             const baseSparkline =

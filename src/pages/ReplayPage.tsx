@@ -115,7 +115,9 @@ export default function ReplayPage() {
           const p = t.price * Math.pow(10, t.exponent);
           const b = t.best_bid * Math.pow(10, t.exponent);
           const a = t.best_ask * Math.pow(10, t.exponent);
-          const conf = t.confidence * Math.pow(10, t.exponent);
+          const confAbs = t.confidence * Math.pow(10, t.exponent);
+          const safeP = isFinite(p) && p > 0 ? p : 1;
+          const confNorm = isFinite(confAbs) && confAbs > 0 ? Math.max(0, Math.min(0.999, 1 - confAbs / safeP)) : 0.95;
           return {
             time: i,
             timestamp_us: Number(t.timestamp_us || t.start_time || 0),
@@ -123,7 +125,7 @@ export default function ReplayPage() {
             bid: b,
             ask: a,
             spread: a - b,
-            confidence: conf,
+            confidence: confNorm,
           };
         }).filter((d: any) => isFinite(d.price) && d.price > 0);
         setData(mapped);
