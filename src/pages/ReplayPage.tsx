@@ -237,8 +237,9 @@ export default function ReplayPage() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleKeyDown]);
 
-  const current = data[frame];
-  const prev = data[Math.max(0, frame - 1)];
+  const emptyTick = { time: 0, timestamp_us: 0, price: 0, bid: 0, ask: 0, spread: 0, confidence: 0 };
+  const current = data[frame] ?? emptyTick;
+  const prev = data[Math.max(0, frame - 1)] ?? emptyTick;
   const priceChange = current.price - prev.price;
 
   const useCompare = compareMode && compareData.length > 0;
@@ -247,7 +248,7 @@ export default function ReplayPage() {
   const chartWidth = 800;
   const chartHeight = isMobile ? 160 : 300;
 
-  const startPrice1 = data[0].price;
+  const startPrice1 = (data[0] ?? emptyTick).price;
   const startPrice2 = useCompare ? compareData[0].price : 0;
 
   let minP: number, maxP: number, rangeP: number;
