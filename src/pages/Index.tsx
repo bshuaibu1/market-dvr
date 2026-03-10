@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useRef, useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import DVRDevice from '@/components/DVRDevice';
@@ -6,6 +6,8 @@ import Footer from '@/components/Footer';
 import HeroReplayCard from '@/components/HeroReplayCard';
 import FirstVisitCTA from '@/components/FirstVisitCTA';
 import { Activity, Search, Share2 } from 'lucide-react';
+import Navbar from '@/components/Navbar';
+import { useTheme } from '@/components/ThemeProvider';
 
 const features = [
   {
@@ -48,6 +50,8 @@ const particles = Array.from({ length: 40 }, () => ({
 }));
 
 export default function Index() {
+  const { theme } = useTheme();
+  const isLight = theme === 'light';
   const heroRef = useRef<HTMLElement>(null);
   const [tilt, setTilt] = useState({ x: 0, y: 0 });
 
@@ -67,12 +71,13 @@ export default function Index() {
 
   return (
     <div className="min-h-screen bg-background overflow-hidden">
+      <Navbar />
       {/* Hero */}
       <section
         ref={heroRef}
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
-        className="relative flex flex-col items-center justify-center px-4 md:px-6 pt-24 md:pt-32 pb-16"
+        className="relative flex flex-col items-center justify-center px-4 md:px-6 pt-28 md:pt-36 pb-16"
       >
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/3 w-[600px] h-[600px] gradient-orb opacity-40 blur-3xl pointer-events-none" />
         <div
@@ -95,7 +100,7 @@ export default function Index() {
                 height: p.size,
                 left: `${p.x}%`,
                 top: `${p.y}%`,
-                background: 'rgba(255,255,255,0.15)',
+                background: isLight ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.15)',
                 willChange: 'transform, opacity',
               }}
               animate={{
