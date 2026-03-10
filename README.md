@@ -1,73 +1,149 @@
-# Welcome to your Lovable project
+# 📼 Market DVR
 
-## Project info
+> A DVR for financial markets. Record crashes, pumps, and news shocks — then replay them frame-by-frame at sub-second resolution.
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+**Live demo:** [dvr.masterwattson.site](https://dvr.masterwattson.site)
 
-## How can I edit this code?
+Built for the **Pyth Pro Hackathon** — powered by [Pyth Lazer](https://pyth.network/) real-time price feeds.
 
-There are several ways of editing your application.
+---
 
-**Use Lovable**
+## What is Market DVR?
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+Traditional charting tools show you *that* something happened. Market DVR shows you *how* it happened — at millisecond precision.
 
-Changes made via Lovable will be committed automatically to this repo.
+When a flash crash hits, a whale dumps, or a news shock ripples through correlated assets, Market DVR captures every tick and lets you scrub through the event like rewinding a DVR. You can pause, step frame-by-frame, and watch exactly how price, spread, and confidence evolved in real time.
 
-**Use your preferred IDE**
+---
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+## Features
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+### 📺 Live Page
+- Real-time prices for 16 assets across crypto, commodities, and forex
+- 5-minute % change, bid-ask spread, and Pyth confidence score per asset
+- Market Pulse chart — normalized % change for BTC, ETH, SOL overlaid
+- Correlation Matrix — live Pearson correlation updated every 5 seconds
+- Recent Events feed — automatically detected volatility spikes, spread spikes, confidence divergences
 
-Follow these steps:
+### 🎬 Replay Page
+- Scrub through any recorded event frame-by-frame
+- Playback speeds: 50ms, 200ms, 5s, 30s, 1m
+- Frame inspector — price, spread, confidence, bid/ask at each tick
+- **Live tail mode** — follow the latest ticks in real time (auto-detaches on scrub)
+- Shock Propagation panel — see how a price shock in one asset rippled to correlated peers
+- Pyth Pro badge on sub-second timeframes
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+### 🗺️ Heatmap Page
+- Volatility heatmap across all 16 assets
+- Market Stress Gauge — composite score of spread, confidence, and volatility
+- Top Movers — ranked by absolute % change with confidence scores
+- Live Correlations — 5 key asset pairs with real-time Pearson correlation bars
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+### 📋 Events Page
+- Full log of 40,000+ automatically detected market events
+- Filter by type: volatility spike, spread spike, confidence divergence
+- Search by asset
+- Stats: total events, crash count, avg duration, most active asset
+- One-click Replay → jump straight to any event
 
-# Step 3: Install the necessary dependencies.
-npm i
+---
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+## Tech Stack
+
+| Layer | Technology |
+|---|---|
+| Data | Pyth Lazer (Pyth Pro) — real-time WebSocket feed |
+| Backend | Node.js + Express + WebSocket server |
+| Database | PostgreSQL — tick storage + event detection |
+| Frontend | React + Vite + TypeScript |
+| Styling | Tailwind CSS + Framer Motion |
+| Hosting | VPS + Caddy reverse proxy |
+
+---
+
+## Architecture
+
+```
+Pyth Lazer WebSocket
+        │
+        ▼
+  Node.js Backend
+  ├── Tick recorder → PostgreSQL
+  ├── Event detector (volatility / spread / confidence)
+  ├── In-memory latest tick cache
+  ├── REST API (/latest, /ticks, /events)
+  └── WebSocket broadcast → frontend
+        │
+        ▼
+  React Frontend
+  ├── Live Page   — polling /latest every 1s
+  ├── Replay Page — fetching tick ranges from DB
+  ├── Heatmap     — derived from live tick data
+  └── Events Page — paginated event log from DB
+```
+
+---
+
+## Assets Tracked (16 feeds)
+
+**Crypto:** BTC/USD, ETH/USD, SOL/USD, BNB/USD, BONK/USD, WIF/USD, DOGE/USD, PYTH/USD
+
+**Commodities:** XAU/USD (Gold), XAG/USD (Silver)
+
+**Forex:** EUR/USD, GBP/USD, USD/JPY, USD/CHF, AUD/USD, USD/CAD
+
+---
+
+## Event Detection
+
+The backend continuously monitors each feed and auto-detects:
+
+- **Volatility Spike** — price deviates >0.05% from rolling 50-tick average
+- **Spread Spike** — bid-ask spread widens >3x baseline
+- **Confidence Divergence** — Pyth confidence score drops >3x baseline
+
+Each event is stored with full metadata: start/end time, first/last price, peak spread, duration.
+
+---
+
+## Running Locally
+
+```bash
+# Backend
+cd backend
+npm install
+cp .env.example .env  # add your Pyth Pro token + DB credentials
+node index.js
+
+# Frontend
+npm install
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+**Environment variables needed:**
+```
+PYTH_ACCESS_TOKEN=your_pyth_pro_token
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=market_dvr
+DB_USER=postgres
+DB_PASSWORD=your_password
+```
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+---
 
-**Use GitHub Codespaces**
+## Why Pyth Pro?
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+Standard price feeds update every few seconds. Pyth Pro (Lazer) delivers:
+- **Real-time** WebSocket streaming at sub-second resolution
+- **Bid/ask spread** data — not just mid price
+- **Confidence intervals** — Pyth's own uncertainty metric per tick
+- **50ms and 200ms channels** — true millisecond market microstructure
 
-## What technologies are used for this project?
+This is what makes the DVR concept possible. Without sub-second data, you can't see the microstructure of a crash — just its aftermath.
 
-This project is built with:
+---
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+## License
 
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+MIT

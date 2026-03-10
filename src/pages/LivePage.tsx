@@ -86,11 +86,12 @@ function MarketPulseChart({ assets, isLight }: { assets: AssetWithClass[]; isLig
 
   const lines = useMemo(() => {
     return assets.map(asset => {
-      const sparkline = asset.sparkline;
+      const sparkline = asset.sparkline.filter(v => isFinite(v) && !isNaN(v));
       if (sparkline.length < 2) return null;
       const basePrice = sparkline[0];
-      // #4: More volatile data — amplify variance
+      if (!basePrice || basePrice === 0) return null;
       const pctChanges = sparkline.map(p => ((p - basePrice) / basePrice) * 100);
+      if (pctChanges.some(v => !isFinite(v))) return null;
       const min = Math.min(...pctChanges);
       const max = Math.max(...pctChanges);
       return { symbol: asset.symbol, pctChanges, min, max, currentPct: pctChanges[pctChanges.length - 1] };
@@ -339,7 +340,10 @@ export default function LivePage() {
 
             const factor = Math.pow(10, item.exponent);
             const priceValue = item.price * factor;
-            const spreadValue = Math.abs(item.best_ask - item.best_bid) * factor;
+            const spreadValue = (isFinite(item.best_ask) && isFinite(item.best_bid))
+              ? Math.abs(item.best_ask - item.best_bid) * factor
+              : 0;
+            const safePrice = isFinite(priceValue) && priceValue > 0 ? priceValue : 1;
 
             if (!priceHistoryRef.current[item.asset]) {
               priceHistoryRef.current[item.asset] = [];
@@ -372,24 +376,26 @@ export default function LivePage() {
               }
             }
 
-            const change = baselineEntry.price > 0 ? ((priceValue - baselineEntry.price) / baselineEntry.price) * 100 : 0;
+            const change = (isFinite(priceValue) && baselineEntry.price > 0)
+              ? ((priceValue - baselineEntry.price) / baselineEntry.price) * 100
+              : 0;
 
             const prevAsset = prevBySymbol.get(item.asset);
-            const confidencePct =
-              100 -
-              ((item.confidence * factor) / item.price) * 100;
-            const confidenceNorm = Math.max(0, Math.min(1, confidencePct / 100));
+            const confValue = item.confidence * factor;
+            const confRatio = (isFinite(confValue) && safePrice > 0) ? confValue / safePrice : 0;
+            const confidenceNorm = isFinite(confRatio)
+              ? Math.max(0.6, Math.min(0.99, 1 - confRatio * 2000))
+              : 0.75;
 
             const baseSparkline =
               prevAsset && prevAsset.sparkline.length > 0
                 ? prevAsset.sparkline
-                : [priceValue];
-            const sparkline = [...baseSparkline, priceValue].slice(-60);
+                : [safePrice];
+            const sparkline = [...baseSparkline, safePrice]
+              .filter(v => isFinite(v) && !isNaN(v))
+              .slice(-60);
 
-            const volatile =
-              Math.abs(change) > 1 || priceValue > 0
-                ? (spreadValue / priceValue) > 0.001
-                : false;
+            const volatile = Math.abs(change) > 0.5 || (spreadValue / safePrice) > 0.0005;
 
             return {
               symbol: item.asset,

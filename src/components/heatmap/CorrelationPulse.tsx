@@ -15,8 +15,8 @@ const targetPairs = [
 ];
 
 function pearsonCorrelation(x: number[], y: number[]) {
-  let arrX = x;
-  let arrY = y;
+  let arrX = x.filter(v => isFinite(v) && !isNaN(v));
+  let arrY = y.filter(v => isFinite(v) && !isNaN(v));
   if (arrX.length !== arrY.length) {
     const minLen = Math.min(arrX.length, arrY.length);
     arrX = arrX.slice(-minLen);
@@ -33,8 +33,9 @@ function pearsonCorrelation(x: number[], y: number[]) {
 
   const num = n * sumXY - sumX * sumY;
   const den = Math.sqrt((n * sumX2 - sumX * sumX) * (n * sumY2 - sumY * sumY));
-  if (den === 0) return 0;
-  return num / den;
+  if (den === 0 || !isFinite(den)) return 0;
+  const r = num / den;
+  return isFinite(r) ? Math.max(-1, Math.min(1, r)) : 0;
 }
 
 export default function CorrelationPulse({ assets = [] }: CorrelationPulseProps) {
