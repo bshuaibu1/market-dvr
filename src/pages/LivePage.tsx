@@ -80,13 +80,21 @@ function MarketPulseChart({ assets, isLight }: { assets: AssetWithClass[]; isLig
   const height = isMobile ? 140 : 200;
   const padding = { top: 15, right: 50, bottom: 15, left: 10 };
 
-  const lightColors: Record<string, string> = {
-    'BTC/USD': '#0055d4', 'ETH/USD': '#0a84ff', 'SOL/USD': '#32d74b',
-  };
+  // Show top 6 most volatile assets for a busier, more interesting chart
+  const displayAssets = useMemo(() => {
+    const sorted = [...assets]
+      .filter(a => a.sparkline.filter(v => isFinite(v) && v > 0).length >= 2)
+      .sort((a, b) => Math.abs(b.change) - Math.abs(a.change));
+    // Always include BTC, ETH, SOL — fill rest with top movers
+    const priority = ['BTC/USD', 'ETH/USD', 'SOL/USD'];
+    const top = sorted.filter(a => priority.includes(a.symbol));
+    const rest = sorted.filter(a => !priority.includes(a.symbol)).slice(0, 3);
+    return [...top, ...rest].slice(0, 6);
+  }, [assets]);
 
   const lines = useMemo(() => {
-    return assets.map(asset => {
-      const sparkline = asset.sparkline.filter(v => isFinite(v) && !isNaN(v));
+    return displayAssets.map(asset => {
+      const sparkline = asset.sparkline.filter(v => isFinite(v) && !isNaN(v) && v > 0);
       if (sparkline.length < 2) return null;
       const basePrice = sparkline[0];
       if (!basePrice || basePrice === 0) return null;
@@ -96,11 +104,19 @@ function MarketPulseChart({ assets, isLight }: { assets: AssetWithClass[]; isLig
       const max = Math.max(...pctChanges);
       return { symbol: asset.symbol, pctChanges, min, max, currentPct: pctChanges[pctChanges.length - 1] };
     }).filter(Boolean) as { symbol: string; pctChanges: number[]; min: number; max: number; currentPct: number }[];
-  }, [assets]);
+  }, [displayAssets]);
 
-  const allMin = Math.min(...lines.map(l => l.min), -1.5);
-  const allMax = Math.max(...lines.map(l => l.max), 1.5);
+  // Auto-scale: use actual data range, with a small minimum so it never looks totally flat
+  const dataMin = lines.length > 0 ? Math.min(...lines.map(l => l.min)) : -0.05;
+  const dataMax = lines.length > 0 ? Math.max(...lines.map(l => l.max)) : 0.05;
+  const dataRange = dataMax - dataMin;
+  // Ensure minimum visible range of 0.02% so flat markets still show some detail
+  const minRange = 0.02;
+  const padding_pct = Math.max(dataRange * 0.2, minRange / 2);
+  const allMin = dataMin - padding_pct;
+  const allMax = dataMax + padding_pct;
   const range = allMax - allMin || 1;
+
   const chartW = width - padding.left - padding.right;
   const chartH = height - padding.top - padding.bottom;
 
@@ -108,14 +124,24 @@ function MarketPulseChart({ assets, isLight }: { assets: AssetWithClass[]; isLig
   const zeroColor = isLight ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.06)';
   const yLabelColor = isLight ? 'rgba(0,0,0,0.25)' : 'rgba(255,255,255,0.25)';
 
-  // Y-axis positions for grid lines
   const yZero = padding.top + ((allMax - 0) / range) * chartH;
-  const yTop = padding.top + ((allMax - allMax * 0.75) / range) * chartH;
-  const yBot = padding.top + ((allMax - allMin * 0.75) / range) * chartH;
+  const showZeroLine = yZero > padding.top && yZero < padding.top + chartH;
 
-  // Y-axis labels
-  const topLabel = `+${(allMax * 0.75).toFixed(1)}%`;
-  const botLabel = `${(allMin * 0.75).toFixed(1)}%`;
+  const fmt = (v: number) => v >= 0 ? `+${v.toFixed(3)}%` : `${v.toFixed(3)}%`;
+
+  // Color palette for up to 6 lines
+  const lineColors: Record<string, string> = {
+    'BTC/USD': isLight ? '#0055d4' : '#f5f5f7',
+    'ETH/USD': isLight ? '#0a84ff' : '#0a84ff',
+    'SOL/USD': isLight ? '#1a8f35' : '#32d74b',
+    'BNB/USD': isLight ? '#b8860b' : '#ffd60a',
+    'BONK/USD': isLight ? '#9d0060' : '#e6007a',
+    'WIF/USD': isLight ? '#cc2200' : '#ff453a',
+    'DOGE/USD': isLight ? '#8b6914' : '#c2a633',
+    'XAU/USD': isLight ? '#b8860b' : '#ffd700',
+    'EUR/USD': isLight ? '#0055d4' : '#5ac8fa',
+  };
+  const fallbackColors = ['#bf5af2', '#30b0c7', '#ff9f0a', '#34c759', '#ff375f', '#636366'];
 
   return (
     <svg width="100%" height={height} viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none">
@@ -125,23 +151,23 @@ function MarketPulseChart({ assets, isLight }: { assets: AssetWithClass[]; isLig
         return <line key={f} x1={padding.left} x2={width - padding.right} y1={y} y2={y} stroke={gridColor} strokeWidth="1" />;
       })}
       {/* Zero line */}
-      <line x1={padding.left} x2={width - padding.right} y1={yZero} y2={yZero} stroke={zeroColor} strokeWidth="1" strokeDasharray="4 4" />
-      {/* Y-axis labels */}
-      <text x={width - padding.right + 6} y={yTop + 3} fill={yLabelColor} fontSize="10" fontFamily="Inter, sans-serif" style={{ fontVariantNumeric: 'tabular-nums' }}>{topLabel}</text>
-      <text x={width - padding.right + 6} y={yZero + 3} fill={yLabelColor} fontSize="10" fontFamily="Inter, sans-serif">0%</text>
-      <text x={width - padding.right + 6} y={yBot + 3} fill={yLabelColor} fontSize="10" fontFamily="Inter, sans-serif" style={{ fontVariantNumeric: 'tabular-nums' }}>{botLabel}</text>
+      {showZeroLine && (
+        <line x1={padding.left} x2={width - padding.right} y1={yZero} y2={yZero} stroke={zeroColor} strokeWidth="1" strokeDasharray="4 4" />
+      )}
+      {/* Y-axis labels — top, zero, bottom */}
+      <text x={width - padding.right + 6} y={padding.top + 3} fill={yLabelColor} fontSize="10" fontFamily="Inter, sans-serif">{fmt(allMax)}</text>
+      {showZeroLine && <text x={width - padding.right + 6} y={yZero + 3} fill={yLabelColor} fontSize="10" fontFamily="Inter, sans-serif">0%</text>}
+      <text x={width - padding.right + 6} y={padding.top + chartH} fill={yLabelColor} fontSize="10" fontFamily="Inter, sans-serif">{fmt(allMin)}</text>
       {/* Lines */}
-      {lines.map(line => {
+      {lines.map((line, idx) => {
         const points = line.pctChanges.map((pct, i) => {
           const x = padding.left + (i / (line.pctChanges.length - 1)) * chartW;
           const y = padding.top + ((allMax - pct) / range) * chartH;
           return `${x},${y}`;
         }).join(' ');
-        const color = isLight
-          ? (lightColors[line.symbol] || '#666666')
-          : (assetColors[line.symbol] || '#f5f5f7');
+        const color = lineColors[line.symbol] || fallbackColors[idx % fallbackColors.length];
         return (
-          <polyline key={line.symbol} points={points} fill="none" stroke={color} strokeWidth={isLight ? '2' : '1.5'} strokeLinecap="round" strokeLinejoin="round" opacity={isLight ? '1' : '0.8'} />
+          <polyline key={line.symbol} points={points} fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.85" />
         );
       })}
     </svg>
@@ -305,7 +331,9 @@ export default function LivePage() {
   const { theme } = useTheme();
   const isLight = theme === 'light';
   const lightLegendColors: Record<string, string> = {
-    'BTC/USD': '#0055d4', 'ETH/USD': '#0a84ff', 'SOL/USD': '#32d74b',
+    'BTC/USD': '#0055d4', 'ETH/USD': '#0a84ff', 'SOL/USD': '#1a8f35',
+    'BNB/USD': '#b8860b', 'BONK/USD': '#9d0060', 'WIF/USD': '#cc2200',
+    'DOGE/USD': '#8b6914', 'XAU/USD': '#b8860b', 'EUR/USD': '#0055d4',
   };
   const [assets, setAssets] = useState<AssetWithClass[]>([]);
   const [events, setEvents] = useState<ApiEvent[]>([]);
@@ -463,12 +491,11 @@ export default function LivePage() {
   }, [assets, activeTab, search]);
 
   const pulseAssets = useMemo(() => {
-    if (activeTab === 'all') {
-      return assets.filter(a =>
-        a.symbol === 'BTC/USD' || a.symbol === 'ETH/USD' || a.symbol === 'SOL/USD'
-      );
-    }
-    return filteredAssets;
+    const pool = activeTab === 'all' ? assets : filteredAssets;
+    const priority = ['BTC/USD', 'ETH/USD', 'SOL/USD'];
+    const top = pool.filter(a => priority.includes(a.symbol));
+    const rest = [...pool].filter(a => !priority.includes(a.symbol)).sort((a, b) => Math.abs(b.change) - Math.abs(a.change)).slice(0, 3);
+    return [...top, ...rest].slice(0, 6);
   }, [assets, filteredAssets, activeTab]);
 
   const allEvents = events;
