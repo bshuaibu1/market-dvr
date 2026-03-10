@@ -38,7 +38,7 @@ export default function ShareModal({ open, onOpenChange, asset, frame, frameData
   const handleDownloadPng = useCallback(async () => {
     if (!cardRef.current) return;
     try {
-      const dataUrl = await toPng(cardRef.current, { backgroundColor: '#0d0d0d', pixelRatio: 2 });
+      const dataUrl = await toPng(cardRef.current, { backgroundColor: '#0d0d0d', pixelRatio: 3 });
       const link = document.createElement('a');
       link.download = `market-dvr-${asset.replace('/', '-')}-frame-${frame}.png`;
       link.href = dataUrl;
@@ -51,7 +51,7 @@ export default function ShareModal({ open, onOpenChange, asset, frame, frameData
   const handleCopyImage = useCallback(async () => {
     if (!cardRef.current) return;
     try {
-      const dataUrl = await toPng(cardRef.current, { backgroundColor: '#0d0d0d', pixelRatio: 2 });
+      const dataUrl = await toPng(cardRef.current, { backgroundColor: '#0d0d0d', pixelRatio: 3 });
       const res = await fetch(dataUrl);
       const blob = await res.blob();
       await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
@@ -316,8 +316,8 @@ export default function ShareModal({ open, onOpenChange, asset, frame, frameData
 
       {activeTab === 'link' ? (
         <div className="space-y-3">
-          <div className="flex items-center gap-2 rounded-xl p-3" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
-            <span className="text-xs text-muted-foreground truncate flex-1 tabular-nums min-w-0">{shareUrl}</span>
+          <div className="flex items-center gap-2 rounded-xl p-3 overflow-hidden" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
+            <span className="text-xs text-muted-foreground flex-1 tabular-nums min-w-0 overflow-hidden" style={{ whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden', display: 'block' }}>{shareUrl}</span>
             <button
               onClick={handleCopyLink}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-primary-foreground apple-transition flex-shrink-0"
@@ -334,7 +334,7 @@ export default function ShareModal({ open, onOpenChange, asset, frame, frameData
           <div
             ref={cardRef}
             className="rounded-2xl p-6 space-y-3 mx-auto"
-            style={{ background: '#0d0d0d', border: '1px solid rgba(255,255,255,0.12)', width: 600, maxWidth: '100%' }}
+            style={{ background: '#0d0d0d', border: '1px solid rgba(255,255,255,0.12)', width: '100%', overflow: 'hidden' }}
           >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
