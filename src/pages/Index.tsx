@@ -5,8 +5,7 @@ import DVRDevice from '@/components/DVRDevice';
 import Footer from '@/components/Footer';
 import HeroReplayCard from '@/components/HeroReplayCard';
 import FirstVisitCTA from '@/components/FirstVisitCTA';
-import { Activity, Search, Share2 } from 'lucide-react';
-import Navbar from '@/components/Navbar';
+import { Activity, Search, Share2, Sun, Moon } from 'lucide-react';
 import { useTheme } from '@/components/ThemeProvider';
 
 const features = [
@@ -50,7 +49,7 @@ const particles = Array.from({ length: 40 }, () => ({
 }));
 
 export default function Index() {
-  const { theme } = useTheme();
+  const { theme, toggleTheme } = useTheme();
   const isLight = theme === 'light';
   const heroRef = useRef<HTMLElement>(null);
   const [tilt, setTilt] = useState({ x: 0, y: 0 });
@@ -71,13 +70,23 @@ export default function Index() {
 
   return (
     <div className="min-h-screen bg-background overflow-hidden">
-      <Navbar />
+      {/* Theme toggle — top right */}
+      <div className="fixed top-4 right-4 z-50">
+        <button
+          onClick={toggleTheme}
+          className="w-9 h-9 rounded-full flex items-center justify-center apple-transition"
+          style={{ background: isLight ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.08)', color: isLight ? '#1d1d1f' : '#fff' }}
+          aria-label="Toggle theme"
+        >
+          {theme === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
+        </button>
+      </div>
       {/* Hero */}
       <section
         ref={heroRef}
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
-        className="relative flex flex-col items-center justify-center px-4 md:px-6 pt-28 md:pt-36 pb-16"
+        className="relative flex flex-col items-center justify-center px-4 md:px-6 pt-24 md:pt-32 pb-16"
       >
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/3 w-[600px] h-[600px] gradient-orb opacity-40 blur-3xl pointer-events-none" />
         <div
