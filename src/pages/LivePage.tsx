@@ -14,12 +14,12 @@ import { useIsMobile } from '@/hooks/use-mobile';
 
 interface LatestApiAsset {
   asset: string;
-  price: number;
-  best_bid: number;
-  best_ask: number;
-  confidence: number;
-  exponent: number;
-  timestamp_us: number;
+  price: number | string;
+  best_bid: number | string;
+  best_ask: number | string;
+  confidence: number | string;
+  exponent: number | string;
+  timestamp_us: number | string;
 }
 
 interface ApiEvent {
@@ -75,8 +75,9 @@ const assetMetaBySymbol: Record<string, { name: string; assetClass: AssetClass }
   {} as Record<string, { name: string; assetClass: AssetClass }>
 );
 
-function hasFiniteNumber(v: unknown): v is number {
-  return typeof v === 'number' && Number.isFinite(v);
+function toFiniteNumber(v: unknown): number | null {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
 }
 
 function formatSpreadDisplay(spread: number, hasBidAsk: boolean) {
@@ -117,8 +118,8 @@ function MarketPulseChart({ assets, isLight }: { assets: AssetWithClass[]; isLig
       if (pctChanges.some(v => !isFinite(v))) return null;
       const min = Math.min(...pctChanges);
       const max = Math.max(...pctChanges);
-      return { symbol: asset.symbol, pctChanges, min, max, currentPct: pctChanges[pctChanges.length - 1] };
-    }).filter(Boolean) as { symbol: string; pctChanges: number[]; min: number; max: number; currentPct: number }[];
+      return { symbol: asset.symbol, pctChanges, min, max };
+    }).filter(Boolean) as { symbol: string; pctChanges: number[]; min: number; max: number }[];
   }, [displayAssets]);
 
   const dataMin = lines.length > 0 ? Math.min(...lines.map(l => l.min)) : -0.05;
@@ -373,11 +374,18 @@ export default function LivePage() {
               assetClass: 'crypto' as AssetClass,
             };
 
-            const factor = Math.pow(10, item.exponent);
-            const priceValue = item.price * factor;
-            const hasBidAsk = hasFiniteNumber(item.best_ask) && hasFiniteNumber(item.best_bid);
+            const exponentNum = toFiniteNumber(item.exponent) ?? 0;
+            const factor = Math.pow(10, exponentNum);
+
+            const priceNum = toFiniteNumber(item.price) ?? 0;
+            const bidNum = toFiniteNumber(item.best_bid);
+            const askNum = toFiniteNumber(item.best_ask);
+            const confNum = toFiniteNumber(item.confidence) ?? 0;
+
+            const priceValue = priceNum * factor;
+            const hasBidAsk = bidNum !== null && askNum !== null;
             const spreadValue = hasBidAsk
-              ? Math.abs(item.best_ask - item.best_bid) * factor
+              ? Math.abs(askNum - bidNum) * factor
               : NaN;
 
             const safePrice = isFinite(priceValue) && priceValue > 0 ? priceValue : 1;
@@ -415,7 +423,7 @@ export default function LivePage() {
               : 0;
 
             const prevAsset = prevBySymbol.get(item.asset);
-            const confValue = item.confidence * factor;
+            const confValue = confNum * factor;
             const confRatio = (isFinite(confValue) && safePrice > 0) ? confValue / safePrice : 0;
             const confidenceNorm = isFinite(confRatio)
               ? Math.max(0, Math.min(0.999, 1 - confRatio))
