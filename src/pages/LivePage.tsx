@@ -125,9 +125,9 @@ function MarketPulseChart({ assets, isLight }: { assets: AssetWithClass[]; isLig
   const dataMax = lines.length > 0 ? Math.max(...lines.map(l => l.max)) : 0.05;
   const dataRange = dataMax - dataMin;
   const minRange = 0.02;
-  const padding_pct = Math.max(dataRange * 0.2, minRange / 2);
-  const allMin = dataMin - padding_pct;
-  const allMax = dataMax + padding_pct;
+  const paddingPct = Math.max(dataRange * 0.2, minRange / 2);
+  const allMin = dataMin - paddingPct;
+  const allMax = dataMax + paddingPct;
   const range = allMax - allMin || 1;
 
   const chartW = width - padding.left - padding.right;
@@ -217,7 +217,7 @@ function AllAssetsTable({ assets, isLight }: { assets: AssetWithSpreadMeta[]; is
             <tr style={{ borderBottom: `1px solid ${headerBorder}` }}>
               <th className="text-left py-3 px-3 md:px-4 font-normal" style={{ fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: headerColor }}>Asset</th>
               {!isMobile && <th className="text-left py-3 px-4 font-normal" style={{ fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: headerColor }}>Class</th>}
-              <th className="text-right py-3 px-3 md:px-4 font-normal" style={{ fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: headerColor }}>Price</th>}
+              <th className="text-right py-3 px-3 md:px-4 font-normal" style={{ fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: headerColor }}>Price</th>
               <th className="text-right py-3 px-3 md:px-4 font-normal" style={{ fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: headerColor }}>Change %</th>
               {!isMobile && <th className="text-right py-3 px-4 font-normal" style={{ fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: headerColor }}>Spread</th>}
               {!isMobile && <th className="text-center py-3 px-4 font-normal" style={{ fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: headerColor }}>Confidence</th>}
