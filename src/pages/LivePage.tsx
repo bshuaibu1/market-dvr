@@ -31,6 +31,7 @@ interface ApiEvent {
 }
 
 type TabType = 'all' | 'crypto' | 'commodities' | 'forex';
+type AssetWithSpreadMeta = AssetWithClass & { hasBidAsk?: boolean };
 
 const tabs: { value: TabType; label: string }[] = [
   { value: 'all', label: 'All' },
@@ -74,18 +75,32 @@ const assetMetaBySymbol: Record<string, { name: string; assetClass: AssetClass }
   {} as Record<string, { name: string; assetClass: AssetClass }>
 );
 
+function hasFiniteNumber(v: unknown): v is number {
+  return typeof v === 'number' && Number.isFinite(v);
+}
+
+function formatSpreadDisplay(spread: number, hasBidAsk: boolean) {
+  if (!hasBidAsk || !Number.isFinite(spread)) return '—';
+  if (spread === 0) return '$0.00';
+
+  const abs = Math.abs(spread);
+  if (abs < 0.000001) return `$${spread.toFixed(9)}`;
+  if (abs < 0.0001) return `$${spread.toFixed(8)}`;
+  if (abs < 0.01) return `$${spread.toFixed(6)}`;
+  if (abs < 1) return `$${spread.toFixed(4)}`;
+  return `$${spread.toFixed(2)}`;
+}
+
 function MarketPulseChart({ assets, isLight }: { assets: AssetWithClass[]; isLight: boolean }) {
   const isMobile = useIsMobile();
   const width = 800;
   const height = isMobile ? 140 : 200;
   const padding = { top: 15, right: 50, bottom: 15, left: 10 };
 
-  // Show top 6 most volatile assets for a busier, more interesting chart
   const displayAssets = useMemo(() => {
     const sorted = [...assets]
       .filter(a => a.sparkline.filter(v => isFinite(v) && v > 0).length >= 2)
       .sort((a, b) => Math.abs(b.change) - Math.abs(a.change));
-    // Always include BTC, ETH, SOL — fill rest with top movers
     const priority = ['BTC/USD', 'ETH/USD', 'SOL/USD'];
     const top = sorted.filter(a => priority.includes(a.symbol));
     const rest = sorted.filter(a => !priority.includes(a.symbol)).slice(0, 3);
@@ -106,11 +121,9 @@ function MarketPulseChart({ assets, isLight }: { assets: AssetWithClass[]; isLig
     }).filter(Boolean) as { symbol: string; pctChanges: number[]; min: number; max: number; currentPct: number }[];
   }, [displayAssets]);
 
-  // Auto-scale: use actual data range, with a small minimum so it never looks totally flat
   const dataMin = lines.length > 0 ? Math.min(...lines.map(l => l.min)) : -0.05;
   const dataMax = lines.length > 0 ? Math.max(...lines.map(l => l.max)) : 0.05;
   const dataRange = dataMax - dataMin;
-  // Ensure minimum visible range of 0.02% so flat markets still show some detail
   const minRange = 0.02;
   const padding_pct = Math.max(dataRange * 0.2, minRange / 2);
   const allMin = dataMin - padding_pct;
@@ -129,7 +142,6 @@ function MarketPulseChart({ assets, isLight }: { assets: AssetWithClass[]; isLig
 
   const fmt = (v: number) => v >= 0 ? `+${v.toFixed(3)}%` : `${v.toFixed(3)}%`;
 
-  // Color palette for up to 6 lines
   const lineColors: Record<string, string> = {
     'BTC/USD': isLight ? '#0055d4' : '#f5f5f7',
     'ETH/USD': isLight ? '#0a84ff' : '#0a84ff',
@@ -145,20 +157,16 @@ function MarketPulseChart({ assets, isLight }: { assets: AssetWithClass[]; isLig
 
   return (
     <svg width="100%" height={height} viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none">
-      {/* Grid lines */}
       {[0.25, 0.5, 0.75].map(f => {
         const y = padding.top + f * chartH;
         return <line key={f} x1={padding.left} x2={width - padding.right} y1={y} y2={y} stroke={gridColor} strokeWidth="1" />;
       })}
-      {/* Zero line */}
       {showZeroLine && (
         <line x1={padding.left} x2={width - padding.right} y1={yZero} y2={yZero} stroke={zeroColor} strokeWidth="1" strokeDasharray="4 4" />
       )}
-      {/* Y-axis labels — top, zero, bottom */}
       <text x={width - padding.right + 6} y={padding.top + 3} fill={yLabelColor} fontSize="10" fontFamily="Inter, sans-serif">{fmt(allMax)}</text>
       {showZeroLine && <text x={width - padding.right + 6} y={yZero + 3} fill={yLabelColor} fontSize="10" fontFamily="Inter, sans-serif">0%</text>}
       <text x={width - padding.right + 6} y={padding.top + chartH} fill={yLabelColor} fontSize="10" fontFamily="Inter, sans-serif">{fmt(allMin)}</text>
-      {/* Lines */}
       {lines.map((line, idx) => {
         const points = line.pctChanges.map((pct, i) => {
           const x = padding.left + (i / (line.pctChanges.length - 1)) * chartW;
@@ -187,7 +195,7 @@ function SectionLabel({ label, isLight }: { label: string; isLight: boolean }) {
   );
 }
 
-function AllAssetsTable({ assets, isLight }: { assets: AssetWithClass[]; isLight: boolean }) {
+function AllAssetsTable({ assets, isLight }: { assets: AssetWithSpreadMeta[]; isLight: boolean }) {
   const isMobile = useIsMobile();
   const navigate = useNavigate();
   const headerBorder = isLight ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.06)';
@@ -209,7 +217,7 @@ function AllAssetsTable({ assets, isLight }: { assets: AssetWithClass[]; isLight
             <tr style={{ borderBottom: `1px solid ${headerBorder}` }}>
               <th className="text-left py-3 px-3 md:px-4 font-normal" style={{ fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: headerColor }}>Asset</th>
               {!isMobile && <th className="text-left py-3 px-4 font-normal" style={{ fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: headerColor }}>Class</th>}
-              <th className="text-right py-3 px-3 md:px-4 font-normal" style={{ fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: headerColor }}>Price</th>
+              <th className="text-right py-3 px-3 md:px-4 font-normal" style={{ fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: headerColor }}>Price</th>}
               <th className="text-right py-3 px-3 md:px-4 font-normal" style={{ fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: headerColor }}>Change %</th>
               {!isMobile && <th className="text-right py-3 px-4 font-normal" style={{ fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: headerColor }}>Spread</th>}
               {!isMobile && <th className="text-center py-3 px-4 font-normal" style={{ fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: headerColor }}>Confidence</th>}
@@ -237,7 +245,7 @@ function AllAssetsTable({ assets, isLight }: { assets: AssetWithClass[]; isLight
                 >
                   <td className="py-3 px-3 md:px-4">
                     <div className="flex items-center gap-2">
-                       <span style={{ color: isLight ? '#1d1d1f' : '#fff', fontWeight: 500, fontSize: isMobile ? 13 : 14 }}>{asset.symbol}</span>
+                      <span style={{ color: isLight ? '#1d1d1f' : '#fff', fontWeight: 500, fontSize: isMobile ? 13 : 14 }}>{asset.symbol}</span>
                       {!isMobile && <span className="text-muted-foreground text-xs">{asset.name}</span>}
                     </div>
                   </td>
@@ -259,12 +267,11 @@ function AllAssetsTable({ assets, isLight }: { assets: AssetWithClass[]; isLight
                   </td>
                   {!isMobile && (
                     <td className="py-3 px-4 text-right tabular-nums text-muted-foreground">
-                      {asset.spread === 0 ? '—' : `$${asset.spread < 0.01 ? asset.spread.toFixed(6) : asset.spread.toFixed(4)}`}
+                      {formatSpreadDisplay(asset.spread, !!asset.hasBidAsk)}
                     </td>
                   )}
                   {!isMobile && (
                     <td className="py-3 px-4">
-                      {/* #2: Confidence with visual bar */}
                       <div className="flex flex-col items-center gap-1">
                         <span className="tabular-nums text-sm" style={{ color: isLight ? '#1d1d1f' : '#fff' }}>{confPct.toFixed(1)}%</span>
                         <div className="rounded-full" style={{ width: 40, height: 3, background: confTrack }}>
@@ -289,9 +296,9 @@ function AllAssetsTable({ assets, isLight }: { assets: AssetWithClass[]; isLight
 }
 
 const SkeletonCard = ({ isLight }: { isLight: boolean }) => (
-  <div 
-    className="rounded-2xl p-4 md:p-5 h-[140px] md:h-[160px]" 
-    style={{ 
+  <div
+    className="rounded-2xl p-4 md:p-5 h-[140px] md:h-[160px]"
+    style={{
       background: isLight ? 'rgba(0,0,0,0.03)' : 'rgba(255,255,255,0.03)',
       border: `1px solid ${isLight ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.06)'}`
     }}
@@ -335,13 +342,12 @@ export default function LivePage() {
     'BNB/USD': '#b8860b', 'BONK/USD': '#9d0060', 'WIF/USD': '#cc2200',
     'DOGE/USD': '#8b6914', 'XAU/USD': '#b8860b', 'EUR/USD': '#0055d4',
   };
-  const [assets, setAssets] = useState<AssetWithClass[]>([]);
+  const [assets, setAssets] = useState<AssetWithSpreadMeta[]>([]);
   const [events, setEvents] = useState<ApiEvent[]>([]);
   const [activeTab, setActiveTab] = useState<TabType>('all');
   const [search, setSearch] = useState('');
   const navigate = useNavigate();
 
-  // Price history for 5-minute change calculation
   const priceHistoryRef = useRef<Record<string, { price: number; timestamp: number }[]>>({});
 
   useEffect(() => {
@@ -355,12 +361,13 @@ export default function LivePage() {
       try {
         const data = await fetchLatest() as LatestApiAsset[];
         if (!isMounted) return;
+
         setAssets(prev => {
           const prevBySymbol = new Map(prev.map(a => [a.symbol, a]));
           const now = Date.now();
           const isInitialFetch = Object.keys(priceHistoryRef.current).length === 0;
 
-          const next: AssetWithClass[] = data.map(item => {
+          const next: AssetWithSpreadMeta[] = data.map(item => {
             const meta = assetMetaBySymbol[item.asset] ?? {
               name: item.asset,
               assetClass: 'crypto' as AssetClass,
@@ -368,34 +375,33 @@ export default function LivePage() {
 
             const factor = Math.pow(10, item.exponent);
             const priceValue = item.price * factor;
-            const spreadValue = (isFinite(item.best_ask) && isFinite(item.best_bid))
+            const hasBidAsk = hasFiniteNumber(item.best_ask) && hasFiniteNumber(item.best_bid);
+            const spreadValue = hasBidAsk
               ? Math.abs(item.best_ask - item.best_bid) * factor
-              : 0;
+              : NaN;
+
             const safePrice = isFinite(priceValue) && priceValue > 0 ? priceValue : 1;
 
             if (!priceHistoryRef.current[item.asset]) {
               priceHistoryRef.current[item.asset] = [];
             }
-            
-            // Seed 5-minute-old baseline on first fetch
+
             if (isInitialFetch) {
-              priceHistoryRef.current[item.asset].push({ 
-                price: priceValue, 
-                timestamp: now - 300000 
+              priceHistoryRef.current[item.asset].push({
+                price: priceValue,
+                timestamp: now - 300000
               });
             }
 
             priceHistoryRef.current[item.asset].push({ price: priceValue, timestamp: now });
 
-            // Keep only last 6 minutes of data (360,000ms) to be safe
             priceHistoryRef.current[item.asset] = priceHistoryRef.current[item.asset].filter(
               h => now - h.timestamp < 360000
             );
 
             const history = priceHistoryRef.current[item.asset];
-            const targetTime = now - 300000; // 5 minutes ago
-            
-            // Find the point closest to 5 minutes ago
+            const targetTime = now - 300000;
+
             let baselineEntry = history[0];
             for (let i = history.length - 1; i >= 0; i--) {
               if (history[i].timestamp <= targetTime) {
@@ -423,7 +429,9 @@ export default function LivePage() {
               .filter(v => isFinite(v) && !isNaN(v))
               .slice(-60);
 
-            const volatile = Math.abs(change) > 0.5 || (spreadValue / safePrice) > 0.0005;
+            const volatile =
+              Math.abs(change) > 0.5 ||
+              (Number.isFinite(spreadValue) && safePrice > 0 ? (spreadValue / safePrice) > 0.0005 : false);
 
             return {
               symbol: item.asset,
@@ -431,6 +439,7 @@ export default function LivePage() {
               price: priceValue,
               change,
               spread: spreadValue,
+              hasBidAsk,
               confidence: confidenceNorm,
               volatile,
               sparkline,
@@ -505,7 +514,6 @@ export default function LivePage() {
       <Navbar />
 
       <div className="max-w-6xl mx-auto px-4 md:px-6 py-8">
-        {/* Tab Bar */}
         <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-8">
           <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide">
             {tabs.map(tab => (
@@ -536,7 +544,6 @@ export default function LivePage() {
           </div>
         </div>
 
-        {/* Content */}
         <motion.div
           key={activeTab + search}
           initial={{ opacity: 0 }}
@@ -560,9 +567,9 @@ export default function LivePage() {
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {filteredAssets.map(asset => (
-                <AssetCard 
-                  key={asset.symbol} 
-                  asset={asset} 
+                <AssetCard
+                  key={asset.symbol}
+                  asset={asset}
                   onClick={() => navigate('/replay?asset=' + encodeURIComponent(asset.symbol))}
                 />
               ))}
@@ -570,7 +577,6 @@ export default function LivePage() {
           )}
         </motion.div>
 
-        {/* #12: Market Pulse section label */}
         <SectionLabel label="Market Pulse" isLight={isLight} />
         <div className="rounded-2xl p-4 md:p-6" style={{
           background: isLight ? '#ffffff' : 'rgba(255,255,255,0.04)',
@@ -599,7 +605,6 @@ export default function LivePage() {
 
         <CorrelationMatrix assets={assets} />
 
-        {/* #12: Recent Events section label */}
         <SectionLabel label="Recent Events" isLight={isLight} />
         <div className="rounded-2xl p-3 md:p-4" style={{
           background: isLight ? '#ffffff' : 'rgba(255,255,255,0.04)',
@@ -620,7 +625,6 @@ export default function LivePage() {
                 onMouseEnter={e => { e.currentTarget.style.background = isLight ? 'rgba(0,0,0,0.015)' : 'rgba(255,255,255,0.02)'; }}
                 onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
               >
-                {/* #9: Event type badge */}
                 <span
                   className="flex-shrink-0 flex items-center justify-center tabular-nums"
                   style={{
@@ -644,7 +648,6 @@ export default function LivePage() {
                   <span className="text-[13px] md:text-sm text-muted-foreground ml-2 hidden sm:inline">{event.description}</span>
                 </div>
                 <span className="text-xs text-muted-foreground whitespace-nowrap hidden sm:block">{event.timestamp}</span>
-                {/* #10: Replay link */}
                 <Link
                   to={`/replay?asset=${encodeURIComponent(event.asset)}&eventId=${event.id}`}
                   className="flex-shrink-0 text-[13px] whitespace-nowrap min-h-[44px] md:min-h-0 flex items-center rounded-md px-2"
