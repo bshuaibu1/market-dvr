@@ -51,19 +51,6 @@ interface EnrichedMarketEvent extends MarketEvent {
   featuredTimestamp?: string;
 }
 
-function mapApiEventType(event: ApiEvent): keyof typeof typeConfig {
-  if (event.event_type === 'volatility_spike') {
-    return Number(event.last_price) > Number(event.first_price) ? 'pump' : 'crash';
-  }
-  if (event.event_type === 'spread_spike') {
-    return 'spread';
-  }
-  if (event.event_type === 'confidence_divergence') {
-    return 'confidence';
-  }
-  return 'confidence';
-}
-
 const assetExponents: Record<string, number> = {
   'BTC/USD': -8,
   'ETH/USD': -8,
@@ -82,6 +69,56 @@ const assetExponents: Record<string, number> = {
   'AUD/USD': -5,
   'USD/CAD': -5,
 };
+
+const MIN_VOL_MOVE_BY_ASSET: Record<string, number> = {
+  'BTC/USD': 0.10,
+  'ETH/USD': 0.10,
+  'SOL/USD': 0.12,
+  'BNB/USD': 0.12,
+  'DOGE/USD': 0.15,
+  'PYTH/USD': 0.15,
+  'WIF/USD': 0.15,
+  'BONK/USD': 0.20,
+};
+
+const DEFAULT_MIN_VOL_MOVE_PCT = 0.15;
+
+function getMinVolatilityMovePct(asset: string) {
+  return MIN_VOL_MOVE_BY_ASSET[asset] ?? DEFAULT_MIN_VOL_MOVE_PCT;
+}
+
+function getScaledPrices(event: ApiEvent) {
+  const exp = assetExponents[event.asset] ?? -8;
+  const mult = Math.pow(10, exp);
+  const first = Number(event.first_price) * mult;
+  const last = Number(event.last_price) * mult;
+  return { first, last, mult };
+}
+
+function getVolatilityMovePct(event: ApiEvent) {
+  const { first, last } = getScaledPrices(event);
+  if (!Number.isFinite(first) || first <= 0 || !Number.isFinite(last)) return 0;
+  return ((last - first) / first) * 100;
+}
+
+function shouldKeepEvent(event: ApiEvent) {
+  if (event.event_type !== 'volatility_spike') return true;
+  const absPct = Math.abs(getVolatilityMovePct(event));
+  return absPct >= getMinVolatilityMovePct(event.asset);
+}
+
+function mapApiEventType(event: ApiEvent): keyof typeof typeConfig {
+  if (event.event_type === 'volatility_spike') {
+    return Number(event.last_price) > Number(event.first_price) ? 'pump' : 'crash';
+  }
+  if (event.event_type === 'spread_spike') {
+    return 'spread';
+  }
+  if (event.event_type === 'confidence_divergence') {
+    return 'confidence';
+  }
+  return 'confidence';
+}
 
 function formatTimestamp(createdAt: string): string {
   const date = new Date(createdAt);
@@ -170,11 +207,7 @@ function mapApiEvent(event: ApiEvent): EnrichedMarketEvent {
   const type = mapApiEventType(event);
   const conf = typeConfig[type] ?? typeConfig.confidence;
 
-  const exp = assetExponents[event.asset] ?? -8;
-  const mult = Math.pow(10, exp);
-
-  const first = Number(event.first_price) * mult;
-  const last = Number(event.last_price) * mult;
+  const { first, last, mult } = getScaledPrices(event);
   const durationMs = Number(event.duration_ms);
   const pct = first > 0 ? ((last - first) / first) * 100 : 0;
 
@@ -356,6 +389,8 @@ export default function EventsPage() {
           data = data.filter((e) => Number(e.last_price) > Number(e.first_price));
         }
 
+        data = data.filter(shouldKeepEvent);
+
         setRawEvents(data);
         setEvents(data.map(mapApiEvent));
       } catch (error) {
@@ -379,11 +414,7 @@ export default function EventsPage() {
 
     const scored = rawEvents
       .map((event) => {
-        const exp = assetExponents[event.asset] ?? -8;
-        const mult = Math.pow(10, exp);
-
-        const first = Number(event.first_price) * mult;
-        const last = Number(event.last_price) * mult;
+        const { first, last, mult } = getScaledPrices(event);
         const duration = Number(event.duration_ms || 0);
         const pct = first > 0 ? Math.abs(((last - first) / first) * 100) : 0;
 
