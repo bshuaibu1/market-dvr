@@ -38,12 +38,17 @@ interface ApiEvent {
   created_at: string;
 }
 
+interface EventMetric {
+  label: string;
+  value: string;
+}
+
 interface EnrichedMarketEvent extends MarketEvent {
-  metricA?: string;
-  metricB?: string;
-  metricC?: string;
+  metrics: EventMetric[];
   sparkline?: number[];
   rawType?: string;
+  aiExplanation?: string;
+  featuredTimestamp?: string;
 }
 
 function mapApiEventType(event: ApiEvent): keyof typeof typeConfig {
@@ -121,6 +126,18 @@ function formatSpreadDisplay(value: number) {
   return value.toFixed(8);
 }
 
+function formatPriceDisplay(value: number) {
+  if (!Number.isFinite(value)) return '—';
+  const abs = Math.abs(value);
+  if (abs >= 1000) {
+    return value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+  if (abs >= 1) return value.toFixed(2);
+  if (abs >= 0.01) return value.toFixed(4);
+  if (abs >= 0.0001) return value.toFixed(6);
+  return value.toFixed(8);
+}
+
 function generateEventSparkline(type: string, intensity = 1): number[] {
   const points: number[] = [];
   let val = 100;
@@ -153,46 +170,67 @@ function mapApiEvent(event: ApiEvent): EnrichedMarketEvent {
   const type = mapApiEventType(event);
   const conf = typeConfig[type] ?? typeConfig.confidence;
 
-  const first = Number(event.first_price);
-  const last = Number(event.last_price);
+  const exp = assetExponents[event.asset] ?? -8;
+  const mult = Math.pow(10, exp);
+
+  const first = Number(event.first_price) * mult;
+  const last = Number(event.last_price) * mult;
   const durationMs = Number(event.duration_ms);
   const pct = first > 0 ? ((last - first) / first) * 100 : 0;
 
-  let description: string;
-  let metricA = '';
-  let metricB = '';
-  let metricC = '';
+  let description = '';
+  let metrics: EventMetric[] = [];
+  let aiExplanation = '';
 
   switch (event.event_type) {
     case 'volatility_spike': {
-      const dir = last > first ? 'surged' : 'dropped';
-      description = `Price ${dir} ${Math.abs(pct).toFixed(2)}% during a sharp volatility window.`;
-      metricA = `${formatSignedPercent(pct)} move`;
-      metricB = formatDurationMs(durationMs);
-      metricC = `${first > 0 ? `$${last.toFixed(last < 1 ? 6 : 2)}` : '—'} close`;
+      const dirWord = last > first ? 'surged' : 'dropped';
+      const absPct = Math.abs(pct);
+      description = `Price ${dirWord} ${absPct.toFixed(2)}% during a sharp volatility window.`;
+
+      metrics = [
+        { label: 'PRICE MOVE', value: formatSignedPercent(pct) },
+        { label: 'EVENT DURATION', value: formatDurationMs(durationMs) },
+        { label: 'CLOSE PRICE', value: `$${formatPriceDisplay(last)}` },
+      ];
+
+      aiExplanation =
+        last > first
+          ? 'Likely cause: rapid directional buying or thin liquidity during a fast upward move.'
+          : 'Likely cause: aggressive selling pressure or liquidity withdrawal during a fast downward move.';
       break;
     }
 
     case 'spread_spike': {
-      const exp = assetExponents[event.asset] || -8;
-      const mult = Math.pow(10, exp);
       const baseline = Number(event.baseline_spread) * mult;
       const max = Number(event.max_spread) * mult;
       const ratio = baseline > 0 ? max / baseline : 0;
 
-      description = `Bid/ask spread expanded sharply beyond its normal baseline.`;
-      metricA = `${formatSpreadDisplay(max)} max`;
-      metricB = baseline > 0 ? `${ratio.toFixed(1)}x base` : 'No baseline';
-      metricC = formatDurationMs(durationMs);
+      description = 'Bid/ask spread expanded sharply beyond its normal baseline.';
+      metrics = [
+        { label: 'MAX SPREAD', value: formatSpreadDisplay(max) },
+        { label: 'BASELINE MULTIPLIER', value: baseline > 0 ? `${ratio.toFixed(1)}x` : 'No baseline' },
+        { label: 'EVENT DURATION', value: formatDurationMs(durationMs) },
+      ];
+
+      aiExplanation =
+        baseline > 0
+          ? `Likely cause: liquidity withdrawal during rapid price movement. Spread expanded ${ratio.toFixed(1)}× normal baseline.`
+          : 'Likely cause: temporary market dislocation with insufficient stable baseline data.';
       break;
     }
 
     case 'confidence_divergence':
     default: {
       description = 'Confidence interval expanded materially, suggesting unusual feed disagreement or uncertainty.';
-      metricA = formatDurationMs(durationMs);
-      metricB = `${Math.abs(pct).toFixed(2)}% move`;
-      metricC = 'Cross-feed mismatch';
+      metrics = [
+        { label: 'EVENT DURATION', value: formatDurationMs(durationMs) },
+        { label: 'PRICE MOVE', value: formatSignedPercent(pct) },
+        { label: 'SIGNAL', value: 'Feed mismatch' },
+      ];
+
+      aiExplanation =
+        'Likely cause: temporary disagreement across market inputs or elevated uncertainty during this window.';
       break;
     }
   }
@@ -205,12 +243,12 @@ function mapApiEvent(event: ApiEvent): EnrichedMarketEvent {
     asset: event.asset,
     description,
     timestamp: formatTimestamp(event.created_at),
+    featuredTimestamp: formatAbsoluteTimestamp(event.created_at),
     color: conf.color,
-    metricA,
-    metricB,
-    metricC,
+    metrics,
     sparkline: generateEventSparkline(type, intensity),
     rawType: event.event_type,
+    aiExplanation,
   };
 }
 
@@ -341,16 +379,17 @@ export default function EventsPage() {
 
     const scored = rawEvents
       .map((event) => {
-        const first = Number(event.first_price);
-        const last = Number(event.last_price);
+        const exp = assetExponents[event.asset] ?? -8;
+        const mult = Math.pow(10, exp);
+
+        const first = Number(event.first_price) * mult;
+        const last = Number(event.last_price) * mult;
         const duration = Number(event.duration_ms || 0);
         const pct = first > 0 ? Math.abs(((last - first) / first) * 100) : 0;
 
         let score = pct;
 
         if (event.event_type === 'spread_spike') {
-          const exp = assetExponents[event.asset] || -8;
-          const mult = Math.pow(10, exp);
           const baseline = Number(event.baseline_spread) * mult;
           const max = Number(event.max_spread) * mult;
           const ratio = baseline > 0 ? max / baseline : 0;
@@ -504,8 +543,8 @@ export default function EventsPage() {
                     {featuredEvent.description}
                   </div>
 
-                  <div className="grid grid-cols-3 gap-3 mb-4">
-                    {[featuredEvent.metricA, featuredEvent.metricB, featuredEvent.metricC].map((metric, idx) => (
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+                    {featuredEvent.metrics.map((metric, idx) => (
                       <div
                         key={idx}
                         className="rounded-xl px-3 py-2"
@@ -523,7 +562,7 @@ export default function EventsPage() {
                             marginBottom: 4,
                           }}
                         >
-                          {idx === 0 ? 'Primary' : idx === 1 ? 'Secondary' : 'Context'}
+                          {metric.label}
                         </div>
                         <div
                           className="tabular-nums"
@@ -533,11 +572,43 @@ export default function EventsPage() {
                             fontWeight: 500,
                           }}
                         >
-                          {metric}
+                          {metric.value}
                         </div>
                       </div>
                     ))}
                   </div>
+
+                  {featuredEvent.aiExplanation && (
+                    <div
+                      className="rounded-xl px-4 py-3 mb-4"
+                      style={{
+                        background: L ? 'rgba(230,0,122,0.035)' : 'rgba(230,0,122,0.06)',
+                        border: `1px solid ${L ? 'rgba(230,0,122,0.12)' : 'rgba(230,0,122,0.18)'}`,
+                      }}
+                    >
+                      <div
+                        style={{
+                          fontSize: 10,
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.08em',
+                          color: '#e6007a',
+                          fontWeight: 600,
+                          marginBottom: 6,
+                        }}
+                      >
+                        AI EXPLANATION
+                      </div>
+                      <div
+                        style={{
+                          fontSize: 13,
+                          lineHeight: 1.55,
+                          color: L ? 'rgba(0,0,0,0.62)' : 'rgba(255,255,255,0.72)',
+                        }}
+                      >
+                        {featuredEvent.aiExplanation}
+                      </div>
+                    </div>
+                  )}
 
                   <div
                     style={{
@@ -546,7 +617,7 @@ export default function EventsPage() {
                       marginBottom: 20,
                     }}
                   >
-                    {formatAbsoluteTimestamp(rawEvents[0]?.created_at || '')}
+                    {featuredEvent.featuredTimestamp}
                   </div>
 
                   <button
@@ -742,7 +813,7 @@ function EventCard({
       }}
     >
       <div className="p-4 md:p-5">
-        <div className="flex flex-col lg:flex-row lg:items-center gap-4">
+        <div className="flex flex-col lg:flex-row lg:items-start gap-4">
           <div className="flex items-start gap-3 min-w-0 flex-1">
             <div
               className="flex-shrink-0 rounded-xl flex items-center justify-center"
@@ -800,24 +871,55 @@ function EventCard({
                 {event.description}
               </div>
 
-              <div className="flex flex-wrap gap-2">
-                {[event.metricA, event.metricB, event.metricC]
-                  .filter(Boolean)
-                  .map((metric, idx) => (
-                    <div
-                      key={idx}
-                      className="rounded-full px-3 py-1.5 tabular-nums"
-                      style={{
-                        fontSize: 11,
-                        background: L ? 'rgba(0,0,0,0.03)' : 'rgba(255,255,255,0.04)',
-                        border: `1px solid ${L ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.06)'}`,
-                        color: L ? 'rgba(0,0,0,0.55)' : 'rgba(255,255,255,0.65)',
-                      }}
-                    >
-                      {metric}
-                    </div>
-                  ))}
+              <div className="flex flex-wrap gap-2 mb-3">
+                {event.metrics.map((metric, idx) => (
+                  <div
+                    key={idx}
+                    className="rounded-full px-3 py-1.5 tabular-nums"
+                    style={{
+                      fontSize: 11,
+                      background: L ? 'rgba(0,0,0,0.03)' : 'rgba(255,255,255,0.04)',
+                      border: `1px solid ${L ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.06)'}`,
+                      color: L ? 'rgba(0,0,0,0.55)' : 'rgba(255,255,255,0.65)',
+                    }}
+                  >
+                    <span style={{ opacity: 0.7, marginRight: 6 }}>{metric.label}</span>
+                    <span>{metric.value}</span>
+                  </div>
+                ))}
               </div>
+
+              {event.aiExplanation && (
+                <div
+                  className="rounded-xl px-3 py-2"
+                  style={{
+                    background: L ? 'rgba(230,0,122,0.03)' : 'rgba(230,0,122,0.05)',
+                    border: `1px solid ${L ? 'rgba(230,0,122,0.1)' : 'rgba(230,0,122,0.16)'}`,
+                  }}
+                >
+                  <div
+                    style={{
+                      fontSize: 10,
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.08em',
+                      color: '#e6007a',
+                      fontWeight: 600,
+                      marginBottom: 4,
+                    }}
+                  >
+                    AI EXPLANATION
+                  </div>
+                  <div
+                    style={{
+                      fontSize: 12,
+                      lineHeight: 1.5,
+                      color: L ? 'rgba(0,0,0,0.56)' : 'rgba(255,255,255,0.66)',
+                    }}
+                  >
+                    {event.aiExplanation}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
