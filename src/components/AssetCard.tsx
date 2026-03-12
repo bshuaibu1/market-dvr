@@ -7,11 +7,34 @@ interface Props {
   onClick?: () => void;
 }
 
+const ZERO_EPSILON = 0.005;
+
+function normalizeNearZero(v: number, epsilon = ZERO_EPSILON) {
+  return Math.abs(v) < epsilon ? 0 : v;
+}
+
+function formatSignedChange(v: number) {
+  const safe = normalizeNearZero(v);
+  return `${safe >= 0 ? '+' : ''}${safe.toFixed(2)}%`;
+}
+
+function formatSpreadValue(v: number) {
+  if (!Number.isFinite(v)) return '—';
+  if (v === 0) return '$0.00';
+
+  const abs = Math.abs(v);
+  if (abs < 0.0001) return `$${v.toFixed(8)}`;
+  if (abs < 0.01) return `$${v.toFixed(6)}`;
+  if (abs < 1) return `$${v.toFixed(4)}`;
+  return `$${v.toFixed(2)}`;
+}
+
 export default function AssetCard({ asset, onClick }: Props) {
-  const positive = asset.change >= 0;
+  const safeChange = normalizeNearZero(asset.change);
+  const positive = safeChange >= 0;
 
   return (
-    <div 
+    <div
       className="surface-1 rounded-2xl p-8 card-hover cursor-pointer flex flex-col gap-3"
       onClick={onClick}
     >
@@ -25,18 +48,24 @@ export default function AssetCard({ asset, onClick }: Props) {
       </div>
 
       <div className="flex items-center gap-1.5">
-        {positive ? <ArrowUp size={12} className="text-positive" /> : <ArrowDown size={12} className="text-negative" />}
+        {positive ? (
+          <ArrowUp size={12} className="text-positive" />
+        ) : (
+          <ArrowDown size={12} className="text-negative" />
+        )}
+
         <span className={`text-sm font-medium tabular-nums ${positive ? 'text-positive' : 'text-negative'}`}>
-          {positive ? '+' : ''}{asset.change.toFixed(2)}%
+          {formatSignedChange(asset.change)}
         </span>
       </div>
 
       <div className="text-xs text-muted-foreground tabular-nums">
-        Spread ${asset.spread < 0.01 ? asset.spread.toFixed(6) : asset.spread.toFixed(2)}
+        Spread {formatSpreadValue(asset.spread)}
       </div>
 
-      {/* Confidence bar */}
-      <div className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground mb-1">Confidence</div>
+      <div className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground mb-1">
+        Confidence
+      </div>
       <div className="w-full h-1 rounded-full" style={{ background: 'rgba(255,255,255,0.06)' }}>
         <div
           className="h-full rounded-full apple-transition"
