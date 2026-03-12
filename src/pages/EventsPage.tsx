@@ -49,6 +49,7 @@ interface EnrichedMarketEvent extends MarketEvent {
   rawType?: string;
   aiExplanation?: string;
   featuredTimestamp?: string;
+  severity: 'LOW' | 'MED' | 'HIGH';
 }
 
 const assetExponents: Record<string, number> = {
@@ -82,6 +83,11 @@ const MIN_VOL_MOVE_BY_ASSET: Record<string, number> = {
 };
 
 const DEFAULT_MIN_VOL_MOVE_PCT = 0.15;
+const ZERO_EPSILON = 0.005;
+
+function normalizeNearZero(v: number, epsilon = ZERO_EPSILON) {
+  return Math.abs(v) < epsilon ? 0 : v;
+}
 
 function getMinVolatilityMovePct(asset: string) {
   return MIN_VOL_MOVE_BY_ASSET[asset] ?? DEFAULT_MIN_VOL_MOVE_PCT;
@@ -98,13 +104,68 @@ function getScaledPrices(event: ApiEvent) {
 function getVolatilityMovePct(event: ApiEvent) {
   const { first, last } = getScaledPrices(event);
   if (!Number.isFinite(first) || first <= 0 || !Number.isFinite(last)) return 0;
-  return ((last - first) / first) * 100;
+  return normalizeNearZero(((last - first) / first) * 100);
 }
 
 function shouldKeepEvent(event: ApiEvent) {
   if (event.event_type !== 'volatility_spike') return true;
   const absPct = Math.abs(getVolatilityMovePct(event));
   return absPct >= getMinVolatilityMovePct(event.asset);
+}
+
+function getEventSeverity(event: ApiEvent): 'LOW' | 'MED' | 'HIGH' {
+  const durationMs = Number(event.duration_ms || 0);
+
+  if (event.event_type === 'spread_spike') {
+    const { mult } = getScaledPrices(event);
+    const baseline = Number(event.baseline_spread) * mult;
+    const max = Number(event.max_spread) * mult;
+    const ratio = baseline > 0 ? max / baseline : 0;
+
+    if (ratio >= 8 || durationMs >= 5000) return 'HIGH';
+    if (ratio >= 4 || durationMs >= 2000) return 'MED';
+    return 'LOW';
+  }
+
+  if (event.event_type === 'volatility_spike') {
+    const absPct = Math.abs(getVolatilityMovePct(event));
+
+    if (absPct >= 0.5 || durationMs >= 5000) return 'HIGH';
+    if (absPct >= 0.2 || durationMs >= 2000) return 'MED';
+    return 'LOW';
+  }
+
+  if (event.event_type === 'confidence_divergence') {
+    if (durationMs >= 5000) return 'HIGH';
+    if (durationMs >= 2000) return 'MED';
+    return 'LOW';
+  }
+
+  return 'LOW';
+}
+
+function getSeverityStyle(severity: 'LOW' | 'MED' | 'HIGH') {
+  if (severity === 'HIGH') {
+    return {
+      color: '#ff453a',
+      bg: 'rgba(255,69,58,0.12)',
+      border: 'rgba(255,69,58,0.28)',
+    };
+  }
+
+  if (severity === 'MED') {
+    return {
+      color: '#ffd60a',
+      bg: 'rgba(255,214,10,0.12)',
+      border: 'rgba(255,214,10,0.28)',
+    };
+  }
+
+  return {
+    color: '#32d74b',
+    bg: 'rgba(50,215,75,0.12)',
+    border: 'rgba(50,215,75,0.28)',
+  };
 }
 
 function mapApiEventType(event: ApiEvent): keyof typeof typeConfig {
@@ -143,7 +204,8 @@ function formatAbsoluteTimestamp(createdAt: string): string {
 }
 
 function formatSignedPercent(v: number) {
-  return `${v >= 0 ? '+' : ''}${v.toFixed(2)}%`;
+  const safe = normalizeNearZero(v);
+  return `${safe >= 0 ? '+' : ''}${safe.toFixed(2)}%`;
 }
 
 function formatDurationMs(durationMs: number) {
@@ -206,10 +268,11 @@ function generateEventSparkline(type: string, intensity = 1): number[] {
 function mapApiEvent(event: ApiEvent): EnrichedMarketEvent {
   const type = mapApiEventType(event);
   const conf = typeConfig[type] ?? typeConfig.confidence;
+  const severity = getEventSeverity(event);
 
   const { first, last, mult } = getScaledPrices(event);
   const durationMs = Number(event.duration_ms);
-  const pct = first > 0 ? ((last - first) / first) * 100 : 0;
+  const pct = first > 0 ? normalizeNearZero(((last - first) / first) * 100) : 0;
 
   let description = '';
   let metrics: EventMetric[] = [];
@@ -282,6 +345,7 @@ function mapApiEvent(event: ApiEvent): EnrichedMarketEvent {
     sparkline: generateEventSparkline(type, intensity),
     rawType: event.event_type,
     aiExplanation,
+    severity,
   };
 }
 
@@ -416,7 +480,7 @@ export default function EventsPage() {
       .map((event) => {
         const { first, last, mult } = getScaledPrices(event);
         const duration = Number(event.duration_ms || 0);
-        const pct = first > 0 ? Math.abs(((last - first) / first) * 100) : 0;
+        const pct = first > 0 ? Math.abs(normalizeNearZero(((last - first) / first) * 100)) : 0;
 
         let score = pct;
 
@@ -813,6 +877,7 @@ function EventCard({
   const L = isLight;
   const conf = typeConfig[event.type] || typeConfig.confidence;
   const Icon = conf.icon;
+  const severityStyle = getSeverityStyle(event.severity);
 
   return (
     <motion.div
@@ -879,6 +944,22 @@ function EventCard({
                   }}
                 >
                   {conf.label}
+                </span>
+
+                <span
+                  style={{
+                    fontSize: 10,
+                    letterSpacing: '0.08em',
+                    textTransform: 'uppercase',
+                    fontWeight: 600,
+                    background: severityStyle.bg,
+                    border: `1px solid ${severityStyle.border}`,
+                    color: severityStyle.color,
+                    padding: '3px 9px',
+                    borderRadius: 100,
+                  }}
+                >
+                  {event.severity}
                 </span>
 
                 <span
