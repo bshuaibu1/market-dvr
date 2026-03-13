@@ -88,14 +88,10 @@ function parseTimestampToUs(value: unknown): number | null {
     if (!trimmed) return null;
 
     const numeric = Number(trimmed);
-    if (Number.isFinite(numeric)) {
-      return parseTimestampToUs(numeric);
-    }
+    if (Number.isFinite(numeric)) return parseTimestampToUs(numeric);
 
     const parsedMs = Date.parse(trimmed);
-    if (Number.isFinite(parsedMs)) {
-      return Math.round(parsedMs * 1000);
-    }
+    if (Number.isFinite(parsedMs)) return Math.round(parsedMs * 1000);
   }
 
   return null;
@@ -170,6 +166,14 @@ function getReplayWindowUs(timeframe: string) {
   return 12 * 60 * 60 * 1000 * 1000;
 }
 
+function prettifyEventType(raw: string | null) {
+  if (!raw) return 'Clicked Event';
+  if (raw === 'volatility_spike') return 'Volatility Spike';
+  if (raw === 'spread_spike') return 'Spread Spike';
+  if (raw === 'confidence_divergence') return 'Confidence Drop';
+  return raw;
+}
+
 export default function ReplayPage() {
   const { theme } = useTheme();
   const isLight = theme === 'light';
@@ -179,6 +183,14 @@ export default function ReplayPage() {
   const assetParam = searchParams.get('asset');
   const eventIdParam = searchParams.get('eventId');
   const replayAtParam = parseTimestampToUs(searchParams.get('replayAt'));
+
+  const eventTypeParam = searchParams.get('eventType');
+  const eventLabelParam = searchParams.get('eventLabel');
+  const eventTimeLabelParam = searchParams.get('eventTimeLabel');
+  const metric1Param = searchParams.get('metric1');
+  const metric2Param = searchParams.get('metric2');
+  const metric3Param = searchParams.get('metric3');
+  const aiExplanationParam = searchParams.get('aiExplanation');
 
   const [selectedAsset, setSelectedAsset] = useState(assetParam || 'BTC/USD');
   const [compareMode, setCompareMode] = useState(false);
@@ -206,9 +218,7 @@ export default function ReplayPage() {
   const playRef = useRef<ReturnType<typeof setInterval>>();
 
   useEffect(() => {
-    if (assetParam) {
-      setSelectedAsset(assetParam);
-    }
+    if (assetParam) setSelectedAsset(assetParam);
   }, [assetParam]);
 
   useEffect(() => {
@@ -231,23 +241,6 @@ export default function ReplayPage() {
         const events = await fetchAssetEvents(selectedAsset);
         if (!active) return;
 
-        console.log('Replay URL params', {
-          assetParam,
-          eventIdParam,
-          replayAtParam,
-        });
-
-        console.log(
-          'Fetched events sample',
-          (events || []).slice(0, 10).map((e: any) => ({
-            id: e.id,
-            event_type: e.event_type,
-            start_time: e.start_time,
-            created_at: e.created_at,
-            asset: e.asset,
-          }))
-        );
-
         let targetEvent: any = null;
         let targetTimestampUs: number | null = replayAtParam;
 
@@ -256,33 +249,49 @@ export default function ReplayPage() {
             ? (events.find((e: any) => String(e.id) === String(eventIdParam)) || null)
             : null;
 
-          console.log('Matched event by id', targetEvent);
-
           if (targetEvent) {
             const eventStartUs = parseTimestampToUs(targetEvent.start_time);
             const eventCreatedUs = parseTimestampToUs(targetEvent.created_at);
             targetTimestampUs = replayAtParam ?? eventStartUs ?? eventCreatedUs;
           }
 
-          const exp = assetExponents[selectedAsset] || -8;
-          const mult = Math.pow(10, exp);
-
-          if (targetEvent) {
-            setAutopsyData({
-              ...targetEvent,
-              first_price: Number(targetEvent.first_price || 0) * mult,
-              last_price: Number(targetEvent.last_price || 0) * mult,
-              max_spread: Number(targetEvent.max_spread || 0) * mult,
-              baseline_spread: Number(targetEvent.baseline_spread || 0) * mult,
-            });
-          } else {
-            setAutopsyData(null);
-          }
-
           setTimelineEvents(events);
         } else {
-          setAutopsyData(null);
           setTimelineEvents([]);
+        }
+
+        const exp = assetExponents[selectedAsset] || -8;
+        const mult = Math.pow(10, exp);
+
+        if (targetEvent) {
+          setAutopsyData({
+            ...targetEvent,
+            first_price: Number(targetEvent.first_price || 0) * mult,
+            last_price: Number(targetEvent.last_price || 0) * mult,
+            max_spread: Number(targetEvent.max_spread || 0) * mult,
+            baseline_spread: Number(targetEvent.baseline_spread || 0) * mult,
+          });
+        } else if (replayAtParam) {
+          setAutopsyData({
+            id: eventIdParam || `clicked-${replayAtParam}`,
+            asset: selectedAsset,
+            event_type: eventTypeParam || 'clicked_event',
+            label: eventLabelParam || prettifyEventType(eventTypeParam),
+            start_time: replayAtParam,
+            created_at: replayAtParam,
+            featuredTimestamp: eventTimeLabelParam || formatReplayTimestamp(replayAtParam),
+            first_price: 0,
+            last_price: 0,
+            max_spread: 0,
+            baseline_spread: 0,
+            metric1: metric1Param,
+            metric2: metric2Param,
+            metric3: metric3Param,
+            aiExplanation: aiExplanationParam,
+            isFallbackFromUrl: true,
+          });
+        } else {
+          setAutopsyData(null);
         }
 
         const fallbackExp = assetExponents[selectedAsset] || -8;
@@ -323,15 +332,22 @@ export default function ReplayPage() {
 
         if (targetTimestampUs && targetTimestampUs > 0) {
           const targetIdx = findClosestFrameByTimestamp(mapped, targetTimestampUs);
-
-          console.log('targetTimestampUs(final)', targetTimestampUs);
-          console.log('firstTickUs', mapped[0]?.timestamp_us);
-          console.log('lastTickUs', mapped[mapped.length - 1]?.timestamp_us);
-          console.log('targetIdx', targetIdx);
-          console.log('matchedTickUs', mapped[targetIdx]?.timestamp_us);
-          console.log('deltaUs', (mapped[targetIdx]?.timestamp_us ?? 0) - targetTimestampUs);
-
           setFrame(targetIdx);
+
+          if (!targetEvent && replayAtParam) {
+            const currentTick = mapped[targetIdx];
+            setAutopsyData((prev: any) =>
+              prev
+                ? {
+                    ...prev,
+                    first_price: currentTick?.price ?? 0,
+                    last_price: currentTick?.price ?? 0,
+                    max_spread: currentTick?.spread ?? 0,
+                    baseline_spread: 0,
+                  }
+                : prev
+            );
+          }
         } else {
           setFrame(prev => Math.min(prev, mapped.length - 1));
         }
@@ -346,7 +362,19 @@ export default function ReplayPage() {
     return () => {
       active = false;
     };
-  }, [selectedAsset, timeframe, eventIdParam, replayAtParam]);
+  }, [
+    selectedAsset,
+    timeframe,
+    eventIdParam,
+    replayAtParam,
+    eventTypeParam,
+    eventLabelParam,
+    eventTimeLabelParam,
+    metric1Param,
+    metric2Param,
+    metric3Param,
+    aiExplanationParam,
+  ]);
 
   useEffect(() => {
     if (!isLive) {
@@ -539,27 +567,49 @@ export default function ReplayPage() {
   }
 
   const timelineMarkers = useMemo(() => {
-    if (!data.length || !timelineEvents.length) return [];
+    if (!data.length) return [];
 
+    const markers: any[] = [];
     const firstTickTime = data[0].timestamp_us || 0;
     const lastTickTime = data[data.length - 1].timestamp_us || 0;
 
-    return timelineEvents
-      .map(ev => {
-        const start = parseTimestampToUs(ev.start_time) ?? parseTimestampToUs(ev.created_at) ?? 0;
-        if (start < firstTickTime || start > lastTickTime) return null;
+    if (replayAtParam && replayAtParam >= firstTickTime && replayAtParam <= lastTickTime) {
+      const clickedFrame = findClosestFrameByTimestamp(data, replayAtParam);
+      markers.push({
+        id: `clicked-${eventIdParam || replayAtParam}`,
+        frame: clickedFrame,
+        label: eventLabelParam || prettifyEventType(eventTypeParam),
+        event_type: eventTypeParam || 'clicked_event',
+        start_time: replayAtParam,
+        isClickedEvent: true,
+      });
+    }
 
-        const frameIdx = findClosestFrameByTimestamp(data, start);
+    for (const ev of timelineEvents) {
+      const start = parseTimestampToUs(ev.start_time) ?? parseTimestampToUs(ev.created_at) ?? 0;
+      if (start < firstTickTime || start > lastTickTime) continue;
 
-        let label = ev.event_type;
-        if (label === 'volatility_spike') label = 'Volatility Spike';
-        else if (label === 'spread_spike') label = 'Spread Spike';
-        else if (label === 'confidence_divergence') label = 'Confidence Drop';
+      const frameIdx = findClosestFrameByTimestamp(data, start);
 
-        return { ...ev, frame: frameIdx, label };
-      })
-      .filter(Boolean);
-  }, [timelineEvents, data]);
+      let label = ev.event_type;
+      if (label === 'volatility_spike') label = 'Volatility Spike';
+      else if (label === 'spread_spike') label = 'Spread Spike';
+      else if (label === 'confidence_divergence') label = 'Confidence Drop';
+
+      markers.push({
+        ...ev,
+        frame: frameIdx,
+        label,
+      });
+    }
+
+    const deduped = new Map<string, any>();
+    for (const m of markers) {
+      deduped.set(String(m.id), m);
+    }
+
+    return Array.from(deduped.values()).sort((a, b) => a.frame - b.frame);
+  }, [timelineEvents, data, replayAtParam, eventIdParam, eventLabelParam, eventTypeParam]);
 
   const pct1 = (((current.price - startPrice1) / startPrice1) * 100).toFixed(2);
   const pct2 = compareCurrent ? (((compareCurrent.price - startPrice2) / startPrice2) * 100).toFixed(2) : '0.00';
@@ -567,6 +617,75 @@ export default function ReplayPage() {
   const inspectorLabelColor = isLight ? 'rgba(0,0,0,0.35)' : 'rgba(255,255,255,0.35)';
   const inspectorValueColor = isLight ? '#1d1d1f' : '#fff';
   const inspectorDivider = isLight ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.06)';
+
+  const fallbackAutopsyPanel =
+    autopsyData?.isFallbackFromUrl ? (
+      <div className="space-y-4">
+        <div
+          className="inline-flex items-center rounded-full px-3 py-1 text-[11px] font-medium"
+          style={{
+            background: 'rgba(230,0,122,0.10)',
+            border: '1px solid rgba(230,0,122,0.24)',
+            color: '#e6007a',
+          }}
+        >
+          {autopsyData.label || 'Clicked Event'}
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.08em', color: inspectorLabelColor }}>Asset</div>
+            <div style={{ fontSize: 28, fontWeight: 600, color: inspectorValueColor }}>{autopsyData.asset}</div>
+          </div>
+          <div>
+            <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.08em', color: inspectorLabelColor }}>Start Time</div>
+            <div style={{ fontSize: 18, color: inspectorValueColor }}>
+              {autopsyData.featuredTimestamp || formatReplayTimestamp(autopsyData.start_time)}
+            </div>
+          </div>
+        </div>
+
+        <div className="space-y-3">
+          {autopsyData.metric1 && (
+            <div className="rounded-xl px-4 py-3" style={{ background: isLight ? 'rgba(0,0,0,0.025)' : 'rgba(255,255,255,0.04)', border: `1px solid ${isLight ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.06)'}` }}>
+              <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.08em', color: inspectorLabelColor }}>Metric 1</div>
+              <div style={{ fontSize: 20, color: inspectorValueColor }}>{autopsyData.metric1}</div>
+            </div>
+          )}
+          {autopsyData.metric2 && (
+            <div className="rounded-xl px-4 py-3" style={{ background: isLight ? 'rgba(0,0,0,0.025)' : 'rgba(255,255,255,0.04)', border: `1px solid ${isLight ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.06)'}` }}>
+              <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.08em', color: inspectorLabelColor }}>Metric 2</div>
+              <div style={{ fontSize: 20, color: inspectorValueColor }}>{autopsyData.metric2}</div>
+            </div>
+          )}
+          {autopsyData.metric3 && (
+            <div className="rounded-xl px-4 py-3" style={{ background: isLight ? 'rgba(0,0,0,0.025)' : 'rgba(255,255,255,0.04)', border: `1px solid ${isLight ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.06)'}` }}>
+              <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.08em', color: inspectorLabelColor }}>Metric 3</div>
+              <div style={{ fontSize: 20, color: inspectorValueColor }}>{autopsyData.metric3}</div>
+            </div>
+          )}
+        </div>
+
+        {autopsyData.aiExplanation && (
+          <div
+            className="rounded-xl px-4 py-3"
+            style={{
+              background: isLight ? 'rgba(230,0,122,0.035)' : 'rgba(230,0,122,0.06)',
+              border: `1px solid ${isLight ? 'rgba(230,0,122,0.12)' : 'rgba(230,0,122,0.18)'}`,
+            }}
+          >
+            <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#e6007a', fontWeight: 600, marginBottom: 6 }}>
+              AI Explanation
+            </div>
+            <div style={{ fontSize: 13, lineHeight: 1.55, color: isLight ? 'rgba(0,0,0,0.62)' : 'rgba(255,255,255,0.72)' }}>
+              {autopsyData.aiExplanation}
+            </div>
+          </div>
+        )}
+      </div>
+    ) : (
+      <MarketAutopsy data={autopsyData} />
+    );
 
   const inspectorPanel = (
     <>
@@ -703,7 +822,7 @@ export default function ReplayPage() {
           </div>
         </>
       ) : (
-        <MarketAutopsy data={autopsyData} />
+        fallbackAutopsyPanel
       )}
     </>
   );
@@ -948,51 +1067,16 @@ export default function ReplayPage() {
                   <YAxis domain={[minP, maxP]} hide />
 
                   {!useCompare && showConfidence && (
-                    <Line
-                      type="monotone"
-                      dataKey="confidenceUpper"
-                      stroke="rgba(230,0,122,0.4)"
-                      strokeWidth={1}
-                      dot={false}
-                      isAnimationActive={false}
-                    />
+                    <Line type="monotone" dataKey="confidenceUpper" stroke="rgba(230,0,122,0.4)" strokeWidth={1} dot={false} isAnimationActive={false} />
                   )}
-
                   {!useCompare && showConfidence && (
-                    <Line
-                      type="monotone"
-                      dataKey="confidenceLower"
-                      stroke="rgba(230,0,122,0.4)"
-                      strokeWidth={1}
-                      dot={false}
-                      isAnimationActive={false}
-                    />
+                    <Line type="monotone" dataKey="confidenceLower" stroke="rgba(230,0,122,0.4)" strokeWidth={1} dot={false} isAnimationActive={false} />
                   )}
-
                   {!useCompare && showBid && (
-                    <Line
-                      type="monotone"
-                      dataKey="bid"
-                      stroke={isLight ? '#0055d4' : '#0a84ff'}
-                      strokeWidth={1}
-                      dot={false}
-                      isAnimationActive={false}
-                      opacity={0.5}
-                      connectNulls={false}
-                    />
+                    <Line type="monotone" dataKey="bid" stroke={isLight ? '#0055d4' : '#0a84ff'} strokeWidth={1} dot={false} isAnimationActive={false} opacity={0.5} connectNulls={false} />
                   )}
-
                   {!useCompare && showAsk && (
-                    <Line
-                      type="monotone"
-                      dataKey="ask"
-                      stroke={isLight ? '#cc2200' : '#ff453a'}
-                      strokeWidth={1}
-                      dot={false}
-                      isAnimationActive={false}
-                      opacity={0.5}
-                      connectNulls={false}
-                    />
+                    <Line type="monotone" dataKey="ask" stroke={isLight ? '#cc2200' : '#ff453a'} strokeWidth={1} dot={false} isAnimationActive={false} opacity={0.5} connectNulls={false} />
                   )}
 
                   <Line
@@ -1005,14 +1089,7 @@ export default function ReplayPage() {
                   />
 
                   {useCompare && (
-                    <Line
-                      type="monotone"
-                      dataKey="pct2"
-                      stroke={isLight ? '#e6007a' : '#0a84ff'}
-                      strokeWidth={2}
-                      dot={false}
-                      isAnimationActive={false}
-                    />
+                    <Line type="monotone" dataKey="pct2" stroke={isLight ? '#e6007a' : '#0a84ff'} strokeWidth={2} dot={false} isAnimationActive={false} />
                   )}
 
                   <ReferenceLine x={frame} stroke="#e6007a" strokeOpacity={0.5} />
@@ -1050,7 +1127,7 @@ export default function ReplayPage() {
                   className="absolute -top-1 w-2 h-2 rotate-45 cursor-pointer"
                   style={{
                     left: `${data.length > 1 ? (m.frame / (data.length - 1)) * 100 : 0}%`,
-                    background: '#e6007a',
+                    background: m.isClickedEvent ? '#e6007a' : '#e6007a',
                     outline: isLight ? '1.5px solid #1d1d1f' : 'none',
                     zIndex: 10,
                   }}
@@ -1068,7 +1145,6 @@ export default function ReplayPage() {
                 }}
                 title="Max Spread"
               />
-
               <div
                 className="absolute -top-1 w-2 h-2 rotate-45"
                 style={{
@@ -1078,7 +1154,6 @@ export default function ReplayPage() {
                 }}
                 title="Max Confidence Expansion"
               />
-
               <div
                 className="absolute -top-1 w-2 h-2 rotate-45"
                 style={{
@@ -1125,25 +1200,15 @@ export default function ReplayPage() {
                 boxShadow: isLight ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
               }}
             >
-              <button
-                onClick={() => setFrame(Math.max(0, frame - 10))}
-                className="text-muted-foreground hover:text-foreground apple-transition min-w-[44px] min-h-[44px] md:min-w-0 md:min-h-0 flex items-center justify-center"
-              >
+              <button onClick={() => setFrame(Math.max(0, frame - 10))} className="text-muted-foreground hover:text-foreground apple-transition min-w-[44px] min-h-[44px] md:min-w-0 md:min-h-0 flex items-center justify-center">
                 <SkipBack size={16} />
               </button>
 
-              <button
-                onClick={() => setPlaying(!playing)}
-                className="w-9 h-9 rounded-full flex items-center justify-center apple-transition"
-                style={{ background: '#e6007a' }}
-              >
+              <button onClick={() => setPlaying(!playing)} className="w-9 h-9 rounded-full flex items-center justify-center apple-transition" style={{ background: '#e6007a' }}>
                 {playing ? <Pause size={16} color="#fff" /> : <Play size={16} color="#fff" className="ml-0.5" />}
               </button>
 
-              <button
-                onClick={() => setFrame(Math.min(data.length - 1, frame + 10))}
-                className="text-muted-foreground hover:text-foreground apple-transition min-w-[44px] min-h-[44px] md:min-w-0 md:min-h-0 flex items-center justify-center"
-              >
+              <button onClick={() => setFrame(Math.min(data.length - 1, frame + 10))} className="text-muted-foreground hover:text-foreground apple-transition min-w-[44px] min-h-[44px] md:min-w-0 md:min-h-0 flex items-center justify-center">
                 <SkipForward size={16} />
               </button>
 
