@@ -77,9 +77,9 @@ function parseTimestampToUs(value: unknown): number | null {
   if (value == null) return null;
 
   if (typeof value === 'number' && Number.isFinite(value)) {
-    if (value > 1e14) return Math.round(value); // already microseconds
-    if (value > 1e11) return Math.round(value * 1000); // milliseconds -> microseconds
-    if (value > 1e9) return Math.round(value * 1_000_000); // seconds -> microseconds
+    if (value > 1e14) return Math.round(value);
+    if (value > 1e11) return Math.round(value * 1000);
+    if (value > 1e9) return Math.round(value * 1_000_000);
     return null;
   }
 
@@ -231,30 +231,53 @@ export default function ReplayPage() {
         const events = await fetchAssetEvents(selectedAsset);
         if (!active) return;
 
+        console.log('Replay URL params', {
+          assetParam,
+          eventIdParam,
+          replayAtParam,
+        });
+
+        console.log(
+          'Fetched events sample',
+          (events || []).slice(0, 10).map((e: any) => ({
+            id: e.id,
+            event_type: e.event_type,
+            start_time: e.start_time,
+            created_at: e.created_at,
+            asset: e.asset,
+          }))
+        );
+
         let targetEvent: any = null;
         let targetTimestampUs: number | null = replayAtParam;
 
         if (events && events.length) {
-          targetEvent = eventIdParam ? (events.find((e: any) => String(e.id) === String(eventIdParam)) || null) : null;
+          targetEvent = eventIdParam
+            ? (events.find((e: any) => String(e.id) === String(eventIdParam)) || null)
+            : null;
+
+          console.log('Matched event by id', targetEvent);
 
           if (targetEvent) {
             const eventStartUs = parseTimestampToUs(targetEvent.start_time);
             const eventCreatedUs = parseTimestampToUs(targetEvent.created_at);
-
             targetTimestampUs = replayAtParam ?? eventStartUs ?? eventCreatedUs;
           }
 
-          const autopsySource = targetEvent || events[0];
           const exp = assetExponents[selectedAsset] || -8;
           const mult = Math.pow(10, exp);
 
-          setAutopsyData({
-            ...autopsySource,
-            first_price: Number(autopsySource.first_price || 0) * mult,
-            last_price: Number(autopsySource.last_price || 0) * mult,
-            max_spread: Number(autopsySource.max_spread || 0) * mult,
-            baseline_spread: Number(autopsySource.baseline_spread || 0) * mult,
-          });
+          if (targetEvent) {
+            setAutopsyData({
+              ...targetEvent,
+              first_price: Number(targetEvent.first_price || 0) * mult,
+              last_price: Number(targetEvent.last_price || 0) * mult,
+              max_spread: Number(targetEvent.max_spread || 0) * mult,
+              baseline_spread: Number(targetEvent.baseline_spread || 0) * mult,
+            });
+          } else {
+            setAutopsyData(null);
+          }
 
           setTimelineEvents(events);
         } else {
@@ -301,9 +324,6 @@ export default function ReplayPage() {
         if (targetTimestampUs && targetTimestampUs > 0) {
           const targetIdx = findClosestFrameByTimestamp(mapped, targetTimestampUs);
 
-          console.log('replayAtParam', replayAtParam);
-          console.log('targetEvent.start_time', targetEvent?.start_time);
-          console.log('targetEvent.created_at', targetEvent?.created_at);
           console.log('targetTimestampUs(final)', targetTimestampUs);
           console.log('firstTickUs', mapped[0]?.timestamp_us);
           console.log('lastTickUs', mapped[mapped.length - 1]?.timestamp_us);
