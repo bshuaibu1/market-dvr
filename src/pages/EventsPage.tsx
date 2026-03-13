@@ -85,7 +85,8 @@ const MIN_VOL_MOVE_BY_ASSET: Record<string, number> = {
 
 const DEFAULT_MIN_VOL_MOVE_PCT = 0.15;
 const ZERO_EPSILON = 0.005;
-const MAX_EVENTS_TO_KEEP = 300;
+const MAX_EVENTS_TO_KEEP = 5000;
+const EVENTS_PAGE_SIZE = 100;
 
 function normalizeNearZero(v: number, epsilon = ZERO_EPSILON) {
   return Math.abs(v) < epsilon ? 0 : v;
@@ -500,10 +501,15 @@ export default function EventsPage() {
   const [crashCount, setCrashCount] = useState(0);
   const [avgDuration, setAvgDuration] = useState(0);
   const [mostActive, setMostActive] = useState('—');
+  const [eventsOffset, setEventsOffset] = useState(0);
+  const [hasMoreEvents, setHasMoreEvents] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
 
   useEffect(() => {
     setRawEvents([]);
     setEvents([]);
+    setEventsOffset(0);
+    setHasMoreEvents(true);
   }, [activeFilter]);
 
   useEffect(() => {
@@ -535,51 +541,66 @@ export default function EventsPage() {
   useEffect(() => {
     let isMounted = true;
 
-    async function loadEvents() {
+    async function loadEventsPage() {
       try {
-        let apiType: string | undefined = undefined;
+        setLoadingMore(true);
 
+        let apiType: string | undefined = undefined;
         if (activeFilter === 'crash' || activeFilter === 'pump') apiType = 'volatility_spike';
         else if (activeFilter === 'spread') apiType = 'spread_spike';
         else if (activeFilter === 'confidence' || activeFilter === 'divergence') apiType = 'confidence_divergence';
 
-        const requestLimit = activeFilter ? 150 : 250;
-        let data = (await fetchEvents(requestLimit, apiType)) as ApiEvent[];
+        const data = (await fetchEvents(EVENTS_PAGE_SIZE, apiType, eventsOffset)) as ApiEvent[];
         if (!isMounted) return;
 
-        if (activeFilter === 'crash') {
-          data = data.filter((e) => Number(e.last_price) < Number(e.first_price));
-        } else if (activeFilter === 'pump') {
-          data = data.filter((e) => Number(e.last_price) > Number(e.first_price));
-        }
-
-        data = data.filter(shouldKeepEvent);
+        setHasMoreEvents(data.length === EVENTS_PAGE_SIZE);
 
         setRawEvents((prev) => {
           const merged = mergeEventsById(prev, data, MAX_EVENTS_TO_KEEP);
-          setEvents(merged.map(mapApiEvent));
           return merged;
         });
       } catch (error) {
         console.error('Failed to load events', error);
+      } finally {
+        if (isMounted) setLoadingMore(false);
       }
     }
 
-    loadEvents();
-    const interval = window.setInterval(loadEvents, 5000);
+    loadEventsPage();
 
     return () => {
       isMounted = false;
-      window.clearInterval(interval);
     };
-  }, [activeFilter]);
+  }, [activeFilter, eventsOffset]);
+
+  const filteredRawEvents = useMemo(() => {
+    let data = [...rawEvents];
+
+    if (activeFilter === 'crash') {
+      data = data.filter((e) => e.event_type === 'volatility_spike' && Number(e.last_price) < Number(e.first_price));
+    } else if (activeFilter === 'pump') {
+      data = data.filter((e) => e.event_type === 'volatility_spike' && Number(e.last_price) > Number(e.first_price));
+    } else if (activeFilter === 'spread') {
+      data = data.filter((e) => e.event_type === 'spread_spike');
+    } else if (activeFilter === 'confidence' || activeFilter === 'divergence') {
+      data = data.filter((e) => e.event_type === 'confidence_divergence');
+    }
+
+    data = data.filter(shouldKeepEvent);
+
+    return data;
+  }, [rawEvents, activeFilter]);
+
+  useEffect(() => {
+    setEvents(filteredRawEvents.map(mapApiEvent));
+  }, [filteredRawEvents]);
 
   const filtered = events;
 
   const featuredEvent = useMemo(() => {
-    if (!rawEvents.length) return null;
+    if (!filteredRawEvents.length) return null;
 
-    const scored = rawEvents
+    const scored = filteredRawEvents
       .map((event) => {
         const { first, last, mult } = getScaledPrices(event);
         const duration = Number(event.duration_ms || 0);
@@ -603,7 +624,7 @@ export default function EventsPage() {
       .sort((a, b) => b.score - a.score);
 
     return scored[0]?.event ? mapApiEvent(scored[0].event) : null;
-  }, [rawEvents]);
+  }, [filteredRawEvents]);
 
   const stats = [
     { label: 'Total Events', value: totalCount.toLocaleString(), accent: 'rgba(255,255,255,0.15)' },
@@ -940,15 +961,33 @@ export default function EventsPage() {
 
         <div className="space-y-3">
           {filtered.length > 0 ? (
-            filtered.map((event, i) => (
-              <EventCard
-                key={event.id}
-                event={event}
-                index={i}
-                isLight={L}
-                navigate={navigate}
-              />
-            ))
+            <>
+              {filtered.map((event, i) => (
+                <EventCard
+                  key={event.id}
+                  event={event}
+                  index={i}
+                  isLight={L}
+                  navigate={navigate}
+                />
+              ))}
+
+              <div className="flex justify-center pt-4">
+                <button
+                  onClick={() => setEventsOffset(prev => prev + EVENTS_PAGE_SIZE)}
+                  disabled={!hasMoreEvents || loadingMore}
+                  className="px-5 py-2 rounded-xl text-sm font-medium apple-transition"
+                  style={{
+                    border: `1px solid ${L ? 'rgba(0,0,0,0.12)' : 'rgba(255,255,255,0.12)'}`,
+                    color: L ? 'rgba(0,0,0,0.7)' : 'rgba(255,255,255,0.8)',
+                    background: 'transparent',
+                    opacity: !hasMoreEvents || loadingMore ? 0.5 : 1,
+                  }}
+                >
+                  {loadingMore ? 'Loading...' : hasMoreEvents ? 'Load older events' : 'No more events'}
+                </button>
+              </div>
+            </>
           ) : (
             <div className="flex flex-col items-center justify-center py-20 text-center">
               <Clock size={48} style={{ color: L ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.15)' }} />
