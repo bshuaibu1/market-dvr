@@ -405,6 +405,45 @@ function mapApiEvent(event: ApiEvent): EnrichedMarketEvent {
   };
 }
 
+function buildReplayUrl(event: EnrichedMarketEvent) {
+  const params = new URLSearchParams();
+
+  params.set('asset', event.asset);
+  params.set('eventId', String(event.id));
+
+  if (event.replayAt) {
+    params.set('replayAt', String(event.replayAt));
+  }
+
+  if (event.rawType || event.type) {
+    params.set('eventType', String(event.rawType || event.type));
+  }
+
+  params.set('eventLabel', String(event.type));
+
+  if (event.featuredTimestamp) {
+    params.set('eventTimeLabel', event.featuredTimestamp);
+  }
+
+  if (event.metrics?.[0]?.value) {
+    params.set('metric1', event.metrics[0].value);
+  }
+
+  if (event.metrics?.[1]?.value) {
+    params.set('metric2', event.metrics[1].value);
+  }
+
+  if (event.metrics?.[2]?.value) {
+    params.set('metric3', event.metrics[2].value);
+  }
+
+  if (event.aiExplanation) {
+    params.set('aiExplanation', event.aiExplanation);
+  }
+
+  return `/replay?${params.toString()}`;
+}
+
 function MiniSparkline({
   data,
   color,
@@ -780,13 +819,7 @@ export default function EventsPage() {
                   </div>
 
                   <button
-                    onClick={() =>
-                      navigate(
-                        `/replay?asset=${encodeURIComponent(featuredEvent.asset)}&eventId=${featuredEvent.id}${
-                          featuredEvent.replayAt ? `&replayAt=${featuredEvent.replayAt}` : ''
-                        }`
-                      )
-                    }
+                    onClick={() => navigate(buildReplayUrl(featuredEvent))}
                     className="inline-flex items-center justify-center text-sm font-medium apple-transition min-h-[44px]"
                     style={{
                       background: '#e6007a',
@@ -1111,13 +1144,7 @@ function EventCard({
             </div>
 
             <button
-              onClick={() =>
-                navigate(
-                  `/replay?asset=${encodeURIComponent(event.asset)}&eventId=${event.id}${
-                    event.replayAt ? `&replayAt=${event.replayAt}` : ''
-                  }`
-                )
-              }
+              onClick={() => navigate(buildReplayUrl(event))}
               className="flex items-center justify-center gap-1.5 text-xs font-medium apple-transition min-h-[44px] w-full sm:w-auto"
               style={{
                 padding: '10px 16px',
