@@ -5,7 +5,9 @@ import { Link } from 'react-router-dom';
 import { useTheme } from '@/components/ThemeProvider';
 
 interface Props {
-  asset: AssetWithClass;
+  asset: AssetWithClass & {
+    replayAt?: number;
+  };
   large?: boolean;
 }
 
@@ -25,20 +27,22 @@ export default function InstitutionalCard({ asset, large = false }: Props) {
     }
   }, [asset.price]);
 
-  // Confidence bar colors
   const confBarTrack = light ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.08)';
   const confBarFill = light ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.25)';
 
-  // Left accent bar — 60% opacity, no glow
-  const accentColor = asset.confidence > 0.9
-    ? (light ? 'rgba(26,143,53,0.6)' : 'rgba(50,215,75,0.6)')
-    : asset.confidence > 0.7
-      ? 'rgba(255,159,10,0.6)'
-      : (light ? 'rgba(204,34,0,0.6)' : 'rgba(255,69,58,0.6)');
+  const accentColor =
+    asset.confidence > 0.9
+      ? light
+        ? 'rgba(26,143,53,0.6)'
+        : 'rgba(50,215,75,0.6)'
+      : asset.confidence > 0.7
+        ? 'rgba(255,159,10,0.6)'
+        : light
+          ? 'rgba(204,34,0,0.6)'
+          : 'rgba(255,69,58,0.6)';
 
-  const spreadPct = asset.price > 0 ? ((asset.spread / asset.price) * 100) : 0;
+  const spreadPct = asset.price > 0 ? (asset.spread / asset.price) * 100 : 0;
 
-  // Theme-aware colors
   const cardBg = light ? '#ffffff' : '#0d0d0d';
   const cardBorder = light ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.08)';
   const cardShadow = light ? '0 1px 3px rgba(0,0,0,0.06), 0 4px 12px rgba(0,0,0,0.04)' : 'none';
@@ -50,9 +54,13 @@ export default function InstitutionalCard({ asset, large = false }: Props) {
   const microColor = light ? 'rgba(0,0,0,0.4)' : 'rgba(255,255,255,0.4)';
   const dividerColor = light ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.1)';
 
+  const replayUrl = `/replay?asset=${encodeURIComponent(asset.symbol)}${
+    asset.replayAt ? `&replayAt=${asset.replayAt}` : ''
+  }`;
+
   return (
     <Link
-      to={`/replay?asset=${encodeURIComponent(asset.symbol)}`}
+      to={replayUrl}
       className="group relative flex flex-col overflow-hidden cursor-pointer"
       style={{
         background: cardBg,
@@ -64,46 +72,54 @@ export default function InstitutionalCard({ asset, large = false }: Props) {
       }}
       onMouseEnter={(e) => {
         e.currentTarget.style.borderColor = 'rgba(230,0,122,0.4)';
-        e.currentTarget.style.boxShadow = `0 0 0 1px rgba(230,0,122,0.2)${light ? ', 0 1px 3px rgba(0,0,0,0.06), 0 4px 12px rgba(0,0,0,0.04)' : ''}`;
+        e.currentTarget.style.boxShadow = `0 0 0 1px rgba(230,0,122,0.2)${
+          light ? ', 0 1px 3px rgba(0,0,0,0.06), 0 4px 12px rgba(0,0,0,0.04)' : ''
+        }`;
       }}
       onMouseLeave={(e) => {
         e.currentTarget.style.borderColor = cardBorder;
         e.currentTarget.style.boxShadow = cardShadow;
       }}
     >
-      {/* Left accent bar — subtle, no glow */}
       <div
         className="absolute left-0 top-0 bottom-0 w-[3px] rounded-l-[12px]"
         style={{ background: accentColor }}
       />
 
       <div className="flex-1 flex flex-col justify-between pl-[15px] pr-3 py-2.5">
-        {/* Top: ticker + name */}
         <div className="flex items-center justify-between">
           <span style={{ fontSize: 13, fontWeight: 600, color: tickerColor }}>{asset.symbol}</span>
           <span style={{ fontSize: 10, color: nameColor }}>{asset.name}</span>
         </div>
 
-        {/* Middle: price change + sparkline */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-1.5">
-            <span className="tabular-nums" style={{ fontSize: large ? 24 : 20, color: changeColor, fontWeight: 400 }}>
-              {positive ? '+' : ''}{asset.change.toFixed(2)}%
+            <span
+              className="tabular-nums"
+              style={{ fontSize: large ? 24 : 20, color: changeColor, fontWeight: 400 }}
+            >
+              {positive ? '+' : ''}
+              {asset.change.toFixed(2)}%
             </span>
-            <span style={{ fontSize: 10, color: changeColor }}>
-              {positive ? '▲' : '▼'}
-            </span>
+            <span style={{ fontSize: 10, color: changeColor }}>{positive ? '▲' : '▼'}</span>
           </div>
           <div className="flex-shrink-0">
-            <SparklineChart data={asset.sparkline} width={48} height={large ? 32 : 24} positive={positive} />
+            <SparklineChart
+              data={asset.sparkline}
+              width={48}
+              height={large ? 32 : 24}
+              positive={positive}
+            />
           </div>
         </div>
 
-        {/* Bottom: micro-stats */}
         {large && (
           <div className="flex items-center gap-0">
             <span className="tabular-nums" style={{ fontSize: 10, color: microColor }}>
-              BID-ASK {asset.spread === 0 ? '—' : `$${asset.spread < 0.01 ? asset.spread.toFixed(6) : asset.spread.toFixed(2)}`}
+              BID-ASK{' '}
+              {asset.spread === 0
+                ? '—'
+                : `$${asset.spread < 0.01 ? asset.spread.toFixed(6) : asset.spread.toFixed(2)}`}
             </span>
             <span style={{ fontSize: 10, color: dividerColor, margin: '0 6px' }}>|</span>
             <span className="tabular-nums" style={{ fontSize: 10, color: microColor }}>
@@ -117,16 +133,25 @@ export default function InstitutionalCard({ asset, large = false }: Props) {
         )}
       </div>
 
-      {/* Confidence bar at bottom */}
       <div className="w-full h-[2px] relative" style={{ background: confBarTrack }}>
         <div
           className="absolute inset-y-0 left-0"
-          style={{ width: `${asset.confidence * 100}%`, background: confBarFill, transition: 'width 0.6s ease' }}
+          style={{
+            width: `${asset.confidence * 100}%`,
+            background: confBarFill,
+            transition: 'width 0.6s ease',
+          }}
         />
       </div>
 
       {flash && (
-        <div className="absolute inset-0 pointer-events-none" style={{ background: light ? 'rgba(0,0,0,0.02)' : 'rgba(255,255,255,0.03)', animation: 'shimmerFade 0.2s ease-out forwards' }} />
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            background: light ? 'rgba(0,0,0,0.02)' : 'rgba(255,255,255,0.03)',
+            animation: 'shimmerFade 0.2s ease-out forwards',
+          }}
+        />
       )}
     </Link>
   );

@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import Navbar from '@/components/Navbar';
 import { generateReplayData, formatPrice, allAssetsList } from '@/lib/mockData';
-import { fetchTicks, fetchLatest, fetchAssetEvents } from '@/lib/api';
+import { fetchTicks, fetchTickRange, fetchLatest, fetchAssetEvents } from '@/lib/api';
 import { motion } from 'framer-motion';
 import { Play, Pause, SkipBack, SkipForward, Share2, Keyboard, GitCompareArrows, ChevronRight } from 'lucide-react';
 import { LineChart, Line, YAxis, ResponsiveContainer, ReferenceLine, CartesianGrid } from 'recharts';
@@ -73,6 +73,34 @@ function formatSpread(v: number) {
   return `$${v.toFixed(2)}`;
 }
 
+function parseTimestampToUs(value: unknown): number | null {
+  if (value == null) return null;
+
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    if (value > 1e14) return Math.round(value); // already microseconds
+    if (value > 1e11) return Math.round(value * 1000); // milliseconds -> microseconds
+    if (value > 1e9) return Math.round(value * 1_000_000); // seconds -> microseconds
+    return null;
+  }
+
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+
+    const numeric = Number(trimmed);
+    if (Number.isFinite(numeric)) {
+      return parseTimestampToUs(numeric);
+    }
+
+    const parsedMs = Date.parse(trimmed);
+    if (Number.isFinite(parsedMs)) {
+      return Math.round(parsedMs * 1000);
+    }
+  }
+
+  return null;
+}
+
 function mapApiTick(t: any, i: number, fallbackExponent = -8): ReplayTick | null {
   const exponent = Number.isFinite(Number(t.exponent)) ? Number(t.exponent) : fallbackExponent;
   const factor = Math.pow(10, exponent);
@@ -90,9 +118,12 @@ function mapApiTick(t: any, i: number, fallbackExponent = -8): ReplayTick | null
       ? Math.max(0, Math.min(0.999, 1 - confidenceAbs / price))
       : 0.95;
 
+  const timestampUs = parseTimestampToUs(t.timestamp_us ?? t.start_time);
+  if (!timestampUs || timestampUs <= 0) return null;
+
   return {
     time: i,
-    timestamp_us: Number(t.timestamp_us || t.start_time || 0),
+    timestamp_us: timestampUs,
     price,
     bid,
     ask,
@@ -100,6 +131,43 @@ function mapApiTick(t: any, i: number, fallbackExponent = -8): ReplayTick | null
     confidenceAbs,
     confidenceNorm,
   };
+}
+
+function findClosestFrameByTimestamp(ticks: ReplayTick[], targetTimestampUs: number): number {
+  if (!ticks.length) return 0;
+
+  let bestIdx = 0;
+  let bestDelta = Math.abs((ticks[0].timestamp_us || 0) - targetTimestampUs);
+
+  for (let i = 1; i < ticks.length; i++) {
+    const delta = Math.abs((ticks[i].timestamp_us || 0) - targetTimestampUs);
+    if (delta < bestDelta) {
+      bestDelta = delta;
+      bestIdx = i;
+    }
+  }
+
+  return bestIdx;
+}
+
+function formatReplayTimestamp(timestampUs: number) {
+  if (!Number.isFinite(timestampUs) || timestampUs <= 0) return '—';
+  const ms = Math.floor(timestampUs / 1000);
+  const date = new Date(ms);
+  if (Number.isNaN(date.getTime())) return '—';
+  return date.toLocaleString();
+}
+
+function getReplayWindowUs(timeframe: string) {
+  if (timeframe === '50ms') return 30 * 1000 * 1000;
+  if (timeframe === '200ms') return 60 * 1000 * 1000;
+  if (timeframe === '1s') return 2 * 60 * 1000 * 1000;
+  if (timeframe === '5s') return 10 * 60 * 1000 * 1000;
+  if (timeframe === '30s') return 30 * 60 * 1000 * 1000;
+  if (timeframe === '1m') return 60 * 60 * 1000 * 1000;
+  if (timeframe === '5m') return 3 * 60 * 60 * 1000 * 1000;
+  if (timeframe === '15m') return 6 * 60 * 60 * 1000 * 1000;
+  return 12 * 60 * 60 * 1000 * 1000;
 }
 
 export default function ReplayPage() {
@@ -110,6 +178,7 @@ export default function ReplayPage() {
 
   const assetParam = searchParams.get('asset');
   const eventIdParam = searchParams.get('eventId');
+  const replayAtParam = parseTimestampToUs(searchParams.get('replayAt'));
 
   const [selectedAsset, setSelectedAsset] = useState(assetParam || 'BTC/USD');
   const [compareMode, setCompareMode] = useState(false);
@@ -163,19 +232,28 @@ export default function ReplayPage() {
         if (!active) return;
 
         let targetEvent: any = null;
+        let targetTimestampUs: number | null = replayAtParam;
 
         if (events && events.length) {
-          targetEvent = eventIdParam ? (events.find((e: any) => e.id === eventIdParam) || events[0]) : events[0];
+          targetEvent = eventIdParam ? (events.find((e: any) => String(e.id) === String(eventIdParam)) || null) : null;
 
+          if (targetEvent) {
+            const eventStartUs = parseTimestampToUs(targetEvent.start_time);
+            const eventCreatedUs = parseTimestampToUs(targetEvent.created_at);
+
+            targetTimestampUs = replayAtParam ?? eventStartUs ?? eventCreatedUs;
+          }
+
+          const autopsySource = targetEvent || events[0];
           const exp = assetExponents[selectedAsset] || -8;
           const mult = Math.pow(10, exp);
 
           setAutopsyData({
-            ...targetEvent,
-            first_price: Number(targetEvent.first_price || 0) * mult,
-            last_price: Number(targetEvent.last_price || 0) * mult,
-            max_spread: Number(targetEvent.max_spread || 0) * mult,
-            baseline_spread: Number(targetEvent.baseline_spread || 0) * mult,
+            ...autopsySource,
+            first_price: Number(autopsySource.first_price || 0) * mult,
+            last_price: Number(autopsySource.last_price || 0) * mult,
+            max_spread: Number(autopsySource.max_spread || 0) * mult,
+            baseline_spread: Number(autopsySource.baseline_spread || 0) * mult,
           });
 
           setTimelineEvents(events);
@@ -184,15 +262,33 @@ export default function ReplayPage() {
           setTimelineEvents([]);
         }
 
-        const fetchLimit = ['5m', '15m', '1h'].includes(timeframe) ? 1500 : 500;
         const fallbackExp = assetExponents[selectedAsset] || -8;
+        let ticks: any[] = [];
 
-        const ticks = await fetchTicks(selectedAsset, fetchLimit);
+        if (targetTimestampUs && targetTimestampUs > 0) {
+          const halfWindowUs = getReplayWindowUs(timeframe);
+          const from = Math.max(0, targetTimestampUs - halfWindowUs);
+          const to = targetTimestampUs + halfWindowUs;
+
+          try {
+            ticks = await fetchTickRange(selectedAsset, from, to);
+          } catch (rangeErr) {
+            console.error('fetchTickRange failed, falling back to fetchTicks', rangeErr);
+            const fallbackLimit = ['5m', '15m', '1h'].includes(timeframe) ? 1500 : 500;
+            ticks = await fetchTicks(selectedAsset, fallbackLimit);
+          }
+        } else {
+          const fallbackLimit = ['5m', '15m', '1h'].includes(timeframe) ? 1500 : 500;
+          ticks = await fetchTicks(selectedAsset, fallbackLimit);
+        }
+
         if (!active) return;
 
         const mapped = (ticks || [])
           .map((t: any, i: number) => mapApiTick(t, i, fallbackExp))
-          .filter((d): d is ReplayTick => d !== null);
+          .filter((d): d is ReplayTick => d !== null)
+          .sort((a, b) => a.timestamp_us - b.timestamp_us)
+          .map((tick, i) => ({ ...tick, time: i }));
 
         setData(mapped);
         setDataLoading(false);
@@ -202,13 +298,19 @@ export default function ReplayPage() {
           return;
         }
 
-        let targetIdx = -1;
-        if (eventIdParam && targetEvent) {
-          const tgtTime = Number(targetEvent.start_time || 0);
-          targetIdx = mapped.findIndex((t: ReplayTick) => t.timestamp_us >= tgtTime);
-        }
+        if (targetTimestampUs && targetTimestampUs > 0) {
+          const targetIdx = findClosestFrameByTimestamp(mapped, targetTimestampUs);
 
-        if (targetIdx !== -1) {
+          console.log('replayAtParam', replayAtParam);
+          console.log('targetEvent.start_time', targetEvent?.start_time);
+          console.log('targetEvent.created_at', targetEvent?.created_at);
+          console.log('targetTimestampUs(final)', targetTimestampUs);
+          console.log('firstTickUs', mapped[0]?.timestamp_us);
+          console.log('lastTickUs', mapped[mapped.length - 1]?.timestamp_us);
+          console.log('targetIdx', targetIdx);
+          console.log('matchedTickUs', mapped[targetIdx]?.timestamp_us);
+          console.log('deltaUs', (mapped[targetIdx]?.timestamp_us ?? 0) - targetTimestampUs);
+
           setFrame(targetIdx);
         } else {
           setFrame(prev => Math.min(prev, mapped.length - 1));
@@ -224,7 +326,7 @@ export default function ReplayPage() {
     return () => {
       active = false;
     };
-  }, [selectedAsset, timeframe, eventIdParam]);
+  }, [selectedAsset, timeframe, eventIdParam, replayAtParam]);
 
   useEffect(() => {
     if (!isLive) {
@@ -241,7 +343,9 @@ export default function ReplayPage() {
 
         const mapped = (ticks || [])
           .map((t: any, i: number) => mapApiTick(t, i, fallbackExp))
-          .filter((d): d is ReplayTick => d !== null);
+          .filter((d): d is ReplayTick => d !== null)
+          .sort((a, b) => a.timestamp_us - b.timestamp_us)
+          .map((tick, i) => ({ ...tick, time: i }));
 
         if (!mapped.length) return;
 
@@ -346,7 +450,6 @@ export default function ReplayPage() {
 
   let minP = 0;
   let maxP = 1;
-  let rangeP = 1;
 
   if (useCompare) {
     const pcts1 = data.map(d => ((d.price - startPrice1) / startPrice1) * 100);
@@ -359,7 +462,6 @@ export default function ReplayPage() {
 
     minP = rawMin - pad;
     maxP = rawMax + pad;
-    rangeP = maxP - minP || 1;
   } else {
     const prices = data.map(d => d.price).filter(Number.isFinite);
     const rawMin = prices.length ? Math.min(...prices) : 0;
@@ -368,7 +470,6 @@ export default function ReplayPage() {
 
     minP = rawMin - pad;
     maxP = rawMax + pad;
-    rangeP = maxP - minP || 1;
   }
 
   const rechartsData = useMemo(() => {
@@ -425,11 +526,10 @@ export default function ReplayPage() {
 
     return timelineEvents
       .map(ev => {
-        const start = Number(ev.start_time || 0);
+        const start = parseTimestampToUs(ev.start_time) ?? parseTimestampToUs(ev.created_at) ?? 0;
         if (start < firstTickTime || start > lastTickTime) return null;
 
-        let frameIdx = data.findIndex(d => (d.timestamp_us || 0) >= start);
-        if (frameIdx === -1) frameIdx = data.length - 1;
+        const frameIdx = findClosestFrameByTimestamp(data, start);
 
         let label = ev.event_type;
         if (label === 'volatility_spike') label = 'Volatility Spike';
@@ -478,6 +578,7 @@ export default function ReplayPage() {
                   { label: 'ASK', value: Number.isFinite(current.ask) ? `$${formatPrice(current.ask)}` : '—' },
                   { label: 'SPREAD', value: formatSpread(current.spread) },
                   { label: 'CONF', value: `${Math.min(100, current.confidenceNorm * 100).toFixed(1)}%` },
+                  { label: 'TIME', value: formatReplayTimestamp(current.timestamp_us) },
                 ].map((row, idx, arr) => (
                   <div key={row.label} style={{ borderBottom: idx < arr.length - 1 ? `1px solid ${inspectorDivider}` : 'none', padding: '12px 0' }}>
                     <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.08em', color: inspectorLabelColor }}>{row.label}</div>
@@ -510,6 +611,7 @@ export default function ReplayPage() {
                 { label: 'ASK', value: Number.isFinite(current.ask) ? `$${formatPrice(current.ask)}` : '—' },
                 { label: 'SPREAD', value: formatSpread(current.spread) },
                 { label: 'CONFIDENCE', value: `${Math.min(100, current.confidenceNorm * 100).toFixed(1)}%` },
+                { label: 'TIME', value: formatReplayTimestamp(current.timestamp_us) },
                 { label: 'FRAME', value: `${frame} / ${Math.max(0, data.length - 1)}` },
                 { label: 'RESOLUTION', value: timeframe },
               ].map((row, idx, arr) => (
@@ -788,6 +890,13 @@ export default function ReplayPage() {
                 {priceChange >= 0 ? '+' : ''}{priceChange.toFixed(2)}
               </span>
             )}
+          </div>
+
+          <div
+            className="text-xs"
+            style={{ color: isLight ? 'rgba(0,0,0,0.4)' : 'rgba(255,255,255,0.4)' }}
+          >
+            Frame time: {formatReplayTimestamp(current.timestamp_us)}
           </div>
 
           <div

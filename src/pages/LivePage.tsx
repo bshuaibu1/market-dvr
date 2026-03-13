@@ -28,10 +28,15 @@ interface ApiEvent {
   asset: string;
   description: string;
   timestamp: string;
+  start_time?: number | string;
+  created_at?: string;
 }
 
 type TabType = 'all' | 'crypto' | 'commodities' | 'forex';
-type AssetWithSpreadMeta = AssetWithClass & { hasBidAsk?: boolean };
+type AssetWithSpreadMeta = AssetWithClass & {
+  hasBidAsk?: boolean;
+  replayAt?: number;
+};
 
 const tabs: { value: TabType; label: string }[] = [
   { value: 'all', label: 'All' },
@@ -78,6 +83,46 @@ const assetMetaBySymbol: Record<string, { name: string; assetClass: AssetClass }
 function toFiniteNumber(v: unknown): number | null {
   const n = Number(v);
   return Number.isFinite(n) ? n : null;
+}
+
+function toTimestampUs(v: unknown): number | null {
+  const n = Number(v);
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+function toIsoStringTimestampUs(v: unknown): number | null {
+  if (!v || typeof v !== 'string') return null;
+  const ms = Date.parse(v);
+  if (!Number.isFinite(ms)) return null;
+  return Math.round(ms * 1000);
+}
+
+function getEventReplayAt(event: ApiEvent): number | null {
+  const startTimeUs = toTimestampUs(event.start_time);
+  if (startTimeUs) return startTimeUs;
+
+  const createdAtUs = toIsoStringTimestampUs(event.created_at);
+  if (createdAtUs) return createdAtUs;
+
+  const timestampUs = toIsoStringTimestampUs(event.timestamp);
+  if (timestampUs) return timestampUs;
+
+  return null;
+}
+
+function buildReplayUrl(asset: string, replayAt?: number | null, eventId?: string) {
+  const params = new URLSearchParams();
+  params.set('asset', asset);
+
+  if (eventId) {
+    params.set('eventId', eventId);
+  }
+
+  if (replayAt && Number.isFinite(replayAt) && replayAt > 0) {
+    params.set('replayAt', String(replayAt));
+  }
+
+  return `/replay?${params.toString()}`;
 }
 
 function formatSpreadDisplay(spread: number, hasBidAsk: boolean) {
@@ -231,11 +276,12 @@ function AllAssetsTable({ assets, isLight }: { assets: AssetWithSpreadMeta[]; is
               const badge = classBadgeColors[asset.assetClass];
               const confPct = asset.confidence * 100;
               const confColor = confPct > 90 ? '#32d74b' : confPct > 70 ? '#ffd60a' : '#ff453a';
+
               return (
                 <tr
                   key={asset.symbol}
                   className="group cursor-pointer"
-                  onClick={() => navigate('/replay?asset=' + encodeURIComponent(asset.symbol))}
+                  onClick={() => navigate(buildReplayUrl(asset.symbol, asset.replayAt))}
                   style={{
                     background: i % 2 === 1 ? altRow : 'transparent',
                     borderBottom: `1px solid ${isLight ? 'rgba(0,0,0,0.03)' : 'rgba(255,255,255,0.04)'}`,
@@ -343,6 +389,7 @@ export default function LivePage() {
     'BNB/USD': '#b8860b', 'BONK/USD': '#9d0060', 'WIF/USD': '#cc2200',
     'DOGE/USD': '#8b6914', 'XAU/USD': '#b8860b', 'EUR/USD': '#0055d4',
   };
+
   const [assets, setAssets] = useState<AssetWithSpreadMeta[]>([]);
   const [events, setEvents] = useState<ApiEvent[]>([]);
   const [activeTab, setActiveTab] = useState<TabType>('all');
@@ -381,6 +428,7 @@ export default function LivePage() {
             const bidNum = toFiniteNumber(item.best_bid);
             const askNum = toFiniteNumber(item.best_ask);
             const confNum = toFiniteNumber(item.confidence) ?? 0;
+            const tickTimestampUs = toTimestampUs(item.timestamp_us);
 
             const priceValue = priceNum * factor;
             const hasBidAsk = bidNum !== null && askNum !== null;
@@ -433,6 +481,7 @@ export default function LivePage() {
               prevAsset && prevAsset.sparkline.length > 0
                 ? prevAsset.sparkline
                 : [safePrice];
+
             const sparkline = [...baseSparkline, safePrice]
               .filter(v => isFinite(v) && !isNaN(v))
               .slice(-60);
@@ -452,6 +501,7 @@ export default function LivePage() {
               volatile,
               sparkline,
               assetClass: meta.assetClass,
+              replayAt: tickTimestampUs ?? undefined,
             };
           });
 
@@ -496,6 +546,7 @@ export default function LivePage() {
 
   const filteredAssets = useMemo(() => {
     let result = activeTab === 'all' ? assets : assets.filter(a => a.assetClass === activeTab);
+
     if (search.trim()) {
       const q = search.trim().toLowerCase();
       result = result.filter(a =>
@@ -504,6 +555,7 @@ export default function LivePage() {
         a.assetClass.toLowerCase().includes(q)
       );
     }
+
     return result;
   }, [assets, activeTab, search]);
 
@@ -539,6 +591,7 @@ export default function LivePage() {
               </button>
             ))}
           </div>
+
           <div className="relative sm:ml-auto w-full sm:w-[220px]">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <input
@@ -578,7 +631,7 @@ export default function LivePage() {
                 <AssetCard
                   key={asset.symbol}
                   asset={asset}
-                  onClick={() => navigate('/replay?asset=' + encodeURIComponent(asset.symbol))}
+                  onClick={() => navigate(buildReplayUrl(asset.symbol, asset.replayAt))}
                 />
               ))}
             </div>
@@ -598,6 +651,7 @@ export default function LivePage() {
               const dotColor = isLight
                 ? (lightLegendColors[asset.symbol] || '#666666')
                 : (assetColors[asset.symbol] || '#f5f5f7');
+
               return (
                 <div key={asset.symbol} className="flex items-center gap-2">
                   <div className="w-2.5 h-2.5 rounded-full" style={{ background: dotColor }} />
@@ -620,7 +674,14 @@ export default function LivePage() {
           boxShadow: isLight ? '0 1px 3px rgba(0,0,0,0.04)' : 'none',
         }}>
           {allEvents.map(event => {
-            const evConf = eventTypeConfig[event.event_type] || { color: isLight ? 'rgba(0,0,0,0.15)' : 'rgba(255,255,255,0.15)', abbr: '—' };
+            const evConf = eventTypeConfig[event.event_type] || {
+              color: isLight ? 'rgba(0,0,0,0.15)' : 'rgba(255,255,255,0.15)',
+              abbr: '—',
+            };
+
+            const eventReplayAt = getEventReplayAt(event);
+            const replayUrl = buildReplayUrl(event.asset, eventReplayAt, event.id);
+
             return (
               <div
                 key={event.id}
@@ -629,7 +690,7 @@ export default function LivePage() {
                   borderLeft: `3px solid ${evConf.color}`,
                   transition: 'background 0.15s ease',
                 }}
-                onClick={() => navigate(`/replay?asset=${encodeURIComponent(event.asset)}&eventId=${event.id}`)}
+                onClick={() => navigate(replayUrl)}
                 onMouseEnter={e => { e.currentTarget.style.background = isLight ? 'rgba(0,0,0,0.015)' : 'rgba(255,255,255,0.02)'; }}
                 onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
               >
@@ -655,16 +716,20 @@ export default function LivePage() {
                   <span className="text-[13px] md:text-sm font-medium" style={{ color: isLight ? '#1d1d1f' : '#fff' }}>{event.asset}</span>
                   <span className="text-[13px] md:text-sm text-muted-foreground ml-2 hidden sm:inline">{event.description}</span>
                 </div>
+
                 <span className="text-xs text-muted-foreground whitespace-nowrap hidden sm:block">{event.timestamp}</span>
-                <Link
-                  to={`/replay?asset=${encodeURIComponent(event.asset)}&eventId=${event.id}`}
+
+                <button
+                  type="button"
                   className="flex-shrink-0 text-[13px] whitespace-nowrap min-h-[44px] md:min-h-0 flex items-center rounded-md px-2"
                   style={{
                     color: isLight ? 'rgba(0,0,0,0.4)' : 'rgba(255,255,255,0.4)',
-                    textDecoration: 'none',
                     transition: 'all 0.15s ease',
                   }}
-                  onClick={e => e.stopPropagation()}
+                  onClick={e => {
+                    e.stopPropagation();
+                    navigate(replayUrl);
+                  }}
                   onMouseEnter={e => {
                     e.currentTarget.style.color = '#e6007a';
                     e.currentTarget.style.background = 'rgba(230,0,122,0.08)';
@@ -675,10 +740,11 @@ export default function LivePage() {
                   }}
                 >
                   Replay →
-                </Link>
+                </button>
               </div>
             );
           })}
+
           <div className="flex justify-end pt-3 pr-2">
             <Link to="/events" className="text-xs text-primary hover:text-primary/80 apple-transition font-medium">
               View All Events →

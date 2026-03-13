@@ -22,6 +22,10 @@ interface LatestApiAsset {
   timestamp_us: number;
 }
 
+type HeatmapAsset = AssetWithClass & {
+  replayAt?: number;
+};
+
 const assetMetaBySymbol: Record<string, { name: string; assetClass: AssetClass }> = baseAssets.reduce(
   (acc, asset) => {
     acc[asset.symbol] = { name: asset.name, assetClass: asset.assetClass };
@@ -78,7 +82,8 @@ function formatLag(ms: number) {
 
 function formatMovePct(v: number) {
   if (!Number.isFinite(v)) return '0.00%';
-  return `${v >= 0 ? '+' : ''}${v.toFixed(2)}%`;
+  const safe = Math.abs(v) < 0.005 ? 0 : v;
+  return `${safe >= 0 ? '+' : ''}${safe.toFixed(2)}%`;
 }
 
 function formatSpread(v: number) {
@@ -92,7 +97,7 @@ function formatSpread(v: number) {
 }
 
 export default function HeatmapPage() {
-  const [assets, setAssets] = useState<AssetWithClass[]>([]);
+  const [assets, setAssets] = useState<HeatmapAsset[]>([]);
   const [lastCapturedUs, setLastCapturedUs] = useState<number | null>(null);
   const [captureClientMs, setCaptureClientMs] = useState<number | null>(null);
 
@@ -102,6 +107,14 @@ export default function HeatmapPage() {
   const light = theme === 'light';
 
   const priceHistoryRef = useRef<Record<string, { price: number; timestamp: number }[]>>({});
+
+  const openReplayForAsset = (asset: HeatmapAsset) => {
+    navigate(
+      `/replay?asset=${encodeURIComponent(asset.symbol)}${
+        asset.replayAt ? `&replayAt=${asset.replayAt}` : ''
+      }`
+    );
+  };
 
   useEffect(() => {
     let isMounted = true;
@@ -124,7 +137,7 @@ export default function HeatmapPage() {
           const now = Date.now();
           const isInitialFetch = Object.keys(priceHistoryRef.current).length === 0;
 
-          const next: AssetWithClass[] = data.map((item) => {
+          const next: HeatmapAsset[] = data.map((item) => {
             const meta = assetMetaBySymbol[item.asset] ?? {
               name: item.asset,
               assetClass: 'crypto' as AssetClass,
@@ -203,6 +216,7 @@ export default function HeatmapPage() {
               volatile,
               sparkline,
               assetClass: meta.assetClass,
+              replayAt: Number(item.timestamp_us || 0) || undefined,
             };
           });
 
@@ -418,7 +432,7 @@ export default function HeatmapPage() {
 
             {liveLeader && (
               <button
-                onClick={() => navigate(`/replay?asset=${encodeURIComponent(liveLeader.symbol)}`)}
+                onClick={() => openReplayForAsset(liveLeader)}
                 className="text-left rounded-xl px-4 py-3 apple-transition"
                 style={{
                   background: light ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.03)',
