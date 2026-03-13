@@ -85,6 +85,7 @@ const MIN_VOL_MOVE_BY_ASSET: Record<string, number> = {
 
 const DEFAULT_MIN_VOL_MOVE_PCT = 0.15;
 const ZERO_EPSILON = 0.005;
+const MAX_EVENTS_TO_KEEP = 300;
 
 function normalizeNearZero(v: number, epsilon = ZERO_EPSILON) {
   return Math.abs(v) < epsilon ? 0 : v;
@@ -503,8 +504,8 @@ export default function EventsPage() {
         else if (activeFilter === 'spread') apiType = 'spread_spike';
         else if (activeFilter === 'confidence' || activeFilter === 'divergence') apiType = 'confidence_divergence';
 
-        const limit = activeFilter ? 100 : 200;
-        let data = (await fetchEvents(limit, apiType)) as ApiEvent[];
+        const requestLimit = activeFilter ? 150 : 250;
+        let data = (await fetchEvents(requestLimit, apiType)) as ApiEvent[];
         if (!isMounted) return;
 
         if (activeFilter === 'crash') {
@@ -515,8 +516,8 @@ export default function EventsPage() {
 
         data = data.filter(shouldKeepEvent);
 
-        setRawEvents(prev => {
-          const merged = mergeEventsById(prev, data, limit);
+        setRawEvents((prev) => {
+          const merged = mergeEventsById(prev, data, MAX_EVENTS_TO_KEEP);
           setEvents(merged.map(mapApiEvent));
           return merged;
         });
@@ -908,7 +909,7 @@ export default function EventsPage() {
           {filtered.length > 0 ? (
             filtered.map((event, i) => (
               <EventCard
-                key={event.id + i}
+                key={event.id}
                 event={event}
                 index={i}
                 isLight={L}
