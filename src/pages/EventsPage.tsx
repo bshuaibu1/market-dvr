@@ -50,6 +50,7 @@ interface EnrichedMarketEvent extends MarketEvent {
   aiExplanation?: string;
   featuredTimestamp?: string;
   severity: 'LOW' | 'MED' | 'HIGH';
+  replayAt?: number;
 }
 
 const assetExponents: Record<string, number> = {
@@ -87,6 +88,58 @@ const ZERO_EPSILON = 0.005;
 
 function normalizeNearZero(v: number, epsilon = ZERO_EPSILON) {
   return Math.abs(v) < epsilon ? 0 : v;
+}
+
+function parseTimestampToUs(value: unknown): number | undefined {
+  if (value == null) return undefined;
+
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    if (value > 1e14) return Math.round(value);
+    if (value > 1e11) return Math.round(value * 1000);
+    if (value > 1e9) return Math.round(value * 1_000_000);
+    return undefined;
+  }
+
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (!trimmed) return undefined;
+
+    const numeric = Number(trimmed);
+    if (Number.isFinite(numeric)) {
+      return parseTimestampToUs(numeric);
+    }
+
+    const parsedMs = Date.parse(trimmed);
+    if (Number.isFinite(parsedMs)) {
+      return Math.round(parsedMs * 1000);
+    }
+  }
+
+  return undefined;
+}
+
+function getEventSortTimestamp(event: ApiEvent): number {
+  return (
+    parseTimestampToUs(event.start_time) ??
+    parseTimestampToUs(event.created_at) ??
+    0
+  );
+}
+
+function mergeEventsById(existing: ApiEvent[], incoming: ApiEvent[], limit: number) {
+  const map = new Map<string, ApiEvent>();
+
+  for (const event of existing) {
+    map.set(event.id, event);
+  }
+
+  for (const event of incoming) {
+    map.set(event.id, event);
+  }
+
+  return [...map.values()]
+    .sort((a, b) => getEventSortTimestamp(b) - getEventSortTimestamp(a))
+    .slice(0, limit);
 }
 
 function getMinVolatilityMovePct(asset: string) {
@@ -181,7 +234,7 @@ function mapApiEventType(event: ApiEvent): keyof typeof typeConfig {
   return 'confidence';
 }
 
-function formatTimestamp(createdAt: string): string {
+function formatTimestamp(createdAt: string) {
   const date = new Date(createdAt);
   if (Number.isNaN(date.getTime())) return createdAt;
 
@@ -197,7 +250,7 @@ function formatTimestamp(createdAt: string): string {
   return date.toLocaleString();
 }
 
-function formatAbsoluteTimestamp(createdAt: string): string {
+function formatAbsoluteTimestamp(createdAt: string) {
   const date = new Date(createdAt);
   if (Number.isNaN(date.getTime())) return createdAt;
   return date.toLocaleString();
@@ -273,6 +326,7 @@ function mapApiEvent(event: ApiEvent): EnrichedMarketEvent {
   const { first, last, mult } = getScaledPrices(event);
   const durationMs = Number(event.duration_ms);
   const pct = first > 0 ? normalizeNearZero(((last - first) / first) * 100) : 0;
+  const replayAt = parseTimestampToUs(event.start_time) ?? parseTimestampToUs(event.created_at);
 
   let description = '';
   let metrics: EventMetric[] = [];
@@ -346,6 +400,7 @@ function mapApiEvent(event: ApiEvent): EnrichedMarketEvent {
     rawType: event.event_type,
     aiExplanation,
     severity,
+    replayAt,
   };
 }
 
@@ -407,6 +462,11 @@ export default function EventsPage() {
   const [mostActive, setMostActive] = useState('—');
 
   useEffect(() => {
+    setRawEvents([]);
+    setEvents([]);
+  }, [activeFilter]);
+
+  useEffect(() => {
     let isMounted = true;
 
     async function loadStats() {
@@ -455,8 +515,11 @@ export default function EventsPage() {
 
         data = data.filter(shouldKeepEvent);
 
-        setRawEvents(data);
-        setEvents(data.map(mapApiEvent));
+        setRawEvents(prev => {
+          const merged = mergeEventsById(prev, data, limit);
+          setEvents(merged.map(mapApiEvent));
+          return merged;
+        });
       } catch (error) {
         console.error('Failed to load events', error);
       }
@@ -716,7 +779,13 @@ export default function EventsPage() {
                   </div>
 
                   <button
-                    onClick={() => navigate(`/replay?asset=${encodeURIComponent(featuredEvent.asset)}&eventId=${featuredEvent.id}`)}
+                    onClick={() =>
+                      navigate(
+                        `/replay?asset=${encodeURIComponent(featuredEvent.asset)}&eventId=${featuredEvent.id}${
+                          featuredEvent.replayAt ? `&replayAt=${featuredEvent.replayAt}` : ''
+                        }`
+                      )
+                    }
                     className="inline-flex items-center justify-center text-sm font-medium apple-transition min-h-[44px]"
                     style={{
                       background: '#e6007a',
@@ -1041,7 +1110,13 @@ function EventCard({
             </div>
 
             <button
-              onClick={() => navigate(`/replay?asset=${encodeURIComponent(event.asset)}&eventId=${event.id}`)}
+              onClick={() =>
+                navigate(
+                  `/replay?asset=${encodeURIComponent(event.asset)}&eventId=${event.id}${
+                    event.replayAt ? `&replayAt=${event.replayAt}` : ''
+                  }`
+                )
+              }
               className="flex items-center justify-center gap-1.5 text-xs font-medium apple-transition min-h-[44px] w-full sm:w-auto"
               style={{
                 padding: '10px 16px',
