@@ -852,7 +852,7 @@ export default function ReplayPage() {
               className="h-11 md:h-9 rounded-xl bg-background text-foreground text-sm px-3 font-medium focus:outline-none min-w-[120px]"
               style={{ border: `1px solid ${isLight ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.08)'}` }}
             >
-              {(apiAssets.length > 0 ? apiAssets : allAssetsList).map(a => (
+              {allAssetsList.map(a => (
                 <option key={a.symbol} value={a.symbol}>{a.symbol}</option>
               ))}
             </select>
@@ -898,7 +898,7 @@ export default function ReplayPage() {
                   className="h-11 md:h-9 rounded-xl bg-background text-foreground text-sm px-3 focus:outline-none"
                   style={{ border: `1px solid ${isLight ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.08)'}` }}
                 >
-                  {(apiAssets.length > 0 ? apiAssets : allAssetsList)
+                  {allAssetsList
                     .filter(a => a.symbol !== selectedAsset)
                     .map(a => (
                       <option key={a.symbol} value={a.symbol}>{a.symbol}</option>
