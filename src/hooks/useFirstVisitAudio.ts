@@ -9,9 +9,7 @@ export function useFirstVisitAudio(audioSrc: string, pageKey: string) {
   useEffect(() => {
     const key = `market-dvr-audio-visited-${pageKey}`;
     if (localStorage.getItem(key)) return;
-    
-    setIsVisible(true);
-    
+
     const audio = new Audio(audioSrc);
     audioRef.current = audio;
 
@@ -25,9 +23,32 @@ export function useFirstVisitAudio(audioSrc: string, pageKey: string) {
       setTimeout(() => setIsVisible(false), 2000);
     });
 
-    audio.play().then(() => setIsPlaying(true)).catch(() => setIsPlaying(false));
+    const tryPlay = () => {
+      setIsVisible(true);
+      audio.play().then(() => {
+        setIsPlaying(true);
+      }).catch(() => {
+        setIsPlaying(false);
+      });
+      // Remove listeners after first interaction
+      window.removeEventListener('mousemove', tryPlay);
+      window.removeEventListener('scroll', tryPlay);
+      window.removeEventListener('touchstart', tryPlay);
+      window.removeEventListener('keydown', tryPlay);
+    };
 
-    return () => { audio.pause(); };
+    window.addEventListener('mousemove', tryPlay, { once: true });
+    window.addEventListener('scroll', tryPlay, { once: true });
+    window.addEventListener('touchstart', tryPlay, { once: true });
+    window.addEventListener('keydown', tryPlay, { once: true });
+
+    return () => {
+      audio.pause();
+      window.removeEventListener('mousemove', tryPlay);
+      window.removeEventListener('scroll', tryPlay);
+      window.removeEventListener('touchstart', tryPlay);
+      window.removeEventListener('keydown', tryPlay);
+    };
   }, []);
 
   const toggle = () => {
