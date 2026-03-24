@@ -11,6 +11,7 @@ import StressGauge from '@/components/heatmap/StressGauge';
 import TopMovers from '@/components/heatmap/TopMovers';
 import CorrelationPulse from '@/components/heatmap/CorrelationPulse';
 import MarketBottomBar from '@/components/heatmap/MarketBottomBar';
+import AudioIntro from '@/components/AudioIntro';
 
 interface LatestApiAsset {
   asset: string;
@@ -302,6 +303,7 @@ export default function HeatmapPage() {
 
   return (
     <div className="min-h-screen bg-background pt-14 pb-0 max-md:pb-0">
+      <AudioIntro audioSrc="/audio/heatmappageaudio.mp3" pageKey="heatmap" label="Heatmap" />
       <Navbar />
 
       <div className="max-w-7xl mx-auto px-4 md:px-6 pt-6 pb-6 md:pt-8 md:pb-8">

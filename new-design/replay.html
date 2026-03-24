@@ -1,0 +1,1252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Market DVR — Replay</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@200;300;400;500;600&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet" />
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #0d0d0d;
+  --fg: #f5f5f7;
+  --muted: rgba(255,255,255,0.38);
+  --border: rgba(255,255,255,0.08);
+  --accent: #e6007a;
+  --green: #32d74b;
+  --red: #ff453a;
+  --yellow: #ffd60a;
+  --purple: #bf5af2;
+  --blue: #0a84ff;
+  --surface: rgba(255,255,255,0.03);
+  --surface2: rgba(255,255,255,0.06);
+  --nav-bg: rgba(13,13,13,0.88);
+  --btn-bg: rgba(255,255,255,0.07);
+  --btn-hover: rgba(255,255,255,0.11);
+  --panel-bg: rgba(255,255,255,0.04);
+  --chart-grid: rgba(255,255,255,0.04);
+  --chart-line: #ffffff;
+  --chart-bg: rgba(255,255,255,0.02);
+  --inspector-border: 2px solid #e6007a;
+  --inspector-shadow: -4px 0 28px rgba(0,0,0,0.35);
+}
+body.light {
+  --bg: #f2f2f7;
+  --fg: #111111;
+  --muted: rgba(0,0,0,0.42);
+  --border: rgba(0,0,0,0.08);
+  --green: #1a8f35;
+  --red: #cc2200;
+  --surface: rgba(255,255,255,0.92);
+  --surface2: #fff;
+  --nav-bg: rgba(242,242,247,0.92);
+  --btn-bg: rgba(0,0,0,0.05);
+  --btn-hover: rgba(0,0,0,0.09);
+  --panel-bg: rgba(255,255,255,0.8);
+  --chart-grid: rgba(0,0,0,0.05);
+  --chart-line: #1d1d1f;
+  --chart-bg: #ffffff;
+  --inspector-shadow: -4px 0 28px rgba(0,0,0,0.08);
+}
+
+html, body { height: 100%; overflow: hidden; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'Outfit', -apple-system, sans-serif;
+  font-weight: 300;
+  -webkit-font-smoothing: antialiased;
+  transition: background 0.3s, color 0.3s;
+}
+
+@keyframes livePulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.2;transform:scale(0.6)} }
+@keyframes fadeIn { from{opacity:0;transform:translateY(4px)} to{opacity:1;transform:translateY(0)} }
+@keyframes markerPop { 0%{transform:rotate(45deg) scale(0)} 100%{transform:rotate(45deg) scale(1)} }
+
+/* ── NAV ─────────────────────────────────────────── */
+nav {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 28px; height: 52px;
+  background: var(--nav-bg);
+  backdrop-filter: blur(20px) saturate(180%);
+  border-bottom: 1px solid var(--border);
+}
+.nav-logo { display: flex; align-items: center; gap: 8px; text-decoration: none; }
+.nav-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); animation: livePulse 1.4s ease-in-out infinite; }
+.nav-name { font-size: 14px; font-weight: 500; letter-spacing: -0.02em; color: var(--fg); }
+.nav-links { display: flex; align-items: center; gap: 20px; }
+.nav-link { font-size: 13px; color: var(--muted); text-decoration: none; transition: color 0.2s; }
+.nav-link:hover, .nav-link.active { color: var(--fg); }
+.nav-link.active { font-weight: 500; }
+.nav-right { display: flex; align-items: center; gap: 8px; }
+.theme-btn {
+  width: 32px; height: 32px; border-radius: 9px; border: 1px solid var(--border);
+  background: var(--btn-bg); color: var(--muted); cursor: pointer; font-size: 14px;
+  display: flex; align-items: center; justify-content: center; transition: all 0.2s;
+}
+.theme-btn:hover { background: var(--btn-hover); color: var(--fg); }
+
+/* ── ROOT LAYOUT ─────────────────────────────────── */
+.app {
+  display: flex;
+  height: 100vh;
+  padding-top: 52px;
+  overflow: hidden;
+}
+
+/* ── MAIN AREA ───────────────────────────────────── */
+.main {
+  flex: 1; min-width: 0;
+  display: flex; flex-direction: column;
+  padding: 16px 20px 12px;
+  gap: 10px;
+  overflow: hidden;
+}
+
+/* ── TOOLBAR ─────────────────────────────────────── */
+.toolbar {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap; flex-shrink: 0;
+}
+.asset-select {
+  height: 34px; padding: 0 10px;
+  border-radius: 10px; border: 1px solid var(--border);
+  background: var(--btn-bg); color: var(--fg); font-size: 13px; font-weight: 500;
+  font-family: 'Outfit', sans-serif; cursor: pointer; outline: none;
+  transition: border-color 0.2s;
+}
+.asset-select:focus { border-color: rgba(230,0,122,0.4); }
+.toolbar-label {
+  font-size: 10px; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--muted);
+}
+.btn-pill {
+  display: flex; align-items: center; gap: 6px;
+  padding: 5px 12px; border-radius: 99px;
+  border: 1px solid var(--border); background: var(--btn-bg);
+  color: var(--muted); font-size: 12px; font-weight: 500;
+  font-family: 'Outfit', sans-serif; cursor: pointer;
+  transition: all 0.18s ease; white-space: nowrap;
+}
+.btn-pill:hover { background: var(--btn-hover); color: var(--fg); }
+.btn-pill.active { background: rgba(230,0,122,0.15); border-color: rgba(230,0,122,0.35); color: var(--accent); }
+.btn-pill.compare.active { background: rgba(10,132,255,0.15); border-color: rgba(10,132,255,0.35); color: var(--blue); }
+.btn-share {
+  display: flex; align-items: center; gap: 6px;
+  padding: 6px 14px; border-radius: 99px;
+  background: var(--accent); color: #fff; border: none;
+  font-size: 12px; font-weight: 500; font-family: 'Outfit', sans-serif; cursor: pointer;
+  transition: opacity 0.2s; margin-left: auto;
+}
+.btn-share:hover { opacity: 0.85; }
+.pill-dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; animation: livePulse 1s ease-in-out infinite; }
+
+/* ── OVERLAY TOGGLES ─────────────────────────────── */
+.overlay-row {
+  display: flex; align-items: center; gap: 6px; flex-shrink: 0;
+}
+.overlay-btn {
+  display: flex; align-items: center; gap: 5px;
+  padding: 4px 10px; border-radius: 99px;
+  border: 1px solid var(--border); background: transparent;
+  color: var(--muted); font-size: 11px; font-weight: 500;
+  font-family: 'Outfit', sans-serif; cursor: pointer;
+  transition: all 0.15s ease;
+}
+.overlay-btn .dot { width: 7px; height: 7px; border-radius: 50%; opacity: 0.35; transition: opacity 0.15s; }
+.overlay-btn.on { background: var(--btn-hover); color: var(--fg); }
+.overlay-btn.on .dot { opacity: 1; }
+
+/* ── TIMEFRAME ROW ───────────────────────────────── */
+.tf-row {
+  display: flex; align-items: center; gap: 6px; flex-shrink: 0;
+}
+.tf-track {
+  display: flex; align-items: center; gap: 2px;
+  padding: 3px; border-radius: 99px;
+  background: var(--btn-bg); border: 1px solid var(--border);
+}
+.tf-btn {
+  padding: 4px 9px; border-radius: 99px; border: none;
+  background: transparent; color: var(--muted); font-size: 11px; font-weight: 500;
+  font-family: 'Outfit', sans-serif; cursor: pointer; transition: all 0.15s ease;
+}
+.tf-btn:hover { color: var(--fg); }
+.tf-btn.active { background: var(--accent); color: #fff; }
+.pyth-badge {
+  display: flex; align-items: center; gap: 5px;
+  padding: 3px 9px; border-radius: 99px;
+  background: rgba(230,0,122,0.1); border: 1px solid rgba(230,0,122,0.22);
+  font-size: 10px; font-weight: 600; letter-spacing: 0.06em;
+  color: var(--accent); white-space: nowrap;
+}
+
+/* ── PRICE HEADLINE ──────────────────────────────── */
+.price-head { display: flex; align-items: baseline; gap: 12px; flex-shrink: 0; }
+.price-val { font-size: 34px; font-weight: 600; letter-spacing: -0.03em; color: var(--fg); font-family: 'JetBrains Mono', monospace; }
+.price-delta { font-size: 14px; font-weight: 500; font-family: 'JetBrains Mono', monospace; }
+.price-delta.up { color: var(--green); }
+.price-delta.down { color: var(--red); }
+.price-ts { font-size: 11px; color: var(--muted); font-family: 'JetBrains Mono', monospace; }
+
+/* ── CHART ───────────────────────────────────────── */
+.chart-wrap {
+  flex: 1; min-height: 0;
+  border-radius: 14px; overflow: hidden; position: relative;
+  border: 1px solid var(--border);
+  background: var(--chart-bg);
+}
+body.light .chart-wrap { box-shadow: 0 1px 4px rgba(0,0,0,0.05); }
+canvas { display: block; width: 100%; height: 100%; }
+
+/* ── SPREAD CHART ────────────────────────────────── */
+.spread-wrap {
+  flex-shrink: 0; height: 64px;
+  border-radius: 10px; overflow: hidden; position: relative;
+  border: 1px solid var(--border); background: var(--chart-bg);
+}
+.spread-label {
+  position: absolute; top: 7px; left: 12px;
+  font-size: 9px; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--muted); display: flex; align-items: center; gap: 8px;
+}
+.spread-val { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--fg); }
+
+/* ── SCRUBBER AREA ───────────────────────────────── */
+.scrubber-area { flex-shrink: 0; }
+.scrubber-markers { position: relative; height: 20px; }
+.marker {
+  position: absolute; top: 2px; width: 8px; height: 8px;
+  transform: translateX(-50%) rotate(45deg);
+  cursor: pointer; transition: transform 0.15s ease;
+  z-index: 5;
+}
+.marker:hover { transform: translateX(-50%) rotate(45deg) scale(1.3); }
+.scrubber {
+  -webkit-appearance: none; appearance: none;
+  width: 100%; height: 4px; border-radius: 99px; outline: none; cursor: pointer;
+  background: linear-gradient(to right, var(--accent) var(--pct), var(--btn-bg) var(--pct));
+  transition: background 0.05s;
+}
+.scrubber::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none;
+  width: 14px; height: 14px; border-radius: 50%;
+  background: var(--accent); cursor: pointer;
+  box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px rgba(230,0,122,0.3);
+  transition: box-shadow 0.15s;
+}
+.scrubber::-webkit-slider-thumb:hover { box-shadow: 0 0 0 2px var(--bg), 0 0 0 6px rgba(230,0,122,0.4); }
+
+/* ── PLAYBACK BAR ────────────────────────────────── */
+.playback-bar {
+  display: flex; align-items: center; gap: 10px; justify-content: center;
+  flex-shrink: 0;
+  height: 52px; border-radius: 99px;
+  background: var(--panel-bg);
+  backdrop-filter: blur(16px);
+  border: 1px solid var(--border);
+  padding: 0 18px;
+  gap: 16px;
+}
+.pb-btn {
+  width: 34px; height: 34px; display: flex; align-items: center; justify-content: center;
+  border: none; background: transparent; color: var(--muted); cursor: pointer;
+  border-radius: 99px; transition: all 0.15s ease;
+}
+.pb-btn:hover { background: var(--btn-hover); color: var(--fg); }
+.pb-play {
+  width: 38px; height: 38px; border-radius: 50%;
+  background: var(--accent); color: #fff; border: none; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: opacity 0.15s;
+}
+.pb-play:hover { opacity: 0.85; }
+.pb-divider { width: 1px; height: 20px; background: var(--border); }
+.speed-btns { display: flex; align-items: center; gap: 2px; }
+.speed-btn {
+  padding: 3px 7px; border-radius: 99px; border: none;
+  background: transparent; color: var(--muted); font-size: 10px; font-weight: 500;
+  font-family: 'JetBrains Mono', monospace; cursor: pointer; transition: all 0.15s;
+}
+.speed-btn:hover { color: var(--fg); }
+.speed-btn.active { background: var(--surface2); color: var(--fg); }
+
+/* ── INSPECTOR PANEL ─────────────────────────────── */
+.inspector {
+  width: 300px; flex-shrink: 0;
+  display: flex; flex-direction: column;
+  background: var(--panel-bg);
+  backdrop-filter: blur(20px);
+  border-left: var(--inspector-border);
+  box-shadow: var(--inspector-shadow);
+  overflow: hidden;
+}
+body.light .inspector { background: rgba(255,255,255,0.8); }
+.inspector-tabs {
+  display: flex; align-items: center; gap: 3px;
+  padding: 10px 14px 0; flex-shrink: 0;
+}
+.ins-tab {
+  flex: 1; padding: 6px 8px; border-radius: 99px; border: none;
+  background: transparent; color: var(--muted); font-size: 11px; font-weight: 500;
+  font-family: 'Outfit', sans-serif; cursor: pointer; transition: all 0.18s;
+  text-align: center;
+}
+.ins-tab:hover { color: var(--fg); background: var(--btn-hover); }
+.ins-tab.active { background: var(--surface2); color: var(--fg); }
+.ins-tab.active.autopsy { background: var(--accent); color: #fff; }
+.inspector-body {
+  flex: 1; overflow-y: auto; padding: 14px;
+  scrollbar-width: thin; scrollbar-color: var(--border) transparent;
+}
+.inspector-body::-webkit-scrollbar { width: 4px; }
+.inspector-body::-webkit-scrollbar-track { background: transparent; }
+.inspector-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 99px; }
+
+/* inspector rows */
+.ins-row {
+  padding: 10px 0; border-bottom: 1px solid var(--border);
+}
+.ins-row:last-child { border-bottom: none; }
+.ins-label {
+  font-size: 9px; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--muted); margin-bottom: 3px;
+}
+.ins-value {
+  font-size: 17px; color: var(--fg); font-family: 'JetBrains Mono', monospace; font-weight: 400;
+  display: flex; align-items: center; gap: 8px;
+}
+.ins-value.small { font-size: 13px; }
+.ins-delta { font-size: 11px; font-weight: 500; }
+.ins-delta.up { color: var(--green); }
+.ins-delta.down { color: var(--red); }
+
+/* sections inside inspector */
+.ins-section-title {
+  font-size: 9px; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--muted); margin: 16px 0 8px; display: flex; align-items: center; gap: 8px;
+}
+.ins-section-title::after { content:''; flex:1; height:1px; background:var(--border); }
+
+/* AI markers */
+.ai-marker-btn {
+  display: flex; align-items: center; gap: 8px; width: 100%;
+  padding: 7px 6px; border-radius: 8px; border: none; background: transparent;
+  cursor: pointer; transition: background 0.12s; text-align: left;
+}
+.ai-marker-btn:hover { background: var(--btn-hover); }
+.ai-marker-diamond { width: 8px; height: 8px; border-radius: 1px; flex-shrink: 0; transform: rotate(45deg); }
+.ai-marker-label { font-size: 11px; color: var(--muted); flex: 1; }
+.ai-marker-frame { font-size: 10px; color: var(--muted); font-family: 'JetBrains Mono', monospace; }
+
+/* timeline events */
+.ev-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 3px 10px; border-radius: 99px; border: 1px solid var(--border);
+  background: var(--btn-bg); color: var(--muted); font-size: 10px; font-weight: 500;
+  cursor: pointer; transition: all 0.15s;
+}
+.ev-chip:hover { background: var(--btn-hover); color: var(--fg); }
+.ev-dot { width: 5px; height: 5px; border-radius: 50%; }
+
+/* autopsy panel */
+.autopsy-event-badge {
+  display: inline-flex; align-items: center;
+  padding: 4px 12px; border-radius: 99px;
+  background: rgba(230,0,122,0.1); border: 1px solid rgba(230,0,122,0.24);
+  font-size: 11px; font-weight: 500; color: var(--accent); margin-bottom: 14px;
+}
+.autopsy-metric {
+  padding: 10px 12px; border-radius: 10px; margin-bottom: 8px;
+  background: var(--btn-bg); border: 1px solid var(--border);
+}
+.autopsy-metric-label { font-size: 9px; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
+.autopsy-metric-value { font-size: 16px; color: var(--fg); font-family: 'JetBrains Mono', monospace; }
+.ai-block {
+  padding: 12px; border-radius: 10px; margin-top: 10px;
+  background: rgba(230,0,122,0.06); border: 1px solid rgba(230,0,122,0.18);
+}
+body.light .ai-block { background: rgba(230,0,122,0.04); border-color: rgba(230,0,122,0.12); }
+.ai-block-title { font-size: 9px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); margin-bottom: 7px; }
+.ai-block-text { font-size: 12px; line-height: 1.55; color: var(--muted); }
+
+/* ── SHORTCUTS MODAL ─────────────────────────────── */
+.modal-backdrop {
+  position: fixed; inset: 0; z-index: 200;
+  background: rgba(0,0,0,0.6); backdrop-filter: blur(4px);
+  display: flex; align-items: center; justify-content: center;
+}
+.modal-box {
+  background: var(--bg); border: 1px solid var(--border); border-radius: 16px;
+  padding: 24px; width: 340px; max-height: 80vh; overflow-y: auto;
+  box-shadow: 0 24px 64px rgba(0,0,0,0.5);
+}
+body.light .modal-box { background: #fff; box-shadow: 0 24px 64px rgba(0,0,0,0.15); }
+.modal-title { font-size: 14px; font-weight: 500; color: var(--fg); margin-bottom: 16px; }
+.shortcut-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 7px 0; border-bottom: 1px solid var(--border); font-size: 12px;
+}
+.shortcut-row:last-child { border-bottom: none; }
+.shortcut-action { color: var(--muted); }
+.shortcut-key {
+  display: inline-flex; align-items: center; gap: 3px;
+}
+.kbd {
+  padding: 2px 6px; border-radius: 5px; border: 1px solid var(--border);
+  background: var(--btn-bg); color: var(--fg); font-size: 11px;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* ── INSPECTOR COMPARE ───────────────────────────── */
+.compare-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.compare-col-header { font-size: 11px; font-weight: 500; margin-bottom: 10px; }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <a class="nav-logo" href="index.html">
+    <div class="nav-dot"></div>
+    <span class="nav-name">Market DVR</span>
+  </a>
+  <div class="nav-links">
+    <a class="nav-link" href="live.html">Live</a>
+    <a class="nav-link" href="heatmap.html">Heatmap</a>
+    <a class="nav-link active" href="replay.html">Replay</a>
+    <a class="nav-link" href="#">Events</a>
+  </div>
+  <div class="nav-right">
+    <button class="theme-btn" id="theme-toggle" onclick="toggleTheme()">🌙</button>
+  </div>
+</nav>
+
+<div class="app">
+
+  <!-- MAIN CHART AREA -->
+  <div class="main">
+
+    <!-- TOOLBAR -->
+    <div class="toolbar">
+      <select class="asset-select" id="asset-sel" onchange="changeAsset(this.value)">
+        <option>BTC/USD</option><option>ETH/USD</option><option>SOL/USD</option>
+        <option>BNB/USD</option><option>WIF/USD</option><option>BONK/USD</option>
+        <option>XAU/USD</option><option>XAG/USD</option><option>WTI/USD</option>
+        <option>EUR/USD</option><option>GBP/USD</option><option>USD/JPY</option>
+      </select>
+
+      <span class="toolbar-label">Replay</span>
+
+      <button class="btn-pill" id="btn-live" onclick="toggleLive()">
+        <span class="pill-dot" id="live-dot" style="background:var(--muted)"></span>
+        LIVE
+      </button>
+
+      <button class="btn-pill compare" id="btn-compare" onclick="toggleCompare()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+        Compare
+      </button>
+
+      <!-- compare asset selector — shown when compare is active -->
+      <span id="compare-vs" style="display:none;align-items:center;gap:6px;font-size:12px;color:var(--muted)">
+        vs
+        <select class="asset-select" id="compare-asset-sel" onchange="changeCompareAsset(this.value)">
+          <option>ETH/USD</option><option>BTC/USD</option><option>SOL/USD</option>
+          <option>BNB/USD</option><option>XAU/USD</option><option>EUR/USD</option>
+        </select>
+      </span>
+
+      <button class="btn-pill" id="btn-shortcuts" onclick="toggleShortcuts()" style="display:none" title="Keyboard shortcuts">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M8 14h8"/></svg>
+        Shortcuts
+      </button>
+
+      <button class="btn-share" onclick="alert('Share link copied!')" style="margin-left:auto">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+        Share
+      </button>
+    </div>
+
+    <!-- OVERLAY TOGGLES + TIMEFRAMES -->
+    <div style="display:flex;align-items:center;gap:10px;flex-shrink:0;flex-wrap:wrap">
+      <!-- normal overlay row (hidden when compare active) -->
+      <div class="overlay-row" id="overlay-row">
+        <button class="overlay-btn" id="ov-bid" onclick="toggleOverlay('bid')">
+          <span class="dot" style="background:var(--blue)"></span>Bid
+        </button>
+        <button class="overlay-btn" id="ov-ask" onclick="toggleOverlay('ask')">
+          <span class="dot" style="background:var(--red)"></span>Ask
+        </button>
+        <button class="overlay-btn" id="ov-conf" onclick="toggleOverlay('conf')">
+          <span class="dot" style="background:var(--accent)"></span>Confidence
+        </button>
+      </div>
+      <!-- compare legend row (shown when compare active) -->
+      <div class="overlay-row" id="compare-legend" style="display:none">
+        <div style="display:flex;align-items:center;gap:6px;font-size:12px">
+          <span style="display:inline-block;width:14px;height:2px;border-radius:1px;background:var(--fg)"></span>
+          <span style="color:var(--fg);font-weight:500" id="legend-sym1">BTC/USD</span>
+          <span style="font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:500" id="legend-pct1">+0.00%</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;font-size:12px;margin-left:12px">
+          <span style="display:inline-block;width:14px;height:2px;border-radius:1px;background:var(--blue)"></span>
+          <span style="color:var(--blue);font-weight:500" id="legend-sym2">ETH/USD</span>
+          <span style="font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:500" id="legend-pct2">+0.00%</span>
+        </div>
+      </div>
+
+      <div class="tf-row">
+        <div class="tf-track" id="tf-track">
+          <button class="tf-btn" onclick="setTf('50ms',this)">50ms</button>
+          <button class="tf-btn" onclick="setTf('200ms',this)">200ms</button>
+          <button class="tf-btn active" onclick="setTf('1s',this)">1s</button>
+          <button class="tf-btn" onclick="setTf('5s',this)">5s</button>
+          <button class="tf-btn" onclick="setTf('30s',this)">30s</button>
+          <button class="tf-btn" onclick="setTf('1m',this)">1m</button>
+          <button class="tf-btn" onclick="setTf('5m',this)">5m</button>
+          <button class="tf-btn" onclick="setTf('15m',this)">15m</button>
+          <button class="tf-btn" onclick="setTf('1h',this)">1h</button>
+        </div>
+        <span class="pyth-badge" id="pyth-badge" style="display:none">★ Pyth Pro Only</span>
+      </div>
+    </div>
+
+    <!-- PRICE HEADLINE -->
+    <div class="price-head">
+      <span class="price-val" id="price-val">$97,412.00</span>
+      <span class="price-delta up" id="price-delta">+0.00</span>
+      <span class="price-ts" id="price-ts">Frame time: —</span>
+    </div>
+
+    <!-- MAIN CHART -->
+    <div class="chart-wrap" id="chart-wrap">
+      <canvas id="main-chart"></canvas>
+    </div>
+
+    <!-- SPREAD CHART -->
+    <div class="spread-wrap" id="spread-wrap">
+      <div class="spread-label">
+        Spread Width
+        <span class="spread-val" id="spread-val">—</span>
+      </div>
+      <canvas id="spread-chart"></canvas>
+    </div>
+
+    <!-- SHOCK PROPAGATION -->
+    <div id="shock-wrap" style="flex-shrink:0;border-radius:10px;border:1px solid var(--border);background:var(--surface);padding:10px 14px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <span style="font-size:9px;font-weight:500;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted)">Shock Propagation</span>
+        <span style="font-size:10px;font-family:'JetBrains Mono',monospace;color:var(--muted)" id="shock-source">Source: BTC/USD</span>
+      </div>
+      <div id="shock-bars" style="display:flex;flex-direction:column;gap:4px"></div>
+    </div>
+
+    <!-- SCRUBBER -->
+    <div class="scrubber-area">
+      <div class="scrubber-markers" id="marker-row"></div>
+      <input type="range" class="scrubber" id="scrubber" min="0" max="499" value="0"
+        oninput="scrubTo(+this.value)" />
+    </div>
+
+    <!-- PLAYBACK BAR -->
+    <div class="playback-bar">
+      <button class="pb-btn" onclick="stepBack()">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="19 20 9 12 19 4 19 20"/><line x1="5" y1="19" x2="5" y2="5"/></svg>
+      </button>
+      <button class="pb-play" id="pb-play" onclick="togglePlay()">
+        <svg id="play-icon" width="16" height="16" viewBox="0 0 24 24" fill="white"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        <svg id="pause-icon" width="16" height="16" viewBox="0 0 24 24" fill="white" style="display:none"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+      </button>
+      <button class="pb-btn" onclick="stepForward()">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" y1="5" x2="19" y2="19"/></svg>
+      </button>
+
+      <div class="pb-divider"></div>
+
+      <div class="speed-btns">
+        <button class="speed-btn" onclick="setSpeed(0.25,this)">0.25×</button>
+        <button class="speed-btn" onclick="setSpeed(0.5,this)">0.5×</button>
+        <button class="speed-btn active" onclick="setSpeed(1,this)">1×</button>
+        <button class="speed-btn" onclick="setSpeed(2,this)">2×</button>
+        <button class="speed-btn" onclick="setSpeed(4,this)">4×</button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- INSPECTOR PANEL -->
+  <div class="inspector">
+    <div class="inspector-tabs">
+      <button class="ins-tab active" id="tab-inspector" onclick="setInsTab('inspector')">Frame Inspector</button>
+      <button class="ins-tab autopsy" id="tab-autopsy" onclick="setInsTab('autopsy')">Autopsy</button>
+    </div>
+
+    <!-- INSPECTOR BODY -->
+    <div class="inspector-body" id="inspector-body">
+      <!-- populated by JS -->
+    </div>
+  </div>
+
+</div>
+
+<!-- SHORTCUTS MODAL -->
+<div class="modal-backdrop" id="shortcuts-modal" style="display:none" onclick="if(event.target===this)toggleShortcuts()">
+  <div class="modal-box">
+    <div class="modal-title">Keyboard Shortcuts</div>
+    <div class="shortcut-row"><span class="shortcut-action">Play / Pause</span><span class="shortcut-key"><span class="kbd">Space</span></span></div>
+    <div class="shortcut-row"><span class="shortcut-action">Step back 10 frames</span><span class="shortcut-key"><span class="kbd">←</span></span></div>
+    <div class="shortcut-row"><span class="shortcut-action">Step forward 10 frames</span><span class="shortcut-key"><span class="kbd">→</span></span></div>
+    <div class="shortcut-row"><span class="shortcut-action">Step back 100 frames</span><span class="shortcut-key"><span class="kbd">⇧</span><span class="kbd">←</span></span></div>
+    <div class="shortcut-row"><span class="shortcut-action">Step forward 100 frames</span><span class="shortcut-key"><span class="kbd">⇧</span><span class="kbd">→</span></span></div>
+    <div class="shortcut-row"><span class="shortcut-action">Jump to start</span><span class="shortcut-key"><span class="kbd">Home</span></span></div>
+    <div class="shortcut-row"><span class="shortcut-action">Jump to end</span><span class="shortcut-key"><span class="kbd">End</span></span></div>
+    <div class="shortcut-row"><span class="shortcut-action">Speed 0.25×</span><span class="shortcut-key"><span class="kbd">1</span></span></div>
+    <div class="shortcut-row"><span class="shortcut-action">Speed 0.5×</span><span class="shortcut-key"><span class="kbd">2</span></span></div>
+    <div class="shortcut-row"><span class="shortcut-action">Speed 1×</span><span class="shortcut-key"><span class="kbd">3</span></span></div>
+    <div class="shortcut-row"><span class="shortcut-action">Speed 2×</span><span class="shortcut-key"><span class="kbd">4</span></span></div>
+    <div class="shortcut-row"><span class="shortcut-action">Speed 4×</span><span class="shortcut-key"><span class="kbd">5</span></span></div>
+    <div class="shortcut-row"><span class="shortcut-action">Close modal</span><span class="shortcut-key"><span class="kbd">Esc</span></span></div>
+  </div>
+</div>
+
+<script>
+// ── DATA GENERATION ───────────────────────────────────────
+const ASSET_PRICES = {
+  'BTC/USD':97412,'ETH/USD':3841,'SOL/USD':188.4,'BNB/USD':612.3,
+  'WIF/USD':2.184,'BONK/USD':0.0000328,'XAU/USD':2341.8,'XAG/USD':27.84,
+  'WTI/USD':81.24,'EUR/USD':1.08742,'GBP/USD':1.27384,'USD/JPY':149.84,
+};
+
+function genTicks(basePrice, n=500) {
+  const ticks = [];
+  let p = basePrice;
+  const now = Date.now() * 1000 - n * 50000; // us
+  for (let i=0; i<n; i++) {
+    const j = (Math.random()-0.498)*0.0022;
+    p = p*(1+j);
+    const spread = p * (0.00003 + Math.random()*0.00008);
+    const conf = p * (0.0001 + Math.random()*0.0002);
+    ticks.push({
+      i, price:p,
+      bid: p - spread/2,
+      ask: p + spread/2,
+      spread,
+      conf,
+      confNorm: Math.max(0.88, Math.min(0.999, 1 - conf/p)),
+      ts: now + i*50000,
+    });
+  }
+  // inject 3 events
+  const e1 = Math.floor(n*0.22), e2 = Math.floor(n*0.51), e3 = Math.floor(n*0.74);
+  for (let k=0; k<8; k++) {
+    ticks[e1+k].price *= (1 - 0.003 - k*0.0005);
+    ticks[e2+k].spread *= (6 + k);
+    ticks[e3+k].confNorm *= (0.88 - k*0.01);
+  }
+  return ticks;
+}
+
+// ── STATE ─────────────────────────────────────────────────
+let asset = 'BTC/USD';
+let compareAsset = 'ETH/USD';
+let ticks = genTicks(ASSET_PRICES[asset]);
+let compareTicks = genTicks(ASSET_PRICES[compareAsset]);
+let frame = 60;
+let playing = false;
+let speed = 1;
+let playTimer = null;
+let overlays = { bid:false, ask:false, conf:false };
+let insTab = 'inspector';
+let isLive = false;
+let compareMode = false;
+let showShortcutsModal = false;
+
+// pre-compute event markers
+let markers = [];
+function computeMarkers() {
+  const n = ticks.length;
+  // max spread
+  const maxSpIdx = ticks.reduce((bi,t,i)=> t.spread > ticks[bi].spread ? i : bi, 0);
+  // min conf
+  const minCfIdx = ticks.reduce((bi,t,i)=> t.confNorm < ticks[bi].confNorm ? i : bi, 0);
+  // peak vol (biggest price jump)
+  let peakVolIdx=1, peakVolDelta=0;
+  for (let i=1;i<ticks.length;i++) {
+    const d=Math.abs(ticks[i].price-ticks[i-1].price);
+    if(d>peakVolDelta){peakVolDelta=d;peakVolIdx=i;}
+  }
+  // synthetic events
+  const ev1=Math.floor(n*0.22), ev2=Math.floor(n*0.51), ev3=Math.floor(n*0.74);
+  markers = [
+    { frame:ev1, label:'Volatility Spike', color:'#ff453a', type:'event' },
+    { frame:ev2, label:'Spread Spike',     color:'#ffd60a', type:'event' },
+    { frame:ev3, label:'Conf Drop',        color:'#bf5af2', type:'event' },
+    { frame:maxSpIdx, label:'Max Spread',  color:'#f97316', type:'ai' },
+    { frame:minCfIdx, label:'Max Conf Exp',color:'#9333ea', type:'ai' },
+    { frame:peakVolIdx,label:'Peak Vol',   color:isLight()?'#1d1d1f':'#f5f5f7', type:'ai' },
+  ];
+}
+computeMarkers();
+
+// ── HELPERS ───────────────────────────────────────────────
+function isLight() { return document.body.classList.contains('light'); }
+function fmtPrice(p) {
+  if (p >= 10000) return '$'+p.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+  if (p >= 100)   return '$'+p.toFixed(2);
+  if (p >= 1)     return '$'+p.toFixed(4);
+  if (p >= 0.001) return '$'+p.toFixed(6);
+  return '$'+p.toFixed(9);
+}
+function fmtSpread(s) {
+  if (!isFinite(s)) return '—';
+  if (s === 0) return '$0.00';
+  const a = Math.abs(s);
+  if (a < 0.0001) return '$'+s.toFixed(8);
+  if (a < 0.01)   return '$'+s.toFixed(6);
+  if (a < 1)      return '$'+s.toFixed(4);
+  return '$'+s.toFixed(2);
+}
+function fmtTs(us) {
+  if (!us) return '—';
+  const d = new Date(us/1000);
+  return d.toLocaleString();
+}
+
+// ── CHART DRAWING ─────────────────────────────────────────
+function drawChart() {
+  const wrap = document.getElementById('chart-wrap');
+  const canvas = document.getElementById('main-chart');
+  const dpr = window.devicePixelRatio || 1;
+  const W = wrap.clientWidth, H = wrap.clientHeight;
+  canvas.width = W*dpr; canvas.height = H*dpr;
+  canvas.style.width = W+'px'; canvas.style.height = H+'px';
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+
+  const light = isLight();
+  const pad = { t:16, r:52, b:8, l:8 };
+  const cW = W-pad.l-pad.r, cH = H-pad.t-pad.b;
+
+  // bg
+  ctx.clearRect(0,0,W,H);
+
+  const prices = ticks.map(t=>t.price);
+  const mn = Math.min(...prices), mx = Math.max(...prices);
+  const rng = (mx-mn)||1;
+  const pMin = mn - rng*0.08, pMax = mx + rng*0.08;
+  const pRng = pMax - pMin;
+
+  function px(i) { return pad.l + (i/(ticks.length-1))*cW; }
+  function py(p) { return pad.t + ((pMax-p)/pRng)*cH; }
+
+  // grid lines
+  const gridColor = light ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.04)';
+  const lblColor  = light ? 'rgba(0,0,0,0.28)'  : 'rgba(255,255,255,0.28)';
+  ctx.strokeStyle = gridColor; ctx.lineWidth = 1;
+  [0.2, 0.4, 0.6, 0.8].forEach(f => {
+    const y = pad.t + f*cH;
+    ctx.beginPath(); ctx.moveTo(pad.l,y); ctx.lineTo(W-pad.r,y); ctx.stroke();
+    const val = pMax - f*pRng;
+    ctx.fillStyle = lblColor; ctx.font = '9px JetBrains Mono, monospace';
+    ctx.textAlign = 'left'; ctx.fillText(fmtPrice(val), W-pad.r+5, y+3);
+  });
+
+  // confidence band
+  if (overlays.conf) {
+    ctx.beginPath();
+    ticks.forEach((t,i) => {
+      const x=px(i), y=py(t.price+t.conf);
+      if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+    });
+    for (let i=ticks.length-1;i>=0;i--) {
+      ctx.lineTo(px(i), py(ticks[i].price-ticks[i].conf));
+    }
+    ctx.closePath();
+    ctx.fillStyle = 'rgba(230,0,122,0.07)'; ctx.fill();
+  }
+
+  // bid / ask lines
+  if (overlays.bid) {
+    ctx.beginPath(); ctx.strokeStyle = light ? '#0055d4' : '#0a84ff'; ctx.lineWidth = 1; ctx.globalAlpha = 0.5;
+    ticks.forEach((t,i)=>{ const x=px(i),y=py(t.bid); i===0?ctx.moveTo(x,y):ctx.lineTo(x,y); });
+    ctx.stroke(); ctx.globalAlpha = 1;
+  }
+  if (overlays.ask) {
+    ctx.beginPath(); ctx.strokeStyle = light ? '#cc2200' : '#ff453a'; ctx.lineWidth = 1; ctx.globalAlpha = 0.5;
+    ticks.forEach((t,i)=>{ const x=px(i),y=py(t.ask); i===0?ctx.moveTo(x,y):ctx.lineTo(x,y); });
+    ctx.stroke(); ctx.globalAlpha = 1;
+  }
+
+  if (compareMode) {
+    // normalized % lines
+    const base1 = ticks[0].price || 1;
+    const base2 = compareTicks[0]?.price || 1;
+    const allPcts = [
+      ...ticks.map(t=>((t.price-base1)/base1)*100),
+      ...compareTicks.map(t=>((t.price-base2)/base2)*100),
+    ].filter(isFinite);
+    const cMin = Math.min(...allPcts), cMax = Math.max(...allPcts);
+    const cRng = (cMax-cMin)||0.1;
+    const cpMin = cMin - cRng*0.08, cpMax = cMax + cRng*0.08;
+    const cpRng = cpMax - cpMin;
+    const cpY = p => pad.t + ((cpMax-p)/cpRng)*cH;
+
+    // y-axis labels for % mode
+    [0.2,0.5,0.8].forEach(f => {
+      const val = cpMax - f*cpRng;
+      ctx.fillStyle = lblColor; ctx.font = '9px JetBrains Mono, monospace';
+      ctx.textAlign = 'left'; ctx.fillText((val>=0?'+':'')+val.toFixed(2)+'%', W-pad.r+5, pad.t+f*cH+3);
+    });
+
+    // zero line
+    const zy = cpY(0);
+    if (zy > pad.t && zy < pad.t+cH) {
+      ctx.beginPath(); ctx.moveTo(pad.l,zy); ctx.lineTo(W-pad.r,zy);
+      ctx.strokeStyle = light?'rgba(0,0,0,0.08)':'rgba(255,255,255,0.07)';
+      ctx.lineWidth=1; ctx.setLineDash([3,3]); ctx.stroke(); ctx.setLineDash([]);
+    }
+
+    // compare line
+    ctx.beginPath();
+    compareTicks.forEach((t,i)=>{ const x=px(i),y=cpY(((t.price-base2)/base2)*100); i===0?ctx.moveTo(x,y):ctx.lineTo(x,y); });
+    ctx.strokeStyle='#0a84ff'; ctx.lineWidth=1.5; ctx.lineJoin='round'; ctx.stroke();
+
+    // primary line
+    ctx.beginPath();
+    ticks.forEach((t,i)=>{ const x=px(i),y=cpY(((t.price-base1)/base1)*100); i===0?ctx.moveTo(x,y):ctx.lineTo(x,y); });
+    ctx.strokeStyle=light?'#1d1d1f':'#ffffff'; ctx.lineWidth=1.5; ctx.lineJoin='round'; ctx.stroke();
+
+    // update legend pcts
+    const curPct1 = (((ticks[frame]?.price||base1)-base1)/base1*100).toFixed(2);
+    const curPct2 = (((compareTicks[Math.min(frame,compareTicks.length-1)]?.price||base2)-base2)/base2*100).toFixed(2);
+    const l1=document.getElementById('legend-pct1'), l2=document.getElementById('legend-pct2');
+    if(l1){ l1.textContent=(+curPct1>=0?'+':'')+curPct1+'%'; l1.style.color=+curPct1>=0?'var(--green)':'var(--red)'; }
+    if(l2){ l2.textContent=(+curPct2>=0?'+':'')+curPct2+'%'; l2.style.color=+curPct2>=0?'var(--green)':'var(--red)'; }
+  } else {
+    // price area fill
+    ctx.beginPath();
+    ticks.forEach((t,i)=>{ const x=px(i),y=py(t.price); i===0?ctx.moveTo(x,y):ctx.lineTo(x,y); });
+    ctx.lineTo(px(ticks.length-1), pad.t+cH);
+    ctx.lineTo(pad.l, pad.t+cH);
+    ctx.closePath();
+    const grad = ctx.createLinearGradient(0, pad.t, 0, pad.t+cH);
+    grad.addColorStop(0, light ? 'rgba(29,29,31,0.1)' : 'rgba(255,255,255,0.06)');
+    grad.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = grad; ctx.fill();
+
+    // price line
+    ctx.beginPath();
+    ticks.forEach((t,i)=>{ const x=px(i),y=py(t.price); i===0?ctx.moveTo(x,y):ctx.lineTo(x,y); });
+    ctx.strokeStyle = light ? '#1d1d1f' : '#ffffff'; ctx.lineWidth = 1.5;
+    ctx.lineJoin = 'round'; ctx.lineCap = 'round'; ctx.stroke();
+  }
+
+  // event markers on chart
+  markers.forEach(m => {
+    if (m.frame >= ticks.length) return;
+    const x = px(m.frame), y = py(ticks[m.frame].price);
+    ctx.beginPath(); ctx.arc(x, y, 4, 0, Math.PI*2);
+    ctx.fillStyle = m.color; ctx.fill();
+    ctx.strokeStyle = light?'rgba(0,0,0,0.15)':'rgba(255,255,255,0.15)'; ctx.lineWidth=1; ctx.stroke();
+  });
+
+  // playhead
+  const fx = px(frame);
+  ctx.beginPath(); ctx.moveTo(fx, pad.t); ctx.lineTo(fx, pad.t+cH);
+  ctx.strokeStyle = 'rgba(230,0,122,0.55)'; ctx.lineWidth = 1; ctx.setLineDash([3,3]);
+  ctx.stroke(); ctx.setLineDash([]);
+
+  // playhead dot
+  if (frame < ticks.length) {
+    const fy = py(ticks[frame].price);
+    ctx.beginPath(); ctx.arc(fx, fy, 5, 0, Math.PI*2);
+    ctx.fillStyle = '#e6007a'; ctx.fill();
+    ctx.strokeStyle = light?'#fff':'var(--bg)'; ctx.lineWidth=2; ctx.stroke();
+  }
+}
+
+function drawSpread() {
+  const wrap = document.getElementById('spread-wrap');
+  const canvas = document.getElementById('spread-chart');
+  const dpr = window.devicePixelRatio || 1;
+  const W = wrap.clientWidth, H = wrap.clientHeight;
+  canvas.width = W*dpr; canvas.height = H*dpr;
+  canvas.style.width = W+'px'; canvas.style.height = H+'px';
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+
+  const pad = { t:22, r:8, b:4, l:8 };
+  const cW = W-pad.l-pad.r, cH = H-pad.t-pad.b;
+  ctx.clearRect(0,0,W,H);
+
+  const spreads = ticks.map(t=>t.spread).filter(isFinite);
+  const maxS = Math.max(...spreads) || 1;
+
+  // fill area
+  ctx.beginPath();
+  ticks.forEach((t,i) => {
+    const x = pad.l + (i/(ticks.length-1))*cW;
+    const y = pad.t + (1 - t.spread/maxS)*cH;
+    i===0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
+  });
+  ctx.lineTo(pad.l+cW, pad.t+cH); ctx.lineTo(pad.l, pad.t+cH); ctx.closePath();
+  ctx.fillStyle = 'rgba(230,0,122,0.12)'; ctx.fill();
+
+  // line
+  ctx.beginPath();
+  ticks.forEach((t,i) => {
+    const x = pad.l + (i/(ticks.length-1))*cW;
+    const y = pad.t + (1 - t.spread/maxS)*cH;
+    i===0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
+  });
+  ctx.strokeStyle = '#e6007a'; ctx.lineWidth = 1.2;
+  ctx.lineJoin = 'round'; ctx.stroke();
+
+  // playhead
+  const fx = pad.l + (frame/(ticks.length-1))*cW;
+  ctx.beginPath(); ctx.moveTo(fx,pad.t); ctx.lineTo(fx,pad.t+cH);
+  ctx.strokeStyle='rgba(230,0,122,0.35)'; ctx.lineWidth=1; ctx.setLineDash([3,3]); ctx.stroke(); ctx.setLineDash([]);
+}
+
+// ── MARKERS IN SCRUBBER ───────────────────────────────────
+function renderScrubberMarkers() {
+  const row = document.getElementById('marker-row');
+  const n = ticks.length;
+  row.innerHTML = markers.map(m => {
+    const pct = n>1 ? (m.frame/(n-1))*100 : 0;
+    return `<div class="marker" style="left:${pct}%;background:${m.color};${m.type==='ai'?'opacity:0.7':''}"
+      title="${m.label}" onclick="scrubTo(${m.frame})"></div>`;
+  }).join('');
+}
+
+// ── INSPECTOR ─────────────────────────────────────────────
+function renderInspector() {
+  const body = document.getElementById('inspector-body');
+  const t = ticks[frame] || ticks[0];
+  const prev = ticks[Math.max(0,frame-1)] || t;
+  const delta = t.price - prev.price;
+
+  if (insTab === 'inspector') {
+    // Compare mode: two-column layout
+    if (compareMode) {
+      const ct = compareTicks[Math.min(frame, compareTicks.length-1)] || compareTicks[0];
+      const base1 = ticks[0].price||1, base2 = compareTicks[0]?.price||1;
+      const pct1 = (((t.price-base1)/base1)*100).toFixed(3);
+      const pct2 = (((ct.price-base2)/base2)*100).toFixed(3);
+      const rows1 = [
+        {l:'Price', v:fmtPrice(t.price)}, {l:'Bid', v:fmtPrice(t.bid)},
+        {l:'Ask', v:fmtPrice(t.ask)}, {l:'Spread', v:fmtSpread(t.spread)},
+        {l:'Conf', v:(t.confNorm*100).toFixed(1)+'%'}, {l:'Time', v:fmtTs(t.ts)},
+      ];
+      const rows2 = [
+        {l:'Price', v:fmtPrice(ct.price)}, {l:'Bid', v:fmtPrice(ct.bid)},
+        {l:'Ask', v:fmtPrice(ct.ask)}, {l:'Spread', v:fmtSpread(ct.spread)},
+        {l:'Conf', v:(ct.confNorm*100).toFixed(1)+'%'}, {l:'Time', v:fmtTs(ct.ts)},
+      ];
+      const colRow = (r) => `<div class="ins-row"><div class="ins-label">${r.l}</div><div class="ins-value small" style="font-family:'JetBrains Mono',monospace">${r.v}</div></div>`;
+      body.innerHTML = `<div class="compare-cols">
+        <div>
+          <div class="compare-col-header" style="color:var(--fg)">${asset} <span style="color:${+pct1>=0?'var(--green)':'var(--red)'};font-family:'JetBrains Mono',monospace;font-size:10px">${+pct1>=0?'+':''}${pct1}%</span></div>
+          ${rows1.map(colRow).join('')}
+        </div>
+        <div>
+          <div class="compare-col-header" style="color:var(--blue)">${compareAsset} <span style="color:${+pct2>=0?'var(--green)':'var(--red)'};font-family:'JetBrains Mono',monospace;font-size:10px">${+pct2>=0?'+':''}${pct2}%</span></div>
+          ${rows2.map(colRow).join('')}
+        </div>
+      </div>`;
+      return;
+    }
+
+    const rows = [
+      { label:'Price',      value: fmtPrice(t.price), delta: delta, mono:true },
+      { label:'Bid',        value: fmtPrice(t.bid),   mono:true },
+      { label:'Ask',        value: fmtPrice(t.ask),   mono:true },
+      { label:'Spread',     value: fmtSpread(t.spread), mono:true },
+      { label:'Confidence', value: (t.confNorm*100).toFixed(2)+'%', mono:true },
+      { label:'Frame Time', value: fmtTs(t.ts), small:true },
+      { label:'Frame',      value: `${frame} / ${ticks.length-1}`, mono:true },
+    ];
+
+    const evChips = markers.filter(m=>m.type==='event').map(m =>
+      `<button class="ev-chip" onclick="scrubTo(${m.frame})">
+        <span class="ev-dot" style="background:${m.color}"></span>${m.label}
+      </button>`
+    ).join('');
+
+    const aiRows = markers.filter(m=>m.type==='ai').map(m =>
+      `<button class="ai-marker-btn" onclick="scrubTo(${m.frame})">
+        <span class="ai-marker-diamond" style="background:${m.color}"></span>
+        <span class="ai-marker-label">${m.label}</span>
+        <span class="ai-marker-frame">#${m.frame}</span>
+      </button>`
+    ).join('');
+
+    body.innerHTML = rows.map(r => {
+      const deltaHtml = r.delta !== undefined
+        ? `<span class="ins-delta ${r.delta>=0?'up':'down'}">${r.delta>=0?'+':''}${r.delta.toFixed(2)}</span>` : '';
+      return `<div class="ins-row">
+        <div class="ins-label">${r.label}</div>
+        <div class="ins-value${r.small?' small':''}">
+          <span${r.mono?' style="font-family:JetBrains Mono,monospace"':''}>${r.value}</span>
+          ${deltaHtml}
+        </div>
+      </div>`;
+    }).join('') +
+    `<div class="ins-section-title">Timeline Events</div>
+     <div style="display:flex;flex-wrap:wrap;gap:5px">${evChips||'<span style="font-size:11px;color:var(--muted)">No events in range</span>'}</div>
+     <div class="ins-section-title">AI Markers</div>
+     ${aiRows}`;
+
+  } else {
+    // autopsy tab
+    const t0 = ticks[0], tn = ticks[ticks.length-1];
+    const priceDelta = tn.price - t0.price;
+    const priceDeltaPct = (priceDelta/t0.price)*100;
+    const maxSp = Math.max(...ticks.map(t=>t.spread));
+    const minCf = Math.min(...ticks.map(t=>t.confNorm))*100;
+
+    body.innerHTML = `
+      <span class="autopsy-event-badge">Volatility Spike · ${asset}</span>
+      <div class="autopsy-metric">
+        <div class="autopsy-metric-label">Event Type</div>
+        <div class="autopsy-metric-value">Volatility Spike</div>
+      </div>
+      <div class="autopsy-metric">
+        <div class="autopsy-metric-label">Price Move</div>
+        <div class="autopsy-metric-value" style="color:${priceDeltaPct>=0?'var(--green)':'var(--red)'}">${priceDeltaPct>=0?'+':''}${priceDeltaPct.toFixed(3)}%</div>
+      </div>
+      <div class="autopsy-metric">
+        <div class="autopsy-metric-label">Max Spread</div>
+        <div class="autopsy-metric-value">${fmtSpread(maxSp)}</div>
+      </div>
+      <div class="autopsy-metric">
+        <div class="autopsy-metric-label">Min Confidence</div>
+        <div class="autopsy-metric-value">${minCf.toFixed(2)}%</div>
+      </div>
+      <div class="autopsy-metric">
+        <div class="autopsy-metric-label">Duration</div>
+        <div class="autopsy-metric-value">${(ticks.length*50/1000).toFixed(1)}s window</div>
+      </div>
+      <div class="ai-block">
+        <div class="ai-block-title">AI Explanation</div>
+        <div class="ai-block-text">
+          A rapid intra-tick price dislocation was detected across the ${asset} feed.
+          The spread widened ${(maxSp/ticks[0].spread).toFixed(1)}× above its baseline, suggesting a brief
+          liquidity gap. Confidence intervals expanded simultaneously, indicating
+          Pyth aggregators detected significant source divergence. Recovery
+          occurred within ~${Math.floor(Math.random()*200+80)}ms.
+        </div>
+      </div>`;
+  }
+}
+
+// ── SHOCK PROPAGATION ─────────────────────────────────────
+const CORRELATED = ['ETH/USD','SOL/USD','BNB/USD','XAU/USD','EUR/USD'];
+function renderShock() {
+  const src = document.getElementById('shock-source');
+  if (src) src.textContent = 'Source: '+asset;
+  const bars = document.getElementById('shock-bars');
+  if (!bars) return;
+  const pct = frame/(ticks.length-1);
+  bars.innerHTML = CORRELATED.filter(s=>s!==asset).map(sym => {
+    const seed = sym.charCodeAt(0)+sym.charCodeAt(1);
+    const baseCorr = 0.3 + (seed%10)*0.06;
+    const corr = Math.min(0.99, baseCorr + pct*0.2 + (Math.random()-0.5)*0.08);
+    const lag = Math.round(20 + (seed%5)*15);
+    const impact = (corr*100).toFixed(0);
+    const barColor = corr > 0.7 ? 'var(--red)' : corr > 0.5 ? 'var(--yellow)' : 'var(--green)';
+    const light = isLight();
+    return `<div style="display:flex;align-items:center;gap:8px;padding:3px 0">
+      <span style="font-size:11px;font-weight:500;color:var(--fg);width:72px;flex-shrink:0">${sym}</span>
+      <div style="flex:1;height:4px;border-radius:99px;background:var(--btn-bg);overflow:hidden">
+        <div style="height:100%;border-radius:99px;width:${corr*100}%;background:${barColor};transition:width 0.4s ease"></div>
+      </div>
+      <span style="font-size:10px;font-family:'JetBrains Mono',monospace;color:${barColor};width:32px;text-align:right">${impact}%</span>
+      <span style="font-size:9px;color:var(--muted);font-family:'JetBrains Mono',monospace;white-space:nowrap">${lag}ms lag</span>
+    </div>`;
+  }).join('');
+}
+
+// ── UPDATE UI ─────────────────────────────────────────────
+function updatePriceHead() {
+  const t = ticks[frame] || ticks[0];
+  const prev = ticks[Math.max(0,frame-1)] || t;
+  const delta = t.price - prev.price;
+
+  document.getElementById('price-val').textContent = fmtPrice(t.price);
+  const dd = document.getElementById('price-delta');
+  dd.textContent = (delta>=0?'+':'')+delta.toFixed(2);
+  dd.className = 'price-delta '+(delta>=0?'up':'down');
+  document.getElementById('price-ts').textContent = 'Frame time: '+fmtTs(t.ts);
+  document.getElementById('spread-val').textContent = fmtSpread(t.spread);
+}
+
+function updateScrubber() {
+  const s = document.getElementById('scrubber');
+  const pct = ticks.length>1 ? (frame/(ticks.length-1))*100 : 0;
+  s.style.setProperty('--pct', pct+'%');
+  s.value = frame;
+}
+
+function render() {
+  drawChart();
+  if (!compareMode) drawSpread();
+  updatePriceHead();
+  updateScrubber();
+  renderShock();
+  renderInspector();
+}
+
+// ── CONTROLS ─────────────────────────────────────────────
+function scrubTo(f) {
+  frame = Math.max(0, Math.min(ticks.length-1, f));
+  if (isLive && frame < ticks.length-5) setLive(false);
+  render();
+}
+
+function togglePlay() {
+  playing = !playing;
+  document.getElementById('play-icon').style.display = playing?'none':'block';
+  document.getElementById('pause-icon').style.display = playing?'block':'none';
+  if (playing) startPlay(); else stopPlay();
+}
+function startPlay() {
+  const ms = Math.round(50/speed);
+  playTimer = setInterval(()=> {
+    if (frame >= ticks.length-1) { playing=false; stopPlay(); return; }
+    frame++;
+    render();
+  }, ms);
+}
+function stopPlay() { clearInterval(playTimer); }
+
+function stepBack()    { scrubTo(frame-10); }
+function stepForward() { scrubTo(frame+10); }
+
+function setSpeed(s, btn) {
+  speed = s;
+  document.querySelectorAll('.speed-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  if (playing) { stopPlay(); startPlay(); }
+}
+
+function setTf(tf, btn) {
+  document.querySelectorAll('.tf-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('pyth-badge').style.display = (tf==='50ms'||tf==='200ms')?'flex':'none';
+}
+
+function toggleOverlay(key) {
+  overlays[key] = !overlays[key];
+  document.getElementById('ov-'+key).classList.toggle('on', overlays[key]);
+  drawChart();
+}
+
+function toggleLive() {
+  isLive = !isLive;
+  setLive(isLive);
+}
+function setLive(val) {
+  isLive = val;
+  const btn = document.getElementById('btn-live');
+  const dot = document.getElementById('live-dot');
+  btn.classList.toggle('active', val);
+  dot.style.background = val ? 'var(--accent)' : 'var(--muted)';
+  if (val) {
+    if (playing) { stopPlay(); playing=false; }
+    frame = ticks.length-1; render();
+  }
+}
+
+function toggleCompare() {
+  compareMode = !compareMode;
+  document.getElementById('btn-compare').classList.toggle('active', compareMode);
+  document.getElementById('compare-vs').style.display = compareMode ? 'flex' : 'none';
+  document.getElementById('overlay-row').style.display = compareMode ? 'none' : 'flex';
+  document.getElementById('compare-legend').style.display = compareMode ? 'flex' : 'none';
+  document.getElementById('spread-wrap').style.display = compareMode ? 'none' : '';
+  document.getElementById('legend-sym1').textContent = asset;
+  document.getElementById('legend-sym2').textContent = compareAsset;
+  render();
+}
+
+function changeCompareAsset(sym) {
+  compareAsset = sym;
+  compareTicks = genTicks(ASSET_PRICES[sym] || 100);
+  computeMarkers();
+  renderScrubberMarkers();
+  document.getElementById('legend-sym2').textContent = sym;
+  render();
+}
+
+function toggleShortcuts() {
+  showShortcutsModal = !showShortcutsModal;
+  document.getElementById('shortcuts-modal').style.display = showShortcutsModal ? 'flex' : 'none';
+}
+
+function changeAsset(sym) {
+  asset = sym;
+  const base = ASSET_PRICES[sym] || 100;
+  ticks = genTicks(base);
+  frame = 60;
+  computeMarkers();
+  renderScrubberMarkers();
+  render();
+}
+
+function setInsTab(tab) {
+  insTab = tab;
+  document.getElementById('tab-inspector').classList.toggle('active', tab==='inspector');
+  document.getElementById('tab-autopsy').classList.toggle('active', tab==='autopsy');
+  renderInspector();
+}
+
+// ── KEYBOARD ─────────────────────────────────────────────
+document.addEventListener('keydown', e => {
+  if (e.target.tagName==='INPUT'||e.target.tagName==='SELECT') return;
+  if (e.code==='Space') { e.preventDefault(); togglePlay(); }
+  if (e.code==='ArrowLeft') { e.preventDefault(); scrubTo(frame-(e.shiftKey?100:10)); }
+  if (e.code==='ArrowRight'){ e.preventDefault(); scrubTo(frame+(e.shiftKey?100:10)); }
+  if (e.code==='Home')   scrubTo(0);
+  if (e.code==='End')    scrubTo(ticks.length-1);
+  if (e.code==='Escape' && showShortcutsModal) toggleShortcuts();
+  const spk = {'1':0.25,'2':0.5,'3':1,'4':2,'5':4};
+  if (spk[e.key]) {
+    speed=spk[e.key];
+    document.querySelectorAll('.speed-btn').forEach((b,i)=>b.classList.toggle('active',i===Object.keys(spk).indexOf(e.key)));
+    if(playing){stopPlay();startPlay();}
+  }
+});
+
+// ── RESIZE ───────────────────────────────────────────────
+const resizeObs = new ResizeObserver(()=>{ drawChart(); drawSpread(); });
+resizeObs.observe(document.getElementById('chart-wrap'));
+resizeObs.observe(document.getElementById('spread-wrap'));
+
+// show shortcuts btn
+document.getElementById('btn-shortcuts').style.display = 'flex';
+
+// ── THEME ────────────────────────────────────────────────
+function toggleTheme() {
+  const light = document.body.classList.toggle('light');
+  document.getElementById('theme-toggle').textContent = light ? '☀️' : '🌙';
+  localStorage.setItem('mdvr-theme', light ? 'light' : 'dark');
+  computeMarkers();
+  renderScrubberMarkers();
+  render();
+}
+if (localStorage.getItem('mdvr-theme') === 'light') {
+  document.body.classList.add('light');
+  document.getElementById('theme-toggle').textContent = '☀️';
+}
+
+// ── INIT ─────────────────────────────────────────────────
+renderScrubberMarkers();
+render();
+</script>
+</body>
+</html>

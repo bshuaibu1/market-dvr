@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import Navbar from '@/components/Navbar';
+import AudioIntro from '@/components/AudioIntro';
 import { generateReplayData, formatPrice, allAssetsList } from '@/lib/mockData';
 import { fetchTicks, fetchTickRange, fetchLatest, fetchAssetEvents } from '@/lib/api';
 import { motion } from 'framer-motion';
@@ -836,6 +837,7 @@ export default function ReplayPage() {
 
   return (
     <div className="min-h-screen bg-background pt-14">
+      <AudioIntro audioSrc="/audio/replaypageaudio.mp3" pageKey="replay" label="Replay" />
       <Navbar />
 
       <div className="flex flex-col lg:flex-row h-auto lg:h-[calc(100vh-56px)]">

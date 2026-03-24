@@ -6,15 +6,9 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useTheme } from '@/components/ThemeProvider';
 import { Clock, ChevronRight, AlertTriangle, TrendingUp, Activity, ShieldAlert } from 'lucide-react';
+import { ExpandableTabs } from '@/components/ui/expandable-tabs';
+import AudioIntro from '@/components/AudioIntro';
 
-const filters = [
-  { label: 'All', type: null, color: null },
-  { label: 'Crash', type: 'crash', color: '#ff453a' },
-  { label: 'Pump', type: 'pump', color: '#32d74b' },
-  { label: 'Spread Spike', type: 'spread', color: '#ffd60a' },
-  { label: 'Confidence Drop', type: 'confidence', color: '#bf5af2' },
-  { label: 'Divergence', type: 'divergence', color: '#6e6ef5' },
-];
 
 const typeConfig: Record<string, { color: string; label: string; borderColor: string; icon: any }> = {
   crash: { color: '#ff453a', label: 'CRASH', borderColor: '#ff453a', icon: AlertTriangle },
@@ -391,7 +385,7 @@ function mapApiEvent(event: ApiEvent): EnrichedMarketEvent {
 
   return {
     id: event.id,
-    type,
+    type: type as 'crash' | 'pump' | 'spread' | 'confidence',
     asset: event.asset,
     description,
     timestamp: formatTimestamp(event.created_at),
@@ -638,6 +632,7 @@ export default function EventsPage() {
 
   return (
     <div className="min-h-screen bg-background pt-14" style={{ paddingBottom: 80 }}>
+      <AudioIntro audioSrc="/audio/eventpageaudio.mp3" pageKey="events" label="Events" />
       <Navbar />
 
       <div className="max-w-5xl mx-auto px-4 md:px-6 py-8">
@@ -886,34 +881,29 @@ export default function EventsPage() {
           </div>
         </motion.div>
 
-        <div className="flex items-center gap-2 mb-6 overflow-x-auto scrollbar-hide pb-1">
-          {filters.map((f) => {
-            const isActive = activeFilter === f.type;
-            return (
-              <button
-                key={f.label}
-                onClick={() => setActiveFilter(f.type)}
-                className="flex items-center gap-1.5 flex-shrink-0 whitespace-nowrap"
-                style={{
-                  height: 32,
-                  padding: '0 16px',
-                  borderRadius: 100,
-                  fontSize: 12,
-                  letterSpacing: '0.05em',
-                  fontWeight: 500,
-                  background: isActive ? 'rgba(230,0,122,0.12)' : 'transparent',
-                  border: isActive
-                    ? '1px solid rgba(230,0,122,0.4)'
-                    : `1px solid ${L ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.08)'}`,
-                  color: isActive ? '#e6007a' : L ? 'rgba(0,0,0,0.4)' : 'rgba(255,255,255,0.5)',
-                  transition: 'all 0.15s ease',
-                }}
-              >
-                {f.color && <span className="inline-block w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: f.color }} />}
-                {f.label}
-              </button>
-            );
-          })}
+        <div className="mb-6">
+          <ExpandableTabs
+            tabs={[
+              { title: 'All', icon: Activity },
+              { type: 'separator' },
+              { title: 'Crash', icon: AlertTriangle },
+              { title: 'Pump', icon: TrendingUp },
+              { type: 'separator' },
+              { title: 'Spread Spike', icon: Activity },
+              { title: 'Confidence Drop', icon: ShieldAlert },
+            ]}
+            activeColor="text-primary"
+            onChange={(index) => {
+              const map: Record<number, string | null> = {
+                0: null,
+                2: 'crash',
+                3: 'pump',
+                5: 'spread',
+                6: 'confidence',
+              };
+              setActiveFilter(index !== null && index in map ? map[index] : null);
+            }}
+          />
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">

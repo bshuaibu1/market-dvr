@@ -1,0 +1,1214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Market DVR — Preview</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@200;300;400;500;600&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet" />
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #0d0d0d;
+  --fg: #f5f5f7;
+  --muted: rgba(255,255,255,0.38);
+  --border: rgba(255,255,255,0.08);
+  --accent: #e6007a;
+  --green: #32d74b;
+  --red: #ff453a;
+  --surface: rgba(255,255,255,0.025);
+  --surface2: rgba(255,255,255,0.018);
+  --inner-glow: inset 0 1px 0 rgba(255,255,255,0.06);
+  --nav-bg: rgba(13,13,13,0.82);
+  --nav-shadow: inset 0 -1px 0 rgba(255,255,255,0.03);
+  --dim: rgba(255,255,255,0.28);
+  --stat-label: rgba(255,255,255,0.25);
+  --section-label: rgba(255,255,255,0.25);
+  --card-tag-dim: rgba(255,255,255,0.25);
+  --ticker-sep: rgba(255,255,255,0.1);
+  --dvr-bg: rgba(255,255,255,0.025);
+  --dvr-border: rgba(255,255,255,0.09);
+  --dvr-inner: inset 0 1px 0 rgba(255,255,255,0.07);
+  --dvr-live-text: rgba(255,255,255,0.35);
+  --dvr-ts: rgba(255,255,255,0.22);
+  --dvr-btn-bg: rgba(255,255,255,0.07);
+  --dvr-btn-hover: rgba(255,255,255,0.12);
+  --dvr-btn-icon: rgba(255,255,255,0.45);
+  --dvr-play-bg: rgba(255,255,255,0.1);
+  --dvr-play-icon: #fff;
+  --scrubber-bg: rgba(255,255,255,0.07);
+  --inspector-bg: rgba(0,0,0,0.28);
+  --inspector-border: rgba(255,255,255,0.05);
+  --inspector-val: rgba(255,255,255,0.65);
+  --marquee-bg: rgba(255,255,255,0.012);
+  --video-grad: rgba(13,13,13,0.94), rgba(13,13,13,0.72), rgba(13,13,13,0.35);
+  --video-grad2: rgba(13,13,13,0.5), rgba(13,13,13,0.85);
+  --badge-inner: inset 0 1px 0 rgba(255,255,255,0.06);
+  --cta-sec-inner: inset 0 1px 0 rgba(255,255,255,0.04);
+  --cta-sec-hover-border: rgba(255,255,255,0.16);
+  --card-hover-border: rgba(255,255,255,0.14);
+}
+
+body.light {
+  --bg: #f2f2f7;
+  --fg: #111111;
+  --muted: rgba(0,0,0,0.45);
+  --border: rgba(0,0,0,0.08);
+  --green: #1a8f35;
+  --red: #cc2200;
+  --surface: rgba(255,255,255,0.9);
+  --surface2: rgba(255,255,255,0.8);
+  --inner-glow: inset 0 1px 0 rgba(0,0,0,0.04);
+  --nav-bg: rgba(242,242,247,0.88);
+  --nav-shadow: inset 0 -1px 0 rgba(0,0,0,0.04);
+  --dim: rgba(0,0,0,0.28);
+  --stat-label: rgba(0,0,0,0.3);
+  --section-label: rgba(0,0,0,0.3);
+  --card-tag-dim: rgba(0,0,0,0.3);
+  --ticker-sep: rgba(0,0,0,0.12);
+  --dvr-bg: rgba(255,255,255,0.95);
+  --dvr-border: rgba(0,0,0,0.1);
+  --dvr-inner: inset 0 1px 0 rgba(255,255,255,0.8);
+  --dvr-live-text: rgba(0,0,0,0.35);
+  --dvr-ts: rgba(0,0,0,0.28);
+  --dvr-btn-bg: rgba(0,0,0,0.06);
+  --dvr-btn-hover: rgba(0,0,0,0.1);
+  --dvr-btn-icon: rgba(0,0,0,0.45);
+  --dvr-play-bg: rgba(0,0,0,0.08);
+  --dvr-play-icon: #111;
+  --scrubber-bg: rgba(0,0,0,0.08);
+  --inspector-bg: rgba(0,0,0,0.04);
+  --inspector-border: rgba(0,0,0,0.06);
+  --inspector-val: rgba(0,0,0,0.65);
+  --marquee-bg: rgba(0,0,0,0.02);
+  --badge-inner: inset 0 1px 0 rgba(0,0,0,0.04);
+  --cta-sec-inner: inset 0 1px 0 rgba(0,0,0,0.02);
+  --cta-sec-hover-border: rgba(0,0,0,0.2);
+  --card-hover-border: rgba(0,0,0,0.14);
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'Outfit', -apple-system, sans-serif;
+  font-weight: 300;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  transition: background 0.3s, color 0.3s;
+}
+
+/* ── KEYFRAMES ──────────────────────────────── */
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.28} }
+@keyframes marquee { from{transform:translateX(0)} to{transform:translateX(-50%)} }
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes playhead { from{left:4%} to{left:88%} }
+@keyframes progress { from{width:4%} to{width:88%} }
+@keyframes priceFlicker { 0%,100%{opacity:1} 48%{opacity:0.88} 50%{opacity:1} }
+@keyframes drawLine {
+  from { stroke-dashoffset: 800; }
+  to   { stroke-dashoffset: 0; }
+}
+@keyframes msCount {
+  0%   { content: "14:23:07.000"; }
+  10%  { content: "14:23:07.098"; }
+  20%  { content: "14:23:07.213"; }
+  30%  { content: "14:23:07.341"; }
+  40%  { content: "14:23:07.467"; }
+  50%  { content: "14:23:07.512"; }
+  60%  { content: "14:23:07.638"; }
+  70%  { content: "14:23:07.754"; }
+  80%  { content: "14:23:07.871"; }
+  90%  { content: "14:23:07.936"; }
+  100% { content: "14:23:07.999"; }
+}
+@keyframes float {
+  0%,100% { transform: translateY(0); }
+  50%      { transform: translateY(-6px); }
+}
+
+/* ── NAV ──────────────────────────────────── */
+nav {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 40px;
+  background: var(--nav-bg);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border-bottom: 1px solid var(--border);
+  box-shadow: var(--nav-shadow);
+  transition: background 0.3s, border-color 0.3s;
+}
+.nav-logo { display: flex; align-items: center; gap: 10px; }
+.nav-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--accent);
+  animation: pulse 1.4s ease-in-out infinite;
+}
+.nav-name { font-size: 15px; font-weight: 500; letter-spacing: -0.02em; color: var(--fg); }
+.nav-links { display: flex; align-items: center; gap: 28px; }
+.nav-link { font-size: 14px; color: var(--muted); text-decoration: none; letter-spacing: -0.01em; transition: color 0.2s; }
+.nav-link:hover { color: var(--fg); }
+.nav-cta {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 8px 18px; border-radius: 99px;
+  background: var(--accent); color: #fff;
+  font-size: 14px; font-weight: 500; text-decoration: none;
+  letter-spacing: -0.01em;
+  box-shadow: 0 2px 16px rgba(230,0,122,0.3);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.nav-cta:hover { transform: scale(1.03) translateY(-1px); box-shadow: 0 4px 24px rgba(230,0,122,0.4); }
+.nav-cta-dot { width: 6px; height: 6px; border-radius: 50%; background: #fff; animation: pulse 1.2s ease-in-out infinite; }
+
+/* ── EXPANDABLE TAB NAV ───────────────────── */
+.exp-tabs {
+  display: flex; align-items: center; gap: 4px;
+  background: var(--dvr-btn-bg);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 4px;
+  box-shadow: var(--inner-glow);
+}
+.exp-tab {
+  display: inline-flex; align-items: center; gap: 0;
+  padding: 6px 8px; border-radius: 12px;
+  border: none; background: transparent;
+  color: var(--muted); cursor: pointer;
+  font-size: 13px; font-weight: 500;
+  font-family: 'Outfit', sans-serif;
+  transition: background 0.2s, color 0.2s, gap 0.3s, padding 0.3s;
+  white-space: nowrap; overflow: hidden;
+}
+.exp-tab:hover { background: var(--dvr-btn-hover); color: var(--fg); }
+.exp-tab.active {
+  background: var(--dvr-btn-hover);
+  color: var(--fg);
+  gap: 7px;
+  padding: 6px 12px;
+}
+.exp-label {
+  display: inline-block;
+  max-width: 0; overflow: hidden; opacity: 0;
+  transition: max-width 0.35s cubic-bezier(0.16,1,0.3,1), opacity 0.25s;
+}
+.exp-tab.active .exp-label { max-width: 80px; opacity: 1; }
+.exp-sep { width: 1px; height: 20px; background: var(--border); margin: 0 2px; flex-shrink: 0; }
+
+/* ── HERO ─────────────────────────────────── */
+.hero {
+  min-height: 100dvh;
+  display: grid;
+  grid-template-columns: 55fr 45fr;
+  padding-top: 80px;
+  position: relative;
+}
+.hero-left, .hero-right { position: relative; z-index: 1; }
+@media (max-width: 1024px) {
+  .hero { grid-template-columns: 1fr; }
+  .hero-right { display: none; }
+  nav { padding: 16px 24px; }
+  .nav-links .nav-link { display: none; }
+}
+
+.hero-left {
+  display: flex; flex-direction: column; justify-content: center;
+  padding: 64px 80px 64px 80px;
+}
+@media (max-width: 1200px) { .hero-left { padding: 64px 48px; } }
+@media (max-width: 768px)  { .hero-left { padding: 64px 24px; } }
+
+.badge {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 6px 14px; border-radius: 99px;
+  background: rgba(230,0,122,0.1);
+  border: 1px solid rgba(230,0,122,0.22);
+  box-shadow: var(--badge-inner);
+  margin-bottom: 24px; align-self: flex-start;
+  animation: fadeUp 0.35s ease both;
+}
+.badge-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); animation: pulse 1.2s ease-in-out infinite; }
+.badge-text { font-size: 10px; letter-spacing: 0.1em; color: rgba(230,0,122,0.88); text-transform: uppercase; font-weight: 500; }
+
+h1 {
+  font-size: clamp(32px, 4.2vw, 62px);
+  font-weight: 300;
+  line-height: 1.05;
+  letter-spacing: -0.03em;
+  margin-bottom: 20px;
+  animation: fadeUp 0.45s 0.05s ease both;
+}
+h1 .dim { color: var(--dim); font-weight: 200; }
+
+.hero-body {
+  font-size: 15px;
+  line-height: 1.75;
+  letter-spacing: -0.01em;
+  color: var(--muted);
+  max-width: 44ch;
+  margin-bottom: 32px;
+  animation: fadeUp 0.45s 0.1s ease both;
+}
+
+.ctas {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  animation: fadeUp 0.45s 0.15s ease both;
+}
+.cta-primary {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 14px 26px; border-radius: 14px;
+  background: var(--accent); color: #fff;
+  font-size: 14px; font-weight: 500; text-decoration: none;
+  letter-spacing: -0.01em;
+  box-shadow: 0 6px 28px rgba(230,0,122,0.28);
+  transition: transform 0.2s, box-shadow 0.2s;
+  font-family: 'Outfit', sans-serif;
+}
+.cta-primary:hover { transform: scale(1.03) translateY(-1px); box-shadow: 0 8px 36px rgba(230,0,122,0.38); }
+.cta-primary-dot { width: 6px; height: 6px; border-radius: 50%; background: #fff; animation: pulse 1.2s ease-in-out infinite; }
+.cta-secondary {
+  display: inline-flex; align-items: center;
+  padding: 14px 26px; border-radius: 14px;
+  border: 1px solid var(--border);
+  color: var(--muted); font-size: 14px; text-decoration: none;
+  letter-spacing: -0.01em;
+  box-shadow: var(--cta-sec-inner);
+  transition: transform 0.2s, border-color 0.2s, color 0.2s;
+  font-family: 'Outfit', sans-serif;
+}
+.cta-secondary:hover { transform: translateY(-1px); border-color: var(--cta-sec-hover-border); color: var(--fg); }
+
+.hero-stats {
+  margin-top: 40px;
+  padding-top: 28px;
+  border-top: 1px solid var(--border);
+  display: flex; gap: 40px; flex-wrap: wrap;
+  animation: fadeUp 0.45s 0.25s ease both;
+}
+.stat-label { font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--stat-label); margin-bottom: 6px; }
+.stat-value { font-size: 22px; font-weight: 300; letter-spacing: -0.02em; color: var(--fg); }
+
+/* ── VIDEO BG ─────────────────────────────── */
+.hero-video-bg {
+  position: absolute; inset: 0; z-index: 0;
+  overflow: hidden;
+}
+.hero-video-bg video {
+  width: 100%; height: 100%;
+  object-fit: cover;
+  object-position: center 40%;
+  opacity: 0.5;
+}
+.hero-video-bg::after {
+  content: '';
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(ellipse at 50% 50%, transparent 30%, rgba(13,13,13,0.75) 100%),
+    linear-gradient(to right, rgba(13,13,13,0.92) 0%, rgba(13,13,13,0.3) 30%, rgba(13,13,13,0.3) 70%, rgba(13,13,13,0.92) 100%),
+    linear-gradient(to bottom, rgba(13,13,13,0.6) 0%, transparent 20%, transparent 72%, rgba(13,13,13,0.95) 100%);
+}
+body.light .hero-video-bg::after {
+  background:
+    radial-gradient(ellipse at 50% 50%, transparent 30%, rgba(242,242,247,0.65) 100%),
+    linear-gradient(to right, rgba(242,242,247,0.88) 0%, rgba(242,242,247,0.2) 30%, rgba(242,242,247,0.2) 70%, rgba(242,242,247,0.88) 100%),
+    linear-gradient(to bottom, rgba(242,242,247,0.5) 0%, transparent 20%, transparent 72%, rgba(242,242,247,0.92) 100%);
+}
+body.light .hero-video-bg video { opacity: 0.65; }
+
+/* ── DVR PANEL ────────────────────────────── */
+.hero-right {
+  display: flex; align-items: center; justify-content: center;
+  padding: 64px 56px 64px 24px;
+  position: relative;
+}
+.hero-right::before {
+  content: '';
+  position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(ellipse at 60% 50%, rgba(230,0,122,0.07) 0%, transparent 70%);
+}
+.dvr-panel {
+  width: 100%; max-width: 400px;
+  aspect-ratio: 1 / 1.05;
+  display: flex; flex-direction: column;
+  background: var(--dvr-bg);
+  border: 1px solid var(--dvr-border);
+  box-shadow: var(--dvr-inner), 0 32px 64px rgba(0,0,0,0.15);
+  border-radius: 28px;
+  overflow: hidden;
+  transition: background 0.3s, border-color 0.3s;
+  animation: fadeUp 0.9s 0.45s ease both, float 6s 1.4s ease-in-out infinite;
+}
+.dvr-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 20px 22px 0;
+}
+.dvr-live { display: flex; align-items: center; gap: 8px; }
+.dvr-live-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); animation: pulse 1.2s ease-in-out infinite; }
+.dvr-live-text { font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--dvr-live-text); }
+.dvr-ts { font-size: 11px; font-family: 'JetBrains Mono', monospace; color: var(--dvr-ts); }
+
+.dvr-price-block { padding: 12px 22px 8px; }
+.dvr-price {
+  font-size: 34px; font-weight: 300; letter-spacing: -0.03em;
+  color: var(--fg);
+  animation: priceFlicker 3s ease-in-out infinite;
+}
+.dvr-sub { font-size: 12px; font-family: 'JetBrains Mono', monospace; color: var(--green); margin-top: 3px; }
+
+.dvr-chart { flex: 1; padding: 0 10px; overflow: hidden; min-height: 0; }
+.dvr-chart svg { width: 100%; height: 100%; }
+
+.dvr-controls { padding: 10px 22px 22px; }
+.scrubber-track {
+  position: relative; height: 3px; border-radius: 99px;
+  background: var(--scrubber-bg); margin-bottom: 18px;
+}
+.scrubber-fill {
+  position: absolute; left: 0; top: 0; height: 100%; border-radius: 99px;
+  background: rgba(230,0,122,0.5);
+  animation: progress 18s linear infinite;
+}
+.scrubber-thumb {
+  position: absolute; width: 12px; height: 12px; border-radius: 50%;
+  background: #fff; top: 50%; transform: translateY(-50%);
+  box-shadow: 0 0 0 2px rgba(230,0,122,0.45);
+  animation: playhead 18s linear infinite;
+}
+.dvr-btns { display: flex; align-items: center; justify-content: center; gap: 12px; }
+.dvr-btn {
+  width: 28px; height: 28px; border-radius: 50%;
+  background: var(--dvr-btn-bg);
+  border: none; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: background 0.2s;
+}
+.dvr-btn:hover { background: var(--dvr-btn-hover); }
+.dvr-btn svg { width: 12px; height: 12px; fill: var(--dvr-btn-icon); }
+.dvr-play {
+  width: 36px; height: 36px;
+  background: var(--dvr-play-bg);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.08);
+}
+.dvr-play svg { width: 13px; height: 13px; fill: var(--dvr-play-icon); }
+.dvr-rec {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 7px 14px; border-radius: 99px;
+  background: rgba(230,0,122,0.12);
+  border: 1px solid rgba(230,0,122,0.28);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.05);
+  cursor: pointer; animation: pulse 1.4s ease-in-out infinite;
+}
+.dvr-rec-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); }
+.dvr-rec-text { font-size: 10px; color: var(--accent); letter-spacing: 0.08em; font-weight: 500; font-family: 'Outfit', sans-serif; }
+
+/* ── MARQUEE ──────────────────────────────── */
+.marquee-strip {
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  background: var(--marquee-bg);
+  overflow: hidden; padding: 14px 0;
+}
+.marquee-inner {
+  display: flex; gap: 48px; white-space: nowrap;
+  animation: marquee 35s linear infinite;
+  width: max-content;
+}
+.ticker-item { display: inline-flex; align-items: center; gap: 10px; flex-shrink: 0; }
+.ticker-sym { font-size: 11px; font-weight: 500; letter-spacing: 0.06em; color: var(--muted); }
+.ticker-price { font-size: 11px; font-family: 'JetBrains Mono', monospace; color: var(--muted); }
+.ticker-chg { font-size: 10px; }
+.ticker-chg.up { color: var(--green); }
+.ticker-chg.dn { color: var(--red); }
+.ticker-sep { color: var(--ticker-sep); font-size: 10px; }
+
+/* ── FEATURES ─────────────────────────────── */
+.features { max-width: 1400px; margin: 0 auto; padding: 112px 48px; }
+@media (max-width: 768px) { .features { padding: 80px 24px; } }
+
+.section-label { font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--section-label); margin-bottom: 10px; }
+.section-h2 { font-size: clamp(26px, 3.5vw, 48px); font-weight: 300; letter-spacing: -0.02em; line-height: 1.1; max-width: 22ch; margin-bottom: 56px; color: var(--fg); }
+
+.bento {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: auto auto;
+  gap: 16px;
+}
+@media (max-width: 900px) { .bento { grid-template-columns: 1fr; } }
+
+.card {
+  border-radius: 32px;
+  border: 1px solid var(--border);
+  box-shadow: var(--inner-glow);
+  padding: 36px;
+  transition: border-color 0.3s, box-shadow 0.3s, background 0.3s;
+}
+.card:hover { border-color: var(--card-hover-border); }
+body.light .card {
+  box-shadow: 0 2px 16px rgba(0,0,0,0.06), 0 1px 4px rgba(0,0,0,0.04);
+}
+body.light .card:hover {
+  box-shadow: 0 4px 24px rgba(0,0,0,0.1), 0 1px 4px rgba(0,0,0,0.05);
+}
+
+.card-lg { grid-column: span 2; background: var(--surface); }
+.card-tall { grid-row: span 2; background: var(--surface2); display: flex; flex-direction: column; }
+.card-sm { background: var(--surface2); }
+
+.card-tag { font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(230,0,122,0.7); margin-bottom: 14px; }
+.card-tag-dim { font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--card-tag-dim); margin-bottom: 14px; }
+.card h3 { font-size: clamp(18px, 2.2vw, 26px); font-weight: 300; letter-spacing: -0.02em; line-height: 1.2; margin-bottom: 12px; color: var(--fg); }
+.card p { font-size: 13.5px; line-height: 1.75; color: var(--muted); }
+
+.wave-deco {
+  margin-top: 36px; height: 48px; opacity: 0.22; pointer-events: none;
+}
+.wave-deco svg { width: 100%; height: 100%; }
+.wave-line {
+  stroke-dasharray: 800;
+  animation: drawLine 3s ease forwards;
+}
+
+.inspector-mock {
+  flex: 1; margin-top: 28px;
+  border-radius: 16px; padding: 16px;
+  background: var(--inspector-bg);
+  border: 1px solid var(--inspector-border);
+  overflow: hidden;
+}
+.inspector-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--inspector-border);
+}
+.inspector-row:last-child { border-bottom: none; }
+.inspector-lbl { font-size: 11px; letter-spacing: 0.03em; color: var(--muted); }
+.inspector-val { font-size: 11px; font-family: 'JetBrains Mono', monospace; color: var(--inspector-val); }
+
+/* ── EVENTS ───────────────────────────────── */
+.events-section {
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+}
+body.light .events-section { background: rgba(0,0,0,0.02); }
+.max-container { max-width: 1400px; margin: 0 auto; padding: 96px 48px; }
+@media (max-width: 768px) { .max-container { padding: 72px 24px; } }
+
+.events-header {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: 24px; flex-wrap: wrap; margin-bottom: 40px;
+}
+
+.events-filters { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.ef-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 7px 14px; border-radius: 99px; border: 1px solid var(--border);
+  background: transparent; color: var(--muted);
+  font-size: 12px; font-weight: 500; cursor: pointer;
+  font-family: 'Outfit', sans-serif; letter-spacing: 0.01em;
+  transition: all 0.2s;
+}
+.ef-btn:hover { border-color: var(--cta-sec-hover-border); color: var(--fg); }
+.ef-btn.ef-active { background: rgba(230,0,122,0.1); border-color: rgba(230,0,122,0.3); color: var(--accent); }
+.ef-icon { font-size: 10px; }
+.ef-crash { color: #ff453a; }
+.ef-pump  { color: #32d74b; }
+.ef-spread { color: #ffd60a; }
+.ef-conf  { color: #bf5af2; }
+.ef-sep { width: 1px; height: 20px; background: var(--border); margin: 0 2px; }
+
+.events-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+@media (max-width: 1100px) { .events-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 640px)  { .events-grid { grid-template-columns: 1fr; } }
+
+.ev-card {
+  border-radius: 24px; padding: 24px;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  box-shadow: var(--inner-glow);
+  display: flex; flex-direction: column; gap: 14px;
+  transition: border-color 0.25s, opacity 0.25s, transform 0.25s;
+}
+body.light .ev-card { box-shadow: 0 2px 12px rgba(0,0,0,0.05); }
+.ev-card:hover { border-color: var(--card-hover-border); transform: translateY(-2px); }
+.ev-card.hidden { display: none; }
+
+.ev-top { display: flex; align-items: center; gap: 8px; }
+.ev-badge {
+  font-size: 9px; font-weight: 600; letter-spacing: 0.1em;
+  padding: 3px 8px; border-radius: 99px;
+}
+.ev-badge-crash  { background: rgba(255,69,58,0.12);  color: #ff453a; border: 1px solid rgba(255,69,58,0.25); }
+.ev-badge-pump   { background: rgba(50,215,75,0.12);  color: #32d74b; border: 1px solid rgba(50,215,75,0.25); }
+.ev-badge-spread { background: rgba(255,214,10,0.12); color: #ffd60a; border: 1px solid rgba(255,214,10,0.25); }
+.ev-badge-conf   { background: rgba(191,90,242,0.12); color: #bf5af2; border: 1px solid rgba(191,90,242,0.25); }
+
+.ev-asset { font-size: 12px; font-weight: 500; color: var(--fg); letter-spacing: 0.04em; margin-left: auto; }
+.ev-sev { font-size: 9px; font-weight: 600; letter-spacing: 0.1em; padding: 2px 7px; border-radius: 4px; }
+.ev-sev-high { background: rgba(255,69,58,0.1);  color: #ff453a; }
+.ev-sev-med  { background: rgba(255,214,10,0.1); color: #ffd60a; }
+.ev-sev-low  { background: rgba(50,215,75,0.1);  color: #32d74b; }
+
+.ev-desc { font-size: 13px; line-height: 1.65; color: var(--muted); }
+
+.ev-spark { height: 36px; opacity: 0.7; }
+.ev-spark svg { width: 100%; height: 100%; }
+
+.ev-metrics { display: flex; gap: 16px; padding-top: 4px; border-top: 1px solid var(--border); }
+.ev-metric { display: flex; flex-direction: column; gap: 3px; }
+.ev-mlbl { font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+.ev-mval { font-size: 12px; font-family: 'JetBrains Mono', monospace; color: var(--fg); }
+.ev-pos { color: #32d74b; }
+.ev-neg { color: #ff453a; }
+
+.ev-foot { display: flex; align-items: center; justify-content: space-between; margin-top: auto; }
+.ev-ts { font-size: 10px; font-family: 'JetBrains Mono', monospace; color: var(--muted); }
+.ev-replay {
+  font-size: 11px; font-weight: 500; color: var(--accent);
+  text-decoration: none; letter-spacing: 0.02em;
+  transition: opacity 0.2s;
+}
+.ev-replay:hover { opacity: 0.7; }
+
+/* ── HOW IT WORKS ─────────────────────────── */
+.how { max-width: 1400px; margin: 0 auto; padding: 96px 48px; border-top: 1px solid var(--border); }
+@media (max-width: 768px) { .how { padding: 72px 24px; } }
+
+.how-grid { display: grid; grid-template-columns: 1fr 2fr; gap: 64px; align-items: start; }
+@media (max-width: 900px) { .how-grid { grid-template-columns: 1fr; gap: 40px; } }
+
+.how-left h2 { font-size: clamp(22px, 3vw, 42px); font-weight: 300; letter-spacing: -0.025em; line-height: 1.1; color: var(--fg); }
+.how-left h2 .dim { color: var(--dim); font-weight: 200; }
+
+.steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 40px; }
+@media (max-width: 600px) { .steps { grid-template-columns: 1fr; } }
+
+.step-num { font-size: 11px; font-family: 'JetBrains Mono', monospace; color: rgba(230,0,122,0.65); margin-bottom: 14px; letter-spacing: 0.04em; }
+.step-title { font-size: 20px; font-weight: 400; letter-spacing: -0.02em; margin-bottom: 8px; color: var(--fg); }
+.step-desc { font-size: 13px; line-height: 1.78; color: var(--muted); }
+
+/* ── CTA CLOSER ───────────────────────────── */
+.cta-section { max-width: 1400px; margin: 0 auto; padding: 96px 48px 112px; border-top: 1px solid var(--border); }
+@media (max-width: 768px) { .cta-section { padding: 72px 24px 96px; } }
+
+.cta-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 56px; align-items: center; }
+@media (max-width: 900px) { .cta-grid { grid-template-columns: 1fr; } }
+
+.cta-section h2 { font-size: clamp(32px, 5vw, 72px); font-weight: 300; letter-spacing: -0.03em; line-height: 1.0; color: var(--fg); }
+.cta-section h2 .dim { color: var(--dim); font-weight: 200; }
+.cta-stack { display: flex; flex-direction: column; gap: 12px; }
+.cta-btn-primary {
+  display: flex; align-items: center; justify-content: center;
+  padding: 16px 32px; border-radius: 14px;
+  background: var(--accent); color: #fff;
+  font-size: 14px; font-weight: 500; text-decoration: none;
+  box-shadow: 0 6px 28px rgba(230,0,122,0.25);
+  transition: transform 0.2s, box-shadow 0.2s;
+  font-family: 'Outfit', sans-serif; min-height: 52px;
+}
+.cta-btn-primary:hover { transform: translateY(-2px); box-shadow: 0 10px 36px rgba(230,0,122,0.35); }
+.cta-btn-secondary {
+  display: flex; align-items: center; justify-content: center;
+  padding: 16px 32px; border-radius: 14px;
+  border: 1px solid var(--border); color: var(--muted);
+  font-size: 14px; text-decoration: none;
+  transition: transform 0.2s, border-color 0.2s, color 0.2s;
+  font-family: 'Outfit', sans-serif; min-height: 52px;
+}
+.cta-btn-secondary:hover { transform: translateY(-1px); border-color: var(--cta-sec-hover-border); color: var(--fg); }
+
+/* ── FOOTER ───────────────────────────────── */
+footer {
+  border-top: 1px solid var(--border);
+  padding: 32px 48px;
+  display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;
+}
+@media (max-width: 768px) { footer { padding: 24px; } }
+.footer-logo { display: flex; align-items: center; gap: 8px; }
+.footer-copy { font-size: 12px; color: var(--muted); letter-spacing: -0.01em; }
+.footer-links { display: flex; gap: 20px; }
+.footer-links a { font-size: 12px; color: var(--muted); text-decoration: none; transition: color 0.2s; }
+.footer-links a:hover { color: var(--fg); }
+
+/* Animated word cycler */
+.word-cycler {
+  position: relative;
+  display: inline-flex;
+  overflow: hidden;
+  vertical-align: bottom;
+}
+.word-cycler .wc-word {
+  position: absolute;
+  left: 0;
+  color: var(--dim);
+  font-weight: 200;
+  white-space: nowrap;
+  will-change: transform, opacity;
+  transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.word-cycler .wc-word           { transform: translateY(100%); opacity: 0; }
+.word-cycler .wc-word.wc-below  { transform: translateY(100%); opacity: 0; transition: none; }
+.word-cycler .wc-word.wc-active { transform: translateY(0);    opacity: 1; }
+.word-cycler .wc-word.wc-exit   { transform: translateY(-100%); opacity: 0; }
+.word-cycler .wc-sizer {
+  visibility: hidden;
+  font-weight: 200;
+  pointer-events: none;
+}
+</style>
+</head>
+<body>
+
+<!-- ── NAV ──────────────────────────────────────── -->
+<nav>
+  <div class="nav-logo">
+    <div class="nav-dot"></div>
+    <span class="nav-name">Market DVR</span>
+  </div>
+  <div class="nav-links">
+    <!-- Expandable tab nav -->
+    <div class="exp-tabs" id="exp-tabs">
+      <button class="exp-tab" data-index="0" onclick="selectTab(0)">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9.5z"/><path d="M9 21V12h6v9"/></svg>
+        <span class="exp-label">Home</span>
+      </button>
+      <button class="exp-tab" data-index="1" onclick="selectTab(1)">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        <span class="exp-label">Live</span>
+      </button>
+      <button class="exp-tab" data-index="2" onclick="selectTab(2)">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg>
+        <span class="exp-label">Replay</span>
+      </button>
+      <div class="exp-sep"></div>
+      <button class="exp-tab" data-index="3" onclick="selectTab(3)">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></svg>
+        <span class="exp-label">Events</span>
+      </button>
+      <button class="exp-tab" data-index="4" onclick="selectTab(4)">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+        <span class="exp-label">Heatmap</span>
+      </button>
+    </div>
+
+    <button id="theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme" style="
+      width:34px;height:34px;border-radius:50%;border:none;cursor:pointer;
+      background:var(--dvr-btn-bg);color:var(--fg);
+      display:flex;align-items:center;justify-content:center;
+      transition:background 0.2s,color 0.2s;font-size:15px;
+    ">🌙</button>
+    <a href="#" class="nav-cta">
+      <span class="nav-cta-dot"></span>
+      Watch Live
+    </a>
+  </div>
+</nav>
+
+<!-- ── HERO ─────────────────────────────────────── -->
+<section class="hero">
+  <div class="hero-video-bg">
+    <video autoplay muted loop playsinline src="file:///C:/Users/BASHIR/Downloads/marketdvr.mp4"></video>
+  </div>
+  <div class="hero-left">
+    <div class="badge">
+      <div class="badge-dot"></div>
+      <span class="badge-text">Now recording mainnet</span>
+    </div>
+
+    <h1>Record every<br><span class="word-cycler" id="word-cycler">
+      <span class="wc-sizer">millisecond.</span>
+    </span></h1>
+
+    <p class="hero-body">
+      Flash crashes, spread spikes, liquidation cascades — they happen in milliseconds. By the time a candle forms, the event is already hidden. Market DVR captures every frame.
+    </p>
+
+    <div class="ctas">
+      <a href="#" class="cta-primary">
+        <span class="cta-primary-dot"></span>
+        Watch Live Markets
+      </a>
+      <a href="#" class="cta-secondary">Replay an Event</a>
+    </div>
+
+    <div class="hero-stats">
+      <div>
+        <div class="stat-label">Resolution</div>
+        <div class="stat-value">&lt; 50ms</div>
+      </div>
+      <div>
+        <div class="stat-label">Assets tracked</div>
+        <div class="stat-value">47</div>
+      </div>
+      <div>
+        <div class="stat-label">Events recorded</div>
+        <div class="stat-value">2.3M+</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="hero-right">
+    <div class="dvr-panel">
+      <!-- Header -->
+      <div class="dvr-header">
+        <div class="dvr-live">
+          <div class="dvr-live-dot"></div>
+          <span class="dvr-live-text">LIVE · BTC/USD</span>
+        </div>
+        <span class="dvr-ts">14:23:07.482</span>
+      </div>
+
+      <!-- Price -->
+      <div class="dvr-price-block">
+        <div class="dvr-price">$67,284.51</div>
+        <div class="dvr-sub">+2.31% · Spread $1.54 · Conf 99.2%</div>
+      </div>
+
+      <!-- Chart -->
+      <div class="dvr-chart">
+        <svg viewBox="0 0 360 80" preserveAspectRatio="none">
+          <defs>
+            <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="rgba(230,0,122,0.28)"/>
+              <stop offset="100%" stop-color="rgba(230,0,122,0)"/>
+            </linearGradient>
+          </defs>
+          <!-- event zone -->
+          <rect x="168" y="0" width="62" height="80" fill="rgba(230,0,122,0.05)"/>
+          <!-- area -->
+          <path d="M0 48 Q18 40 36 45 Q54 50 72 43 Q90 36 108 40 Q126 44 144 37 Q162 30 180 22 Q198 14 216 28 Q234 42 252 38 Q270 34 288 44 Q306 50 324 46 Q342 42 360 46 L360 80 L0 80 Z" fill="url(#g)"/>
+          <!-- line -->
+          <path class="wave-line" d="M0 48 Q18 40 36 45 Q54 50 72 43 Q90 36 108 40 Q126 44 144 37 Q162 30 180 22 Q198 14 216 28 Q234 42 252 38 Q270 34 288 44 Q306 50 324 46 Q342 42 360 46"
+            fill="none" stroke="rgba(230,0,122,0.78)" stroke-width="1.5"/>
+          <!-- playhead -->
+          <line id="ph" x1="265" y1="0" x2="265" y2="80" stroke="rgba(255,255,255,0.45)" stroke-width="1" stroke-dasharray="3 3"/>
+        </svg>
+      </div>
+
+      <!-- Controls -->
+      <div class="dvr-controls">
+        <div class="scrubber-track">
+          <div class="scrubber-fill"></div>
+          <div class="scrubber-thumb"></div>
+        </div>
+        <div class="dvr-btns">
+          <button class="dvr-btn">
+            <svg viewBox="0 0 12 12"><path d="M2 2h1.5v8H2zm1.5 4L10 8.5V3.5z"/></svg>
+          </button>
+          <button class="dvr-btn dvr-play">
+            <svg viewBox="0 0 12 12"><path d="M3 2.5l7 3.5-7 3.5z"/></svg>
+          </button>
+          <div class="dvr-rec">
+            <div class="dvr-rec-dot"></div>
+            <span class="dvr-rec-text">REC</span>
+          </div>
+          <button class="dvr-btn">
+            <svg viewBox="0 0 12 12"><path d="M8.5 2h1.5v8H8.5zm-1.5 4L2 3.5v5z"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── MARQUEE ───────────────────────────────────── -->
+<div class="marquee-strip">
+  <div class="marquee-inner">
+    <!-- set 1 -->
+    <div class="ticker-item"><span class="ticker-sym">BTC/USD</span><span class="ticker-price">$67,284.51</span><span class="ticker-chg up">+2.31%</span><span class="ticker-sep">·</span></div>
+    <div class="ticker-item"><span class="ticker-sym">ETH/USD</span><span class="ticker-price">$3,841.72</span><span class="ticker-chg dn">-0.87%</span><span class="ticker-sep">·</span></div>
+    <div class="ticker-item"><span class="ticker-sym">SOL/USD</span><span class="ticker-price">$189.43</span><span class="ticker-chg up">+5.14%</span><span class="ticker-sep">·</span></div>
+    <div class="ticker-item"><span class="ticker-sym">BNB/USD</span><span class="ticker-price">$524.18</span><span class="ticker-chg up">+0.93%</span><span class="ticker-sep">·</span></div>
+    <div class="ticker-item"><span class="ticker-sym">AVAX/USD</span><span class="ticker-price">$38.92</span><span class="ticker-chg dn">-1.24%</span><span class="ticker-sep">·</span></div>
+    <div class="ticker-item"><span class="ticker-sym">LINK/USD</span><span class="ticker-price">$14.87</span><span class="ticker-chg up">+3.47%</span><span class="ticker-sep">·</span></div>
+    <div class="ticker-item"><span class="ticker-sym">ARB/USD</span><span class="ticker-price">$1.23</span><span class="ticker-chg up">+7.81%</span><span class="ticker-sep">·</span></div>
+    <div class="ticker-item"><span class="ticker-sym">OP/USD</span><span class="ticker-price">$2.94</span><span class="ticker-chg dn">-0.44%</span><span class="ticker-sep">·</span></div>
+    <!-- set 2 (duplicate for seamless loop) -->
+    <div class="ticker-item"><span class="ticker-sym">BTC/USD</span><span class="ticker-price">$67,284.51</span><span class="ticker-chg up">+2.31%</span><span class="ticker-sep">·</span></div>
+    <div class="ticker-item"><span class="ticker-sym">ETH/USD</span><span class="ticker-price">$3,841.72</span><span class="ticker-chg dn">-0.87%</span><span class="ticker-sep">·</span></div>
+    <div class="ticker-item"><span class="ticker-sym">SOL/USD</span><span class="ticker-price">$189.43</span><span class="ticker-chg up">+5.14%</span><span class="ticker-sep">·</span></div>
+    <div class="ticker-item"><span class="ticker-sym">BNB/USD</span><span class="ticker-price">$524.18</span><span class="ticker-chg up">+0.93%</span><span class="ticker-sep">·</span></div>
+    <div class="ticker-item"><span class="ticker-sym">AVAX/USD</span><span class="ticker-price">$38.92</span><span class="ticker-chg dn">-1.24%</span><span class="ticker-sep">·</span></div>
+    <div class="ticker-item"><span class="ticker-sym">LINK/USD</span><span class="ticker-price">$14.87</span><span class="ticker-chg up">+3.47%</span><span class="ticker-sep">·</span></div>
+    <div class="ticker-item"><span class="ticker-sym">ARB/USD</span><span class="ticker-price">$1.23</span><span class="ticker-chg up">+7.81%</span><span class="ticker-sep">·</span></div>
+    <div class="ticker-item"><span class="ticker-sym">OP/USD</span><span class="ticker-price">$2.94</span><span class="ticker-chg dn">-0.44%</span><span class="ticker-sep">·</span></div>
+  </div>
+</div>
+
+<!-- ── FEATURES BENTO ────────────────────────────── -->
+<section class="features">
+  <div class="section-label">Capabilities</div>
+  <h2 class="section-h2">Built for what happens between candles.</h2>
+
+  <div class="bento">
+    <!-- Large card: 2-col span -->
+    <div class="card card-lg">
+      <div class="card-tag">50ms resolution</div>
+      <h3>Sub-millisecond precision</h3>
+      <p>Record price, bid, ask, spread and confidence interval at sub-50ms frequency from Pyth Pro Lazer feeds. No candle chart can show you this.</p>
+      <div class="wave-deco">
+        <svg viewBox="0 0 400 48" preserveAspectRatio="none">
+          <path class="wave-line" d="M0 24 Q20 10 40 18 Q60 26 80 16 Q100 6 120 12 Q140 18 160 8 Q180 -2 200 12 Q220 26 240 18 Q260 10 280 20 Q300 30 320 18 Q340 6 360 14 Q380 22 400 18"
+            fill="none" stroke="rgba(230,0,122,0.9)" stroke-width="1.5"/>
+        </svg>
+      </div>
+    </div>
+
+    <!-- Tall card: 2-row span -->
+    <div class="card card-tall">
+      <div class="card-tag-dim">Frame inspector</div>
+      <h3>Pause at any moment</h3>
+      <p>Inspect every data point in that exact frame — price, spread, confidence, bid/ask depth.</p>
+      <div class="inspector-mock">
+        <div class="inspector-row"><span class="inspector-lbl">Price</span><span class="inspector-val">$67,284.51</span></div>
+        <div class="inspector-row"><span class="inspector-lbl">Bid</span><span class="inspector-val">$67,283.74</span></div>
+        <div class="inspector-row"><span class="inspector-lbl">Ask</span><span class="inspector-val">$67,285.28</span></div>
+        <div class="inspector-row"><span class="inspector-lbl">Spread</span><span class="inspector-val">$1.54</span></div>
+        <div class="inspector-row"><span class="inspector-lbl">Confidence</span><span class="inspector-val">99.2%</span></div>
+        <div class="inspector-row"><span class="inspector-lbl">Timestamp</span><span class="inspector-val">14:23:07.482</span></div>
+      </div>
+    </div>
+
+    <!-- Small card 1 -->
+    <div class="card card-sm">
+      <div class="card-tag-dim">Shareable links</div>
+      <h3>Share the moment</h3>
+      <p>Generate a link to any market event. Anyone can replay the exact millisecond — no account needed.</p>
+    </div>
+
+    <!-- Small card 2 -->
+    <div class="card card-sm">
+      <div class="card-tag-dim">Live capture</div>
+      <h3>Record as it happens</h3>
+      <p>Stream directly from Pyth Pro. Every tick stored with full microstructure data in real time.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ── RECENT EVENTS (removed from home, will be its own page) -->
+<section class="events-section" id="events" style="display:none">
+  <div class="max-container">
+    <div class="events-header">
+      <div>
+        <div class="section-label">Live feed</div>
+        <h2 class="section-h2" style="margin-bottom:0">Recent market events</h2>
+      </div>
+      <div class="events-filters" id="events-filters">
+        <button class="ef-btn ef-active" data-filter="all" onclick="filterEvents('all', this)">
+          <span class="ef-icon">⬡</span> All
+        </button>
+        <button class="ef-btn" data-filter="crash" onclick="filterEvents('crash', this)">
+          <span class="ef-icon ef-crash">▼</span> Crash
+        </button>
+        <button class="ef-btn" data-filter="pump" onclick="filterEvents('pump', this)">
+          <span class="ef-icon ef-pump">▲</span> Pump
+        </button>
+        <div class="ef-sep"></div>
+        <button class="ef-btn" data-filter="spread" onclick="filterEvents('spread', this)">
+          <span class="ef-icon ef-spread">↔</span> Spread Spike
+        </button>
+        <button class="ef-btn" data-filter="confidence" onclick="filterEvents('confidence', this)">
+          <span class="ef-icon ef-conf">◈</span> Confidence Drop
+        </button>
+      </div>
+    </div>
+
+    <div class="events-grid" id="events-grid">
+      <!-- crash -->
+      <div class="ev-card" data-type="crash">
+        <div class="ev-top">
+          <div class="ev-badge ev-badge-crash">▼ CRASH</div>
+          <div class="ev-asset">BTC/USD</div>
+          <div class="ev-sev ev-sev-high">HIGH</div>
+        </div>
+        <div class="ev-desc">Price dropped 4.71% during a sharp volatility window at sub-50ms resolution.</div>
+        <div class="ev-spark">
+          <svg viewBox="0 0 120 40" preserveAspectRatio="none">
+            <path d="M0 10 Q15 9 30 11 Q45 12 55 8 Q65 4 70 22 Q75 40 85 35 Q100 30 120 32" fill="none" stroke="#ff453a" stroke-width="1.5"/>
+          </svg>
+        </div>
+        <div class="ev-metrics">
+          <div class="ev-metric"><span class="ev-mlbl">PRICE MOVE</span><span class="ev-mval ev-neg">-4.71%</span></div>
+          <div class="ev-metric"><span class="ev-mlbl">DURATION</span><span class="ev-mval">847ms</span></div>
+          <div class="ev-metric"><span class="ev-mlbl">CONFIDENCE</span><span class="ev-mval">97.3%</span></div>
+        </div>
+        <div class="ev-foot">
+          <span class="ev-ts">14:23:07.482</span>
+          <a href="#" class="ev-replay">Replay →</a>
+        </div>
+      </div>
+
+      <!-- pump -->
+      <div class="ev-card" data-type="pump">
+        <div class="ev-top">
+          <div class="ev-badge ev-badge-pump">▲ PUMP</div>
+          <div class="ev-asset">SOL/USD</div>
+          <div class="ev-sev ev-sev-med">MED</div>
+        </div>
+        <div class="ev-desc">Price surged 6.23% during a sharp volatility window.</div>
+        <div class="ev-spark">
+          <svg viewBox="0 0 120 40" preserveAspectRatio="none">
+            <path d="M0 32 Q15 31 30 30 Q45 29 55 28 Q65 26 70 14 Q75 4 85 6 Q100 8 120 10" fill="none" stroke="#32d74b" stroke-width="1.5"/>
+          </svg>
+        </div>
+        <div class="ev-metrics">
+          <div class="ev-metric"><span class="ev-mlbl">PRICE MOVE</span><span class="ev-mval ev-pos">+6.23%</span></div>
+          <div class="ev-metric"><span class="ev-mlbl">DURATION</span><span class="ev-mval">1.2s</span></div>
+          <div class="ev-metric"><span class="ev-mlbl">CLOSE</span><span class="ev-mval">$193.41</span></div>
+        </div>
+        <div class="ev-foot">
+          <span class="ev-ts">13:51:44.109</span>
+          <a href="#" class="ev-replay">Replay →</a>
+        </div>
+      </div>
+
+      <!-- spread -->
+      <div class="ev-card" data-type="spread">
+        <div class="ev-top">
+          <div class="ev-badge ev-badge-spread">↔ SPREAD SPIKE</div>
+          <div class="ev-asset">ETH/USD</div>
+          <div class="ev-sev ev-sev-high">HIGH</div>
+        </div>
+        <div class="ev-desc">Bid/ask spread expanded 8.4× beyond normal baseline during liquidity withdrawal.</div>
+        <div class="ev-spark">
+          <svg viewBox="0 0 120 40" preserveAspectRatio="none">
+            <path d="M0 20 Q20 20 35 19 Q50 18 60 6 Q70 2 80 4 Q90 8 100 16 Q110 22 120 21" fill="none" stroke="#ffd60a" stroke-width="1.5"/>
+          </svg>
+        </div>
+        <div class="ev-metrics">
+          <div class="ev-metric"><span class="ev-mlbl">MAX SPREAD</span><span class="ev-mval">$14.82</span></div>
+          <div class="ev-metric"><span class="ev-mlbl">MULTIPLIER</span><span class="ev-mval">8.4×</span></div>
+          <div class="ev-metric"><span class="ev-mlbl">DURATION</span><span class="ev-mval">312ms</span></div>
+        </div>
+        <div class="ev-foot">
+          <span class="ev-ts">09:17:22.841</span>
+          <a href="#" class="ev-replay">Replay →</a>
+        </div>
+      </div>
+
+      <!-- crash -->
+      <div class="ev-card" data-type="crash">
+        <div class="ev-top">
+          <div class="ev-badge ev-badge-crash">▼ CRASH</div>
+          <div class="ev-asset">AVAX/USD</div>
+          <div class="ev-sev ev-sev-med">MED</div>
+        </div>
+        <div class="ev-desc">Price dropped 2.84% in a 623ms volatility window with spread widening.</div>
+        <div class="ev-spark">
+          <svg viewBox="0 0 120 40" preserveAspectRatio="none">
+            <path d="M0 8 Q20 9 40 10 Q55 11 65 18 Q75 28 85 33 Q100 36 120 34" fill="none" stroke="#ff453a" stroke-width="1.5"/>
+          </svg>
+        </div>
+        <div class="ev-metrics">
+          <div class="ev-metric"><span class="ev-mlbl">PRICE MOVE</span><span class="ev-mval ev-neg">-2.84%</span></div>
+          <div class="ev-metric"><span class="ev-mlbl">DURATION</span><span class="ev-mval">623ms</span></div>
+          <div class="ev-metric"><span class="ev-mlbl">CLOSE</span><span class="ev-mval">$37.21</span></div>
+        </div>
+        <div class="ev-foot">
+          <span class="ev-ts">11:04:58.317</span>
+          <a href="#" class="ev-replay">Replay →</a>
+        </div>
+      </div>
+
+      <!-- confidence -->
+      <div class="ev-card" data-type="confidence">
+        <div class="ev-top">
+          <div class="ev-badge ev-badge-conf">◈ CONFIDENCE DROP</div>
+          <div class="ev-asset">BNB/USD</div>
+          <div class="ev-sev ev-sev-low">LOW</div>
+        </div>
+        <div class="ev-desc">Confidence interval expanded materially, suggesting unusual feed disagreement.</div>
+        <div class="ev-spark">
+          <svg viewBox="0 0 120 40" preserveAspectRatio="none">
+            <path d="M0 20 Q15 18 30 22 Q45 26 55 14 Q65 4 75 10 Q85 18 100 20 Q110 21 120 20" fill="none" stroke="#bf5af2" stroke-width="1.5"/>
+          </svg>
+        </div>
+        <div class="ev-metrics">
+          <div class="ev-metric"><span class="ev-mlbl">DURATION</span><span class="ev-mval">489ms</span></div>
+          <div class="ev-metric"><span class="ev-mlbl">PRICE MOVE</span><span class="ev-mval ev-neg">-0.31%</span></div>
+          <div class="ev-metric"><span class="ev-mlbl">SIGNAL</span><span class="ev-mval">Feed mismatch</span></div>
+        </div>
+        <div class="ev-foot">
+          <span class="ev-ts">16:38:01.774</span>
+          <a href="#" class="ev-replay">Replay →</a>
+        </div>
+      </div>
+
+      <!-- pump -->
+      <div class="ev-card" data-type="pump">
+        <div class="ev-top">
+          <div class="ev-badge ev-badge-pump">▲ PUMP</div>
+          <div class="ev-asset">WIF/USD</div>
+          <div class="ev-sev ev-sev-high">HIGH</div>
+        </div>
+        <div class="ev-desc">Price surged 12.47% during a 934ms window, highest move in 24h session.</div>
+        <div class="ev-spark">
+          <svg viewBox="0 0 120 40" preserveAspectRatio="none">
+            <path d="M0 36 Q20 35 38 33 Q52 30 60 20 Q68 10 75 3 Q85 5 95 8 Q108 12 120 14" fill="none" stroke="#32d74b" stroke-width="1.5"/>
+          </svg>
+        </div>
+        <div class="ev-metrics">
+          <div class="ev-metric"><span class="ev-mlbl">PRICE MOVE</span><span class="ev-mval ev-pos">+12.47%</span></div>
+          <div class="ev-metric"><span class="ev-mlbl">DURATION</span><span class="ev-mval">934ms</span></div>
+          <div class="ev-metric"><span class="ev-mlbl">CLOSE</span><span class="ev-mval">$3.18</span></div>
+        </div>
+        <div class="ev-foot">
+          <span class="ev-ts">08:42:19.053</span>
+          <a href="#" class="ev-replay">Replay →</a>
+        </div>
+      </div>
+    </div>
+
+    <div style="text-align:center;margin-top:40px">
+      <a href="#" class="cta-secondary" style="display:inline-flex">Browse all events →</a>
+    </div>
+  </div>
+</section>
+
+<!-- ── HOW IT WORKS ──────────────────────────────── -->
+<section class="how">
+  <div class="how-grid">
+    <div class="how-left">
+      <div class="section-label">How it works</div>
+      <h2>Markets move<br>in milliseconds.<br><span class="dim">Now you can too.</span></h2>
+    </div>
+    <div class="steps">
+      <div>
+        <div class="step-num">01</div>
+        <div class="step-title">Connect</div>
+        <p class="step-desc">Pyth Pro streams live data at sub-50ms intervals directly from the Lazer network</p>
+      </div>
+      <div>
+        <div class="step-num">02</div>
+        <div class="step-title">Record</div>
+        <p class="step-desc">Every tick is captured with price, bid, ask, spread, and confidence interval</p>
+      </div>
+      <div>
+        <div class="step-num">03</div>
+        <div class="step-title">Replay</div>
+        <p class="step-desc">Scrub through any moment like rewinding a DVR. Share the exact frame with anyone</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── CTA CLOSER ────────────────────────────────── -->
+<section class="cta-section">
+  <div class="cta-grid">
+    <h2>
+      The crash happened<br>
+      <span class="dim">at 14:23:07.482.</span><br>
+      What triggered it?
+    </h2>
+    <div class="cta-stack">
+      <a href="#" class="cta-btn-primary">Start Recording</a>
+      <a href="#" class="cta-btn-secondary">Browse Recorded Events</a>
+    </div>
+  </div>
+</section>
+
+<!-- ── FOOTER ────────────────────────────────────── -->
+<footer>
+  <div class="footer-logo">
+    <div class="nav-dot"></div>
+    <span style="font-size:14px;font-weight:500;letter-spacing:-0.02em">Market DVR</span>
+  </div>
+  <div class="footer-links">
+    <a href="#">Live</a>
+    <a href="#">Replay</a>
+    <a href="#">Heatmap</a>
+  </div>
+  <span class="footer-copy">Built on Pyth Pro Lazer</span>
+</footer>
+
+<script>
+let activeTabIndex = null;
+function selectTab(index) {
+  const tabs = document.querySelectorAll('.exp-tab');
+  if (activeTabIndex === index) {
+    tabs[index].classList.remove('active');
+    activeTabIndex = null;
+  } else {
+    tabs.forEach(t => t.classList.remove('active'));
+    tabs[index].classList.add('active');
+    activeTabIndex = index;
+  }
+}
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('#exp-tabs') && activeTabIndex !== null) {
+    document.querySelectorAll('.exp-tab').forEach(t => t.classList.remove('active'));
+    activeTabIndex = null;
+  }
+});
+
+function filterEvents(type, btn) {
+  document.querySelectorAll('.ef-btn').forEach(b => b.classList.remove('ef-active'));
+  btn.classList.add('ef-active');
+  document.querySelectorAll('.ev-card').forEach(card => {
+    const show = type === 'all' || card.dataset.type === type;
+    card.classList.toggle('hidden', !show);
+  });
+}
+
+function toggleTheme() {
+  const isLight = document.body.classList.toggle('light');
+  document.getElementById('theme-toggle').textContent = isLight ? '☀️' : '🌙';
+  localStorage.setItem('theme', isLight ? 'light' : 'dark');
+}
+// Restore saved preference
+if (localStorage.getItem('theme') === 'light') {
+  document.body.classList.add('light');
+  document.getElementById('theme-toggle').textContent = '☀️';
+}
+
+// Word cycler
+(function() {
+  const words = ['millisecond.', 'crash.', 'pump.', 'spike.', 'tick.', 'moment.'];
+  const container = document.getElementById('word-cycler');
+  let current = 0;
+
+  // Build word spans — all hidden below except first
+  const spans = words.map((w, i) => {
+    const s = document.createElement('span');
+    s.className = 'wc-word ' + (i === 0 ? 'wc-active' : 'wc-below');
+    s.textContent = w;
+    container.appendChild(s);
+    return s;
+  });
+
+  function cycle() {
+    const prev = current;
+    current = (current + 1) % words.length;
+
+    // Slide current word up and out
+    spans[prev].classList.remove('wc-active');
+    spans[prev].classList.add('wc-exit');
+
+    // Next word starts below (already has wc-below), force reflow, then activate
+    spans[current].classList.remove('wc-below');
+    spans[current].getBoundingClientRect(); // force reflow
+    spans[current].classList.add('wc-active');
+
+    // After exit transition, reset to below for reuse
+    const exiting = spans[prev];
+    exiting.addEventListener('transitionend', () => {
+      exiting.classList.remove('wc-exit');
+      exiting.classList.add('wc-below');
+    }, { once: true });
+  }
+
+  setInterval(cycle, 1600);
+})();
+</script>
+</body>
+</html>

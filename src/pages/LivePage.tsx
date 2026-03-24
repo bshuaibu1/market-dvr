@@ -11,6 +11,7 @@ import { motion } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTheme } from '@/components/ThemeProvider';
 import { useIsMobile } from '@/hooks/use-mobile';
+import AudioIntro from '@/components/AudioIntro';
 
 interface LatestApiAsset {
   asset: string;
@@ -571,6 +572,7 @@ export default function LivePage() {
 
   return (
     <div className="min-h-screen bg-background pt-14 pb-16 max-md:pb-[calc(64px+52px)]">
+      <AudioIntro audioSrc="/audio/livepageaudio.mp3" pageKey="live" label="Live Markets" />
       <Navbar />
 
       <div className="max-w-6xl mx-auto px-4 md:px-6 py-8">
